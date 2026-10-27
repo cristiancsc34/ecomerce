@@ -3,102 +3,81 @@ import { expect, test, type Page } from "@playwright/test";
 const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1280) < 1024;
 
 test.describe("vitrine em modo demonstração", () => {
-  test("home: slogan, CTAs e aviso de demonstração", async ({ page }) => {
+  test("home: abre direto nos produtos, sem página de apresentação", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Seu melhor descanso começa aqui.");
-    await expect(page.getByText("Ambiente de demonstração.")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Encontrar meu colchão" }).first()).toHaveAttribute("href", "/guia");
-    await expect(page.getByRole("link", { name: "Conhecer os produtos" }).first()).toHaveAttribute("href", "/produtos");
-    await expect(page.getByText("Imagem ilustrativa").first()).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Produtos" })).toBeVisible();
+    await expect(page.locator("article h3")).toHaveText(["Poltrona Azul Estrutura Clara", "Cadeira Cinza Trama"]);
+    await expect(page.getByRole("status").filter({ hasText: "produtos" })).toHaveText("2 produtos");
+    // Só a poltrona já tem 3D.
+    await expect(page.locator("article").filter({ hasText: "3D" })).toHaveCount(1);
+    // Nada de faixa de demonstração, guia ou comparador.
+    await expect(page.getByText("Ambiente de demonstração.")).toHaveCount(0);
+    await expect(page.locator('a[href="/guia"], a[href="/comparar"]')).toHaveCount(0);
   });
 
-  test("catálogo: filtro reflete na URL, ordena e mostra estado vazio", async ({ page }) => {
-    await page.goto("/produtos");
-    await expect(page.getByRole("status").filter({ hasText: "produtos encontrados" })).toHaveText("4 produtos encontrados");
-
-    if (isMobile(page)) await page.getByText("Filtrar e ordenar").click();
-    const panel = isMobile(page) ? page.locator("details") : page.getByRole("complementary", { name: "Filtros" });
-    // King existe no Brisa e no Sereno (não no Nuvem).
-    await panel.getByLabel(/^King/).check();
-    await expect(page).toHaveURL(/tamanho=king/);
-    await expect(page.getByRole("status").filter({ hasText: "encontrados" })).toHaveText("2 produtos encontrados");
-
-    await page.goto("/produtos?ordem=menor-preco");
-    const names = await page.locator("article h3").allTextContents();
-    // Sem preço definido vai para o fim.
-    expect(names).toEqual(["Nuvem Essencial", "Brisa Premium", "Sereno Híbrido", "Poltrona Azul Estrutura Clara"]);
-
-    await page.goto("/produtos?tamanho=solteiro&firmeza=firme");
-    await expect(page.getByRole("heading", { name: "Nenhum produto com esses filtros" })).toBeVisible();
-    await page.getByRole("link", { name: "Limpar filtros" }).click();
-    await expect(page).toHaveURL(/\/produtos$/);
-  });
-
-  test("poltrona (prévia): fotos de catálogo, 3D e sem preço inventado", async ({ page }) => {
-    await page.goto("/categorias/cadeiras");
-    await page.getByRole("link", { name: /Poltrona Azul Estrutura Clara/ }).first().click();
+  test("produto sem preço: nada inventado e o destaque vai para o 3D", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "Poltrona Azul Estrutura Clara" }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Poltrona Azul Estrutura Clara" })).toBeVisible();
+    await expect(page.getByTestId("preco-atual")).toHaveText("Preço em breve");
     await expect(page.getByText("Cena recriada a partir das fotos reais").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Preço em definição" }).first()).toBeDisabled();
-    await expect(page.getByRole("region", { name: "Ver em 3D" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Comprar agora" })).toHaveCount(0);
+    const to3d = isMobile(page) ? page.getByRole("link", { name: "Girar em 3D" }) : page.getByRole("link", { name: "Ver em 3D" });
+    await to3d.click();
+    await expect(page).toHaveURL(/#visualizador-3d$/);
+    await expect(page.getByRole("region", { name: "Ver em 3D" })).toBeInViewport();
   });
 
-  test("busca sem acento e estado vazio", async ({ page }) => {
-    await page.goto("/busca?q=hibrido");
-    await expect(page.locator("article h3")).toHaveText(["Sereno Híbrido"]);
+  test("produto sem preço e sem 3D não mostra barra de compra vazia", async ({ page }) => {
+    await page.goto("/produtos/cadeira-cinza-trama");
+    await expect(page.getByRole("heading", { level: 1, name: "Cadeira Cinza Trama" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Ver em 3D" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /3D/ })).toHaveCount(0);
+    // "Você também pode gostar" leva à poltrona.
+    await page.getByRole("region", { name: "Você também pode gostar" }).getByRole("link", { name: "Poltrona Azul Estrutura Clara" }).click();
+    await expect(page).toHaveURL(/\/produtos\/poltrona-azul$/);
+  });
+
+  test("busca pelo cabeçalho, sem acento, e estado vazio", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("searchbox", { name: "Buscar produtos" }).fill("azul");
+    await page.getByRole("button", { name: "Buscar", exact: true }).click();
+    await expect(page).toHaveURL(/\/busca\?q=azul/);
+    await expect(page.locator("article h3:visible")).toHaveText(["Poltrona Azul Estrutura Clara"]);
+    await page.goto("/busca?q=cadeira");
+    await expect(page.locator("article h3:visible").first()).toHaveText("Cadeira Cinza Trama");
     await page.goto("/busca?q=inexistente");
-    await expect(page.getByRole("heading", { name: "Nenhum produto com esses filtros" })).toBeVisible();
+    await expect(page.getByText("Nenhum produto encontrado")).toBeVisible();
   });
 
-  test("produto: escolher tamanho, preço muda, adicionar à sacola e ver total do servidor", async ({ page }) => {
-    await page.goto("/produtos/brisa-premium");
-    await expect(page.getByRole("heading", { level: 1, name: "Brisa Premium" })).toBeVisible();
-    await expect(page.getByText("Produto de demonstração", { exact: true })).toBeVisible();
-
-    const add = page.getByRole("button", { name: "Escolha um tamanho" });
-    await expect(add).toBeDisabled();
-
-    // O rádio é visualmente oculto; o usuário clica no cartão (label).
-    await page.locator("label").filter({ has: page.getByRole("radio", { name: /^Queen/ }) }).click();
-    await expect(page.getByRole("radio", { name: /^Queen/ })).toBeChecked();
-    await expect(page.getByTestId("preco-atual")).toContainText("R$ 2.199,00");
-    await page.getByRole("button", { name: "Adicionar à sacola" }).click();
-    await expect(page.getByText("Adicionado à sacola.")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Sacola, 1 item" })).toBeVisible();
-
-    await page.goto("/carrinho");
-    await expect(page.getByRole("link", { name: "Brisa Premium" })).toBeVisible();
-    const resumo = page.getByRole("complementary", { name: "Resumo" });
-    await expect(resumo).toContainText("R$ 2.199,00");
-    await expect(page.getByText("Valores ilustrativos")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Finalizar compra" })).toBeDisabled();
-
-    await page.getByRole("button", { name: "Aumentar" }).click();
-    await expect(resumo).toContainText("R$ 4.398,00");
-    await page.getByRole("button", { name: /Remover/ }).click();
-    await expect(page.getByRole("heading", { name: "Sua sacola está vazia" })).toBeVisible();
+  test("categoria lista os dois produtos", async ({ page }) => {
+    await page.goto("/categorias/cadeiras");
+    await expect(page.getByRole("heading", { level: 1, name: "Cadeiras e poltronas" })).toBeVisible();
+    await expect(page.locator("article")).toHaveCount(2);
   });
 
-  test("sacola descarta preço adulterado no navegador", async ({ page }) => {
+  test("guia e comparador não existem mais", async ({ page }) => {
+    for (const path of ["/guia", "/comparar"]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
+    }
+  });
+
+  test("sacola descarta preço adulterado e produto sem preço", async ({ page }) => {
     await page.goto("/");
     await page.evaluate(() =>
       localStorage.setItem(
         "cuxoes:cart:v1",
         JSON.stringify([
-          { productId: "00000000-0000-4000-8000-000000000101", variantId: "00000000-0000-4000-8000-000000011100", quantity: 1, priceCents: 1 },
+          { productId: "dcdaee90-64b9-4b91-832b-f5049a237cb9", variantId: null, quantity: 1, priceCents: 1 },
           { productId: "00000000-0000-4000-8000-000000000999", variantId: null, quantity: 1 },
         ]),
       ),
     );
     await page.goto("/carrinho");
-    await expect(page.getByRole("complementary", { name: "Resumo" })).toContainText("R$ 899,00");
+    await expect(page.getByText("“Poltrona Azul Estrutura Clara” está sem preço no momento")).toBeVisible();
     await expect(page.getByText("Um item não está mais disponível")).toBeVisible();
-  });
-
-  test("tamanho pré-selecionado pela URL", async ({ page }) => {
-    await page.goto("/produtos/sereno-hibrido?tamanho=queen");
-    await expect(page.getByRole("radio", { name: /Queen/ })).toBeChecked();
-    await expect(page.getByRole("button", { name: "Adicionar à sacola" })).toBeEnabled();
+    await expect(page.getByRole("heading", { name: "Sua sacola está vazia" })).toBeVisible();
   });
 
   test("3D não é baixado até o pedido", async ({ page }) => {
@@ -106,40 +85,27 @@ test.describe("vitrine em modo demonstração", () => {
     page.on("request", (r) => {
       if (/\.glb($|\?)/.test(r.url()) || /model-viewer|three/i.test(r.url())) heavy.push(r.url());
     });
-    await page.goto("/produtos/sereno-hibrido");
+    await page.goto("/produtos/poltrona-azul");
     await page.getByRole("heading", { name: "Ver em 3D" }).scrollIntoViewIfNeeded();
     await page.waitForLoadState("networkidle");
     expect(heavy).toEqual([]);
 
-    const glb = page.waitForRequest(/sereno-hibrido\.glb/);
-    await page.getByRole("button", { name: "Carregar visualização 3D" }).click();
+    const glb = page.waitForRequest(/poltrona-azul\.glb/);
+    await page.getByRole("region", { name: "Ver em 3D" }).getByRole("button", { name: "Girar em 3D" }).click();
     await glb;
     await expect(page.locator("model-viewer")).toBeVisible();
   });
 
-  test("galeria: miniaturas e zoom acessível", async ({ page }) => {
-    await page.goto("/produtos/nuvem-essencial");
+  test("galeria: miniaturas, contador e zoom acessível", async ({ page }) => {
+    await page.goto("/produtos/cadeira-cinza-trama");
     await page.getByRole("button", { name: "Mostrar mídia 2 de 4" }).click();
     await expect(page.getByRole("button", { name: "Mostrar mídia 2 de 4" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("2/4")).toBeVisible();
     await page.getByRole("button", { name: "Ampliar" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
-  });
-
-  test("guia recomenda e leva ao catálogo filtrado", async ({ page }) => {
-    await page.goto("/guia");
-    await page.getByRole("radio", { name: "Duas pessoas" }).check();
-    await page.getByRole("radio", { name: "De barriga para cima" }).check();
-    await page.getByRole("button", { name: "Ver recomendação" }).click();
-    await expect(page.getByRole("heading", { name: "Nossa sugestão para você" })).toBeVisible();
-    await expect(page.getByText("Médio, Médio-firme")).toBeVisible();
-    // As respostas continuam marcadas para ajustar a recomendação.
-    await expect(page.getByRole("radio", { name: "Duas pessoas" })).toBeChecked();
-    await expect(page.getByRole("radio", { name: "De barriga para cima" })).toBeChecked();
-    await page.getByRole("link", { name: /no catálogo/ }).click();
-    await expect(page).toHaveURL(/firmeza=medio/);
   });
 
   test("teclado: link para pular ao conteúdo e foco visível", async ({ page, browserName }) => {
@@ -156,7 +122,7 @@ test.describe("vitrine em modo demonstração", () => {
 
   test("sem rolagem horizontal a partir de 360 px", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 780 });
-    for (const path of ["/", "/produtos", "/produtos/sereno-hibrido", "/guia", "/comparar", "/carrinho", "/atendimento", "/politicas/privacidade"]) {
+    for (const path of ["/", "/produtos", "/produtos/poltrona-azul", "/produtos/cadeira-cinza-trama", "/busca?q=poltrona", "/carrinho", "/atendimento", "/politicas/privacidade"]) {
       await page.goto(path);
       await page.waitForLoadState("networkidle");
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -165,7 +131,7 @@ test.describe("vitrine em modo demonstração", () => {
   });
 
   test("página de produto não salta ao carregar (CLS baixo)", async ({ page }) => {
-    await page.goto("/produtos/sereno-hibrido");
+    await page.goto("/produtos/poltrona-azul");
     await page.waitForLoadState("networkidle");
     const cls = await page.evaluate(
       () =>
@@ -184,10 +150,10 @@ test.describe("vitrine em modo demonstração", () => {
 });
 
 test.describe("SEO e segurança em modo demonstração", () => {
-  test("nada é indexado e não há dados estruturados de produto fictício", async ({ page, request }) => {
+  test("nada é indexado e não há dados estruturados de produto de demonstração", async ({ page, request }) => {
     const robots = await (await request.get("/robots.txt")).text();
     expect(robots).toMatch(/Disallow: \//);
-    await page.goto("/produtos/sereno-hibrido");
+    await page.goto("/produtos/poltrona-azul");
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
     await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(0);
   });

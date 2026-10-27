@@ -2,6 +2,9 @@ import { formatPrice } from "@/lib/catalog/money";
 import { fromPriceCents, hasPriceRange } from "@/lib/catalog/product-helpers";
 import type { Product } from "@/lib/catalog/types";
 
+/** Texto exibido enquanto o produto não tem preço confirmado (nunca inventar um). */
+export const NO_PRICE_LABEL = "Preço em breve";
+
 /** Preço "a partir de" para listagens. Nunca exibe desconto sem preço "de" legítimo. */
 export function ProductPrice({
   product,
@@ -12,25 +15,22 @@ export function ProductPrice({
 }) {
   const from = fromPriceCents(product);
   if (from === null) {
-    return <p className="text-sm font-medium text-muted">Preço em definição</p>;
+    return <p className="text-sm font-semibold text-muted">{NO_PRICE_LABEL}</p>;
   }
   const range = hasPriceRange(product);
   const showCompare =
     !range && product.compareAtPriceCents !== null && product.priceCents !== null && product.compareAtPriceCents > product.priceCents;
 
   return (
-    <div>
-      <p className={size === "lg" ? "text-2xl font-bold text-deep-fjord" : "text-lg font-bold text-deep-fjord"}>
-        {range ? <span className="mr-1 text-sm font-medium text-muted">a partir de</span> : null}
-        {formatPrice(from)}
-        {showCompare ? (
-          <span className="ml-2 text-sm font-medium text-muted line-through">
-            <span className="sr-only">Preço anterior: </span>
-            {formatPrice(product.compareAtPriceCents!)}
-          </span>
-        ) : null}
-      </p>
-      {product.isDemo ? <p className="text-xs font-medium text-muted">Preço ilustrativo</p> : null}
-    </div>
+    <p className={size === "lg" ? "text-2xl font-bold text-air-blue-ink" : "text-base font-bold text-air-blue-ink"}>
+      {range ? <span className="mr-1 text-xs font-medium text-muted">a partir de</span> : null}
+      {formatPrice(from)}
+      {showCompare ? (
+        <span className="ml-1.5 text-xs font-medium text-muted line-through">
+          <span className="sr-only">Preço anterior: </span>
+          {formatPrice(product.compareAtPriceCents!)}
+        </span>
+      ) : null}
+    </p>
   );
 }

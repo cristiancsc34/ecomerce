@@ -1,13 +1,11 @@
 import { Suspense } from "react";
 import { siteUrl } from "@/config/site";
-import { galleryMedia, model3d, primaryImage } from "@/lib/catalog/product-helpers";
+import { galleryMedia, hasConfirmedSpecs, model3d, primaryImage } from "@/lib/catalog/product-helpers";
 import type { Product } from "@/lib/catalog/types";
 import { breadcrumbJsonLd, productJsonLd } from "@/lib/seo/structured-data";
-import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { FaqList } from "@/components/ui/faq-list";
-import { Notice } from "@/components/ui/notice";
 import { FirmnessScale } from "./firmness-scale";
 import { Gallery } from "./gallery";
 import { ProductGrid } from "./product-card";
@@ -18,7 +16,7 @@ import { Viewer3D } from "./viewer-3d";
 /** Texto simples em parágrafos (sem HTML vindo do banco). */
 function Paragraphs({ text }: { text: string }) {
   return (
-    <div className="space-y-4 text-[1.0625rem] leading-relaxed text-ink">
+    <div className="space-y-3 text-[0.9375rem] leading-relaxed text-ink sm:text-base">
       {text
         .split(/\n{2,}/)
         .map((p) => p.trim())
@@ -30,9 +28,21 @@ function Paragraphs({ text }: { text: string }) {
   );
 }
 
+/** Bloco branco da página de produto (estilo marketplace). */
+function Block({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <section aria-labelledby={id} className="bg-white px-4 py-5 sm:rounded-lg sm:px-6">
+      <h2 id={id} className="mb-3 text-base font-bold uppercase tracking-wide text-deep-fjord">
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
 /**
- * Página de produto completa. Usada pela vitrine e pela pré-visualização do
- * painel (`preview`), que mostra rascunhos sem dados estruturados.
+ * Página de produto. Usada pela vitrine e pela pré-visualização do painel
+ * (`preview`), que mostra rascunhos sem dados estruturados.
  */
 export function ProductView({
   product,
@@ -56,16 +66,10 @@ export function ProductView({
     variants: product.variants,
     isDemo: product.isDemo,
   };
-
-  const crumbs = [
-    { label: "Início", href: "/" },
-    { label: "Produtos", href: "/produtos" },
-    ...(product.category ? [{ label: product.category.name, href: `/categorias/${product.category.slug}` }] : []),
-    { label: product.name },
-  ];
+  const showSpecs = hasConfirmedSpecs(product) || product.variants.length > 0;
 
   return (
-    <article className="container-page py-6 sm:py-10">
+    <article className="mx-auto w-full max-w-[80rem] sm:px-6 sm:pt-6 lg:px-8">
       {productLd ? (
         <>
           <JsonLd data={productLd} />
@@ -73,7 +77,6 @@ export function ProductView({
             data={breadcrumbJsonLd(
               [
                 { name: "Início", path: "/" },
-                { name: "Produtos", path: "/produtos" },
                 ...(product.category ? [{ name: product.category.name, path: `/categorias/${product.category.slug}` }] : []),
                 { name: product.name, path: `/produtos/${product.slug}` },
               ],
@@ -83,87 +86,73 @@ export function ProductView({
         </>
       ) : null}
 
-      <Breadcrumbs items={crumbs} />
-
-      <div className="mt-5 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-12">
-        <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
+      <div className="grid gap-2 bg-white sm:rounded-lg lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-10 lg:p-6">
+        <div className="min-w-0">
           <Gallery media={media} productName={product.name} />
         </div>
 
-        <div className="min-w-0 space-y-6">
-          <header className="space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              {product.category ? <span className="text-sm font-semibold text-air-blue-ink">{product.category.name}</span> : null}
-              {product.isDemo ? <Badge tone="demo">Produto demonstrativo</Badge> : null}
-              {preview ? <Badge tone="dark">Pré-visualização</Badge> : null}
-            </div>
-            <h1 className="text-3xl font-bold sm:text-4xl">{product.name}</h1>
-            {product.shortDescription ? <p className="text-lg text-ink/85">{product.shortDescription}</p> : null}
-          </header>
-
-          {product.isDemo ? (
-            <Notice tone="demo" title="Produto de demonstração">
-              Nome, preço, firmeza, altura e imagens são ilustrativos. Este produto não está à venda.
-            </Notice>
-          ) : null}
+        <div className="min-w-0 space-y-4 px-4 pb-5 pt-2 lg:px-0 lg:pt-0">
+          {preview ? <Badge tone="dark">Pré-visualização</Badge> : null}
+          <h1 className="text-xl font-semibold leading-snug text-ink sm:text-2xl">{product.name}</h1>
+          {product.shortDescription ? <p className="text-[0.9375rem] text-muted">{product.shortDescription}</p> : null}
 
           {product.attributes.firmness ? (
             <FirmnessScale value={product.attributes.firmness} illustrative={product.isDemo} />
           ) : null}
 
           {preview ? (
-            <PurchasePanel product={panelProduct} />
+            <PurchasePanel product={panelProduct} has3d={Boolean(model)} />
           ) : (
-            <Suspense fallback={<PurchasePanel product={panelProduct} />}>
-              <PurchasePanelWithParams product={panelProduct} />
+            <Suspense fallback={<PurchasePanel product={panelProduct} has3d={Boolean(model)} />}>
+              <PurchasePanelWithParams product={panelProduct} has3d={Boolean(model)} />
             </Suspense>
           )}
         </div>
       </div>
 
-      <div className="mt-14 grid gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-12">
-        <div className="min-w-0 space-y-12">
-          {product.description ? (
-            <section aria-labelledby="descricao-titulo">
-              <h2 id="descricao-titulo" className="mb-4 text-2xl font-bold">
-                Sobre este produto
-              </h2>
-              <Paragraphs text={product.description} />
-            </section>
-          ) : null}
+      <div className="mt-2 space-y-2 sm:mt-4 sm:space-y-4">
+        {model ? (
+          <div className="bg-white px-4 py-5 sm:rounded-lg sm:px-6">
+            <Viewer3D model={model} poster={primaryImage(product)} productName={product.name} />
+          </div>
+        ) : null}
 
-          <section aria-labelledby="especificacoes-titulo" className="space-y-8">
-            <h2 id="especificacoes-titulo" className="text-2xl font-bold">
-              Especificações
-            </h2>
-            <SpecsList product={product} showPending={product.isDemo || preview} />
-            <SizeTable product={product} />
-          </section>
+        {product.description ? (
+          <Block id="descricao-titulo" title="Descrição do produto">
+            <Paragraphs text={product.description} />
+          </Block>
+        ) : null}
 
-          {model ? <Viewer3D model={model} poster={primaryImage(product)} productName={product.name} /> : null}
-        </div>
+        {showSpecs ? (
+          <Block id="especificacoes-titulo" title="Especificações">
+            <div className="space-y-6">
+              <SpecsList product={product} showPending={false} />
+              <SizeTable product={product} />
+            </div>
+          </Block>
+        ) : null}
 
         {product.faq.length ? (
-          <section aria-labelledby="faq-produto-titulo" className="min-w-0">
-            <h2 id="faq-produto-titulo" className="mb-4 text-2xl font-bold">
-              Dúvidas sobre este produto
-            </h2>
+          <Block id="faq-produto-titulo" title="Dúvidas sobre este produto">
             <FaqList items={product.faq} />
+          </Block>
+        ) : null}
+
+        {related.length ? (
+          <section aria-labelledby="relacionados-titulo" className="px-1.5 sm:px-0">
+            <h2
+              id="relacionados-titulo"
+              className="mb-2 border-b-4 border-air-blue-ink bg-white px-4 py-3 text-base font-bold uppercase tracking-wide text-air-blue-ink sm:rounded-t-lg"
+            >
+              Você também pode gostar
+            </h2>
+            <ProductGrid products={related} />
           </section>
         ) : null}
       </div>
 
-      {related.length ? (
-        <section aria-labelledby="relacionados-titulo" className="mt-16">
-          <h2 id="relacionados-titulo" className="mb-6 text-2xl font-bold">
-            Você também pode gostar
-          </h2>
-          <ProductGrid products={related} />
-        </section>
-      ) : null}
-
       {/* Espaço para a barra fixa de compra no celular não cobrir o fim da página. */}
-      <div className="h-20 lg:hidden" aria-hidden="true" />
+      <div className="h-16 lg:hidden" aria-hidden="true" />
     </article>
   );
 }

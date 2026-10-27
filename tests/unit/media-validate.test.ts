@@ -32,7 +32,7 @@ describe("identificação pelo conteúdo", () => {
   });
 
   it("reconhece o GLB de demonstração", () => {
-    const glb = new Uint8Array(readFileSync(new URL("../../public/demo/sereno-hibrido.glb", import.meta.url)));
+    const glb = new Uint8Array(readFileSync(new URL("../../public/demo/poltrona-azul.glb", import.meta.url)));
     expect(sniffMediaType(glb)).toEqual({ mime: "model/gltf-binary", ext: "glb", kind: "model_3d" });
   });
 

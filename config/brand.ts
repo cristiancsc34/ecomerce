@@ -10,18 +10,8 @@ export type BrandConfig = {
   slogan: string;
   tagline: string;
   description: string;
-  ctaPrimary: { label: string; href: string };
-  ctaSecondary: { label: string; href: string };
   /** Barra de aviso opcional no topo. `null` = desligada. Nunca usar promoção falsa. */
   announcement: { text: string; href?: string } | null;
-  hero: {
-    image: string;
-    width: number;
-    height: number;
-    alt: string;
-    /** true enquanto a imagem não for uma foto real do produto/ambiente. */
-    isIllustrative: boolean;
-  };
   contact: {
     email: string;
     whatsapp: string;
@@ -41,19 +31,10 @@ export type BrandConfig = {
 export const brand: BrandConfig = {
   name: process.env.NEXT_PUBLIC_BRAND_NAME?.trim() || "Cuxões",
   slogan: "Seu melhor descanso começa aqui.",
-  tagline: "Colchões e produtos de descanso, fáceis de escolher.",
+  tagline: "Poltronas, cadeiras e produtos de descanso.",
   description:
-    "Loja de colchões e produtos de descanso com informações claras de tamanho, firmeza e especificações para você escolher com calma.",
-  ctaPrimary: { label: "Encontrar meu colchão", href: "/guia" },
-  ctaSecondary: { label: "Conhecer os produtos", href: "/produtos" },
+    "Loja de poltronas, cadeiras e produtos de descanso, com fotos de todos os ângulos e visualização em 3D.",
   announcement: null,
-  hero: {
-    image: "/demo/hero-quarto.svg",
-    width: 1200,
-    height: 900,
-    alt: "Ilustração de um quarto calmo com cama arrumada, travesseiros e luz suave entrando pela janela.",
-    isIllustrative: true,
-  },
   contact: {
     email: "",
     whatsapp: "",

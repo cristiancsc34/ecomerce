@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { DEMO_PRODUCTS } from "@/lib/catalog/demo-data";
-import { recommendFirmness, recommendSizes, parseGuideAnswers } from "@/lib/catalog/guide";
 import { isUuid } from "@/lib/catalog/slug";
 import { productJsonLd } from "@/lib/seo/structured-data";
 import { publishIssues } from "@/lib/validation/product";
@@ -9,16 +8,8 @@ import { rateLimit } from "@/lib/auth/rate-limit";
 import { makeMedia, makeProduct, makeVariant } from "./factories";
 
 describe("dados de demonstração", () => {
-  const placeholders = DEMO_PRODUCTS.filter((p) => p.category?.slug === "colchoes");
-  const armchair = DEMO_PRODUCTS.find((p) => p.slug === "poltrona-azul")!;
-
-  it("são os três placeholders + a prévia da poltrona, em rascunho e não publicáveis", () => {
-    expect(DEMO_PRODUCTS.map((p) => p.name)).toEqual([
-      "Nuvem Essencial",
-      "Brisa Premium",
-      "Sereno Híbrido",
-      "Poltrona Azul Estrutura Clara",
-    ]);
+  it("são só os dois produtos reais, em rascunho e não publicáveis", () => {
+    expect(DEMO_PRODUCTS.map((p) => p.name)).toEqual(["Poltrona Azul Estrutura Clara", "Cadeira Cinza Trama"]);
     for (const p of DEMO_PRODUCTS) {
       expect(p.isDemo).toBe(true);
       expect(p.status).toBe("draft");
@@ -26,31 +17,28 @@ describe("dados de demonstração", () => {
     }
   });
 
-  it("não inventam especificações (materiais, camadas, garantia, cuidados vazios)", () => {
+  it("não inventam preço, medidas nem especificações", () => {
     for (const p of DEMO_PRODUCTS) {
-      expect(p.attributes.materials).toBeUndefined();
-      expect(p.attributes.layers).toBeUndefined();
-      expect(p.attributes.warranty).toBeUndefined();
-      expect(p.attributes.care).toBeUndefined();
+      expect(p.priceCents).toBeNull();
+      expect(p.variants).toEqual([]);
+      expect(p.dimensions).toEqual({});
+      expect(p.attributes).toEqual({});
       expect(p.description).toMatch(/demonstrativo/i);
     }
   });
 
-  it("poltrona: sem preço nem medidas inventados, só fotos aprovadas e 3D", () => {
-    expect(armchair.category?.requires3d).toBe(true);
-    expect(armchair.priceCents).toBeNull();
-    expect(armchair.variants).toEqual([]);
-    expect(armchair.dimensions).toEqual({});
-    const images = armchair.media.filter((m) => m.type === "image");
-    expect(images).toHaveLength(4);
-    for (const m of images) expect(m).toMatchObject({ aiGenerated: true, pendingReview: false });
-    expect(armchair.media.filter((m) => m.type === "model_3d")).toHaveLength(1);
+  it("4 fotos de catálogo aprovadas por produto; 3D só onde já foi gerado", () => {
+    for (const p of DEMO_PRODUCTS) {
+      const images = p.media.filter((m) => m.type === "image");
+      expect(images).toHaveLength(4);
+      for (const m of images) expect(m).toMatchObject({ aiGenerated: true, pendingReview: false, isIllustrative: false });
+    }
+    expect(DEMO_PRODUCTS.map((p) => p.media.some((m) => m.type === "model_3d"))).toEqual([true, false]);
   });
 
-  it("todas as mídias têm alt text e arquivo existente; as dos placeholders são ilustrativas", () => {
+  it("todas as mídias têm alt text e arquivo existente", () => {
     for (const p of DEMO_PRODUCTS) {
       for (const m of p.media) {
-        if (placeholders.includes(p)) expect(m.isIllustrative).toBe(true);
         expect(m.altText.length).toBeGreaterThan(10);
         expect(existsSync(new URL(`../../public${m.url}`, import.meta.url)), m.url).toBe(true);
       }
@@ -88,26 +76,6 @@ describe("dados estruturados (schema.org)", () => {
   it("informa disponibilidade quando o estoque é controlado", () => {
     const p = makeProduct({ variants: [], priceCents: 5000, stockQuantity: 0 });
     expect(productJsonLd(p, base)!.offers).toMatchObject({ "@type": "Offer", price: "50.00", availability: "https://schema.org/OutOfStock" });
-  });
-});
-
-describe("guia de escolha", () => {
-  it("recomenda faixas de firmeza por posição e preferência", () => {
-    expect(recommendFirmness("lado", "nao-sei")).toEqual(["macio", "medio-macio", "medio"]);
-    expect(recommendFirmness("brucos", "firme")).toEqual(["firme"]);
-    expect(recommendFirmness("lado", "macio")).toEqual(["macio", "medio-macio"]);
-    expect(recommendFirmness("costas", "equilibrado")).toEqual(["medio", "medio-firme"]);
-  });
-
-  it("recomenda tamanhos e respeita a cama informada", () => {
-    expect(recommendSizes("dois", null)).toEqual(["casal", "queen", "king"]);
-    expect(recommendSizes("um", "queen")).toEqual(["queen"]);
-  });
-
-  it("lê respostas da URL com segurança", () => {
-    expect(parseGuideAnswers({ posicao: "lado", pessoas: "um" })).toEqual({ posicao: "lado", sensacao: "nao-sei", pessoas: "um", cama: null });
-    expect(parseGuideAnswers({ posicao: "voando", pessoas: "um" })).toBeNull();
-    expect(parseGuideAnswers({ posicao: "lado", pessoas: "um", cama: "<script>" })?.cama).toBeNull();
   });
 });
 

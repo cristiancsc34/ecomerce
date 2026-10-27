@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { brand } from "@/config/brand";
 import { isDemoMode, siteUrl } from "@/config/site";
-import { parseCatalogQuery } from "@/lib/catalog/query";
 import { getCategories, getCategoryBySlug, getVisibleProducts } from "@/lib/catalog/queries";
-import { Breadcrumbs } from "@/components/layout/breadcrumbs";
-import { CatalogSkeleton, CatalogView } from "@/components/catalog/catalog-view";
+import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/product-section";
 import { JsonLd } from "@/components/seo/json-ld";
-import { Skeleton } from "@/components/ui/misc";
 
 export async function generateStaticParams() {
   const categories = await getCategories();
@@ -27,34 +25,24 @@ export async function generateMetadata({ params }: PageProps<"/categorias/[slug]
   };
 }
 
-export default function CategoryPage({ params, searchParams }: PageProps<"/categorias/[slug]">) {
+export default function CategoryPage({ params }: PageProps<"/categorias/[slug]">) {
   return (
-    <div className="container-page py-8 sm:py-10">
-      <Suspense fallback={<CategoryHeaderSkeleton />}>
-        <CategoryHeader params={params} />
-      </Suspense>
-      <Suspense fallback={<CatalogSkeleton />}>
-        <Results params={params} searchParams={searchParams} />
+    <div className="mx-auto w-full max-w-[80rem] px-1.5 pt-2 sm:px-6 sm:pt-6 lg:px-8">
+      <Suspense fallback={<ProductSectionSkeleton />}>
+        <Results params={params} />
       </Suspense>
     </div>
   );
 }
 
-async function CategoryHeader({ params }: Pick<PageProps<"/categorias/[slug]">, "params">) {
+async function Results({ params }: Pick<PageProps<"/categorias/[slug]">, "params">) {
+  // Lista montada a cada visita (os dados vêm do cache): publicar no painel aparece na hora.
+  await connection();
   const { slug } = await params;
-  const category = await getCategoryBySlug(slug);
+  const [category, products] = await Promise.all([getCategoryBySlug(slug), getVisibleProducts()]);
   if (!category) notFound();
   return (
     <>
-      <Breadcrumbs
-        items={[
-          { label: "Início", href: "/" },
-          { label: "Produtos", href: "/produtos" },
-          { label: category.name },
-        ]}
-      />
-      <h1 className="mt-4 text-3xl font-bold sm:text-4xl">{category.name}</h1>
-      {category.description ? <p className="mb-6 mt-2 max-w-2xl text-muted">{category.description}</p> : <div className="mb-6" />}
       {!isDemoMode() ? (
         <JsonLd
           data={{
@@ -62,35 +50,19 @@ async function CategoryHeader({ params }: Pick<PageProps<"/categorias/[slug]">, 
             "@type": "BreadcrumbList",
             itemListElement: [
               { "@type": "ListItem", position: 1, name: "Início", item: `${siteUrl()}/` },
-              { "@type": "ListItem", position: 2, name: "Produtos", item: `${siteUrl()}/produtos` },
-              { "@type": "ListItem", position: 3, name: category.name, item: `${siteUrl()}/categorias/${category.slug}` },
+              { "@type": "ListItem", position: 2, name: category.name, item: `${siteUrl()}/categorias/${category.slug}` },
             ],
           }}
         />
       ) : null}
+      <ProductSection
+        id="categoria-titulo"
+        title={category.name}
+        headingLevel="h1"
+        products={products.filter((p) => p.category?.slug === slug)}
+        priorityCount={4}
+        empty={{ title: "Nenhum produto nesta categoria por enquanto" }}
+      />
     </>
-  );
-}
-
-function CategoryHeaderSkeleton() {
-  return (
-    <div className="mb-6 space-y-4">
-      <Skeleton className="h-5 w-48" />
-      <Skeleton className="h-10 w-64" />
-    </div>
-  );
-}
-
-async function Results({ params, searchParams }: Pick<PageProps<"/categorias/[slug]">, "params" | "searchParams">) {
-  const [{ slug }, sp, products] = await Promise.all([params, searchParams, getVisibleProducts()]);
-  const inCategory = products.filter((p) => p.category?.slug === slug);
-  const query = { ...parseCatalogQuery(sp), categoria: null };
-  return (
-    <CatalogView
-      products={inCategory}
-      query={query}
-      action={`/categorias/${slug}`}
-      showCategory={false}
-    />
   );
 }

@@ -132,6 +132,11 @@ test("admin publica; o produto aparece na loja; despublicar remove", async ({ pa
   await expect(store.getByRole("heading", { level: 1, name: productName })).toBeVisible();
   await expect(store.getByTestId("preco-atual")).toContainText("R$ 1.799,00");
   await expect(store.locator('script[type="application/ld+json"]').first()).toBeAttached();
+  // Um único tamanho já vem escolhido: "Comprar agora" põe na sacola e abre a sacola.
+  await store.getByRole("button", { name: "Comprar agora" }).click();
+  await expect(store).toHaveURL(/\/carrinho$/);
+  await expect(store.getByRole("link", { name: productName })).toBeVisible();
+  await expect(store.getByRole("complementary", { name: "Resumo" })).toContainText("R$ 1.799,00");
   await store.goto("/categorias/colchoes");
   await expect(store.getByRole("link", { name: productName })).toBeVisible();
 

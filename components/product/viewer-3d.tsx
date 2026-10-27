@@ -47,15 +47,15 @@ export function Viewer3D({ model, poster, productName }: { model: ProductMedia; 
 
   return (
     <section id="visualizador-3d" aria-labelledby="visualizador-3d-titulo" className="scroll-mt-24">
-      <h2 id="visualizador-3d-titulo" className="flex items-center gap-2 text-2xl font-bold">
-        <CubeIcon className="h-7 w-7 text-air-blue-ink" /> Ver em 3D
+      <h2 id="visualizador-3d-titulo" className="flex items-center gap-2 text-base font-bold uppercase tracking-wide text-deep-fjord">
+        <CubeIcon className="h-6 w-6 text-air-blue-ink" /> Ver em 3D
       </h2>
-      <p className="mt-2 text-muted">
-        Gire e aproxime o modelo 3D: {productName}.
-        {model.isIllustrative ? " Modelo ilustrativo: proporções e cores aproximadas, não substitui as fotos e medidas." : null}
+      <p className="mt-1 text-sm text-muted">
+        Gire e aproxime para ver {productName} de todos os lados.
+        {model.isIllustrative ? " Modelo ilustrativo: proporções e cores aproximadas." : null}
       </p>
 
-      <div className="relative mt-5 aspect-[4/3] overflow-hidden rounded-[1.5rem] border border-line bg-pale-blue">
+      <div className="relative mt-4 aspect-[4/3] overflow-hidden rounded-lg bg-cloud">
         {state === "ready" ? (
           <model-viewer
             src={model.url}
@@ -70,9 +70,9 @@ export function Viewer3D({ model, poster, productName }: { model: ProductMedia; 
         ) : (
           <>
             <ProductImage media={poster} sizes="(min-width: 1024px) 800px, 100vw" aspect="h-full" showIllustrativeBadge={false} />
-            <div className="absolute inset-0 flex items-center justify-center bg-white/55">
+            <div className="absolute inset-0 flex items-center justify-center bg-white/40">
               <Button size="lg" onClick={load} loading={state === "loading"} loadingLabel="Carregando modelo 3D…">
-                <CubeIcon className="h-5 w-5" /> Carregar visualização 3D
+                <CubeIcon className="h-5 w-5" /> Girar em 3D
               </Button>
             </div>
           </>
@@ -84,7 +84,7 @@ export function Viewer3D({ model, poster, productName }: { model: ProductMedia; 
           Arraste para girar e use pinça ou a roda do mouse para aproximar. Com o teclado, selecione o modelo e use as setas.
         </p>
       ) : (
-        <p className="mt-3 text-sm text-muted">O modelo só é baixado quando você pede, para a página continuar leve.</p>
+        <p className="mt-3 text-sm text-muted">Toque em “Girar em 3D” para carregar o modelo.</p>
       )}
       {state === "error" ? (
         <Notice tone="danger" role="alert" className="mt-3" title="Não foi possível carregar o modelo 3D.">

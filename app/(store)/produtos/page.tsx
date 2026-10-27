@@ -1,30 +1,37 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
-import { parseCatalogQuery } from "@/lib/catalog/query";
 import { getVisibleProducts } from "@/lib/catalog/queries";
-import { Breadcrumbs } from "@/components/layout/breadcrumbs";
-import { CatalogSkeleton, CatalogView } from "@/components/catalog/catalog-view";
+import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/product-section";
 
 export const metadata: Metadata = {
   title: "Produtos",
-  description: "Todos os colchões, com filtros por tamanho, firmeza e preço.",
-  // Combinações de filtros apontam para a listagem principal (sem páginas duplicadas).
+  description: "Todos os produtos da loja.",
   alternates: { canonical: "/produtos" },
 };
 
-export default function ProductsPage({ searchParams }: PageProps<"/produtos">) {
+export default function ProductsPage() {
   return (
-    <div className="container-page py-8 sm:py-10">
-      <Breadcrumbs items={[{ label: "Início", href: "/" }, { label: "Produtos" }]} />
-      <h1 className="mb-6 mt-4 text-3xl font-bold sm:text-4xl">Produtos</h1>
-      <Suspense fallback={<CatalogSkeleton />}>
-        <Results searchParams={searchParams} />
+    <div className="mx-auto w-full max-w-[80rem] px-1.5 pt-2 sm:px-6 sm:pt-6 lg:px-8">
+      <Suspense fallback={<ProductSectionSkeleton />}>
+        <Results />
       </Suspense>
     </div>
   );
 }
 
-async function Results({ searchParams }: Pick<PageProps<"/produtos">, "searchParams">) {
-  const [params, products] = await Promise.all([searchParams, getVisibleProducts()]);
-  return <CatalogView products={products} query={parseCatalogQuery(params)} action="/produtos" />;
+async function Results() {
+  // Lista montada a cada visita (os dados vêm do cache): publicar/despublicar aparece na hora.
+  await connection();
+  const products = await getVisibleProducts();
+  return (
+    <ProductSection
+      id="produtos-titulo"
+      title="Todos os produtos"
+      headingLevel="h1"
+      products={products}
+      priorityCount={4}
+      empty={{ title: "Catálogo em preparação", text: "Os produtos aparecem aqui assim que forem publicados." }}
+    />
+  );
 }

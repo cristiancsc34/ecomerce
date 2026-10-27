@@ -13,6 +13,7 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
   const [index, setIndex] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const touchX = useRef<number | null>(null);
   const current = media[index] ?? null;
   const total = media.length;
 
@@ -25,7 +26,7 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
 
   if (!current) {
     return (
-      <div className="flex aspect-[4/3] flex-col items-center justify-center gap-2 rounded-[1.5rem] bg-pale-blue text-muted">
+      <div className="flex aspect-[4/3] flex-col items-center justify-center gap-2 bg-pale-blue text-muted lg:rounded-lg">
         <ImageIcon className="h-12 w-12" />
         <span>Fotos em breve</span>
       </div>
@@ -35,11 +36,22 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
   return (
     <div>
       <div
-        className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem] border border-line bg-pale-blue"
+        className="relative aspect-[4/3] touch-pan-y overflow-hidden bg-pale-blue lg:rounded-lg"
         onKeyDown={(e) => {
           if (total < 2) return;
           if (e.key === "ArrowRight") go(1);
           if (e.key === "ArrowLeft") go(-1);
+        }}
+        // Deslizar para os lados troca a foto (celular).
+        onTouchStart={(e) => {
+          touchX.current = e.touches[0]?.clientX ?? null;
+        }}
+        onTouchEnd={(e) => {
+          const start = touchX.current;
+          touchX.current = null;
+          const end = e.changedTouches[0]?.clientX;
+          if (start === null || end === undefined || total < 2) return;
+          if (Math.abs(end - start) > 40) go(end < start ? 1 : -1);
         }}
       >
         {current.type === "video" ? (
@@ -71,7 +83,7 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
             Imagem ilustrativa
           </span>
         ) : current.aiGenerated ? (
-          <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-medium text-muted shadow-sm">
+          <span className="absolute bottom-3 left-3 rounded bg-white/90 px-2 py-0.5 text-[0.6875rem] font-medium text-muted">
             Cena recriada a partir das fotos reais
           </span>
         ) : null}
@@ -80,10 +92,10 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
           <button
             type="button"
             onClick={openZoom}
-            className="absolute bottom-3 right-3 inline-flex h-11 items-center gap-2 rounded-full bg-white/95 px-4 text-sm font-semibold text-deep-fjord shadow-sm hover:bg-white"
+            className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/90 text-deep-fjord shadow-sm hover:bg-white"
           >
             <ZoomIcon className="h-5 w-5" />
-            Ampliar
+            <span className="sr-only">Ampliar</span>
           </button>
         ) : null}
 
@@ -92,7 +104,7 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
             <button
               type="button"
               onClick={() => go(-1)}
-              className="absolute left-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-deep-fjord shadow-sm hover:bg-white"
+              className="absolute left-3 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-deep-fjord shadow-sm hover:bg-white sm:inline-flex"
             >
               <ChevronLeftIcon className="h-6 w-6" />
               <span className="sr-only">Imagem anterior</span>
@@ -100,11 +112,14 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
             <button
               type="button"
               onClick={() => go(1)}
-              className="absolute right-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-deep-fjord shadow-sm hover:bg-white"
+              className="absolute right-3 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-deep-fjord shadow-sm hover:bg-white sm:inline-flex"
             >
               <ChevronRightIcon className="h-6 w-6" />
               <span className="sr-only">Próxima imagem</span>
             </button>
+            <span aria-hidden="true" className="absolute bottom-3 right-3 rounded-full bg-ink/60 px-2.5 py-0.5 text-xs font-semibold text-white">
+              {index + 1}/{total}
+            </span>
           </>
         ) : null}
       </div>
@@ -114,7 +129,7 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
       </p>
 
       {total > 1 ? (
-        <ul className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5" aria-label={`Fotos de ${productName}`}>
+        <ul className="mt-2 grid grid-cols-5 gap-2 px-4 lg:px-0" aria-label={`Fotos de ${productName}`}>
           {media.map((m, i) => (
             <li key={m.id}>
               <button
@@ -122,8 +137,8 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
                 onClick={() => setIndex(i)}
                 aria-pressed={i === index}
                 aria-label={`Mostrar mídia ${i + 1} de ${total}${m.type === "video" ? " (vídeo)" : ""}`}
-                className={`relative block aspect-[4/3] w-full overflow-hidden rounded-xl border-2 bg-pale-blue ${
-                  i === index ? "border-deep-fjord" : "border-transparent hover:border-line"
+                className={`relative block aspect-square w-full overflow-hidden rounded-md border-2 bg-pale-blue ${
+                  i === index ? "border-air-blue-ink" : "border-transparent hover:border-line"
                 }`}
               >
                 {m.type === "image" ? (

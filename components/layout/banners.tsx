@@ -1,19 +1,5 @@
 import Link from "next/link";
 import { brand } from "@/config/brand";
-import { isDemoMode } from "@/config/site";
-
-/** Aviso permanente do modo demonstração: nada é vendido, tudo é ilustrativo. */
-export function DemoBanner() {
-  if (!isDemoMode()) return null;
-  return (
-    <div className="bg-warm-coral/70 text-ink">
-      <p className="container-page py-2 text-center text-sm font-medium">
-        <strong className="font-semibold">Ambiente de demonstração.</strong> Produtos, preços e imagens são ilustrativos
-        — nada está à venda.
-      </p>
-    </div>
-  );
-}
 
 /** Barra de aviso opcional (config/brand.ts). Nunca usar para promoção falsa ou urgência fictícia. */
 export function AnnouncementBar() {

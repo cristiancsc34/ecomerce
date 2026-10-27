@@ -10,7 +10,7 @@ A especificação completa está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md). 
 
 | Área | Situação |
 | --- | --- |
-| Vitrine (home, catálogo, busca, filtros, produto, categorias, guia, comparação, sacola, atendimento, políticas) | ✅ Pronta |
+| Vitrine estilo marketplace (abre direto na grade de produtos, busca, produto com barra de compra e 3D, categorias, sacola, atendimento, políticas) | ✅ Pronta |
 | Painel administrativo (login, produtos, variações, mídia, status, pré-visualização, categorias, auditoria) | ✅ Pronto (exige Supabase) |
 | Banco (Postgres/Supabase) com RLS, Storage, regras de publicação e auditoria | ✅ Migração versionada e testada |
 | Modo demonstração (sem banco) com 3 produtos ilustrativos | ✅ Identificado em toda a loja, `noindex` |
@@ -127,9 +127,9 @@ Na primeira vez em uma máquina nova, rode `npx playwright install chromium` ant
 ## Deploy (Vercel)
 
 **No ar (modo demonstração):** https://cuxoes.vercel.app — projeto `cuxoes` na Vercel, ligado a este repositório;
-cada push na branch de produção (`claude/quirky-maxwell-xkyvq6`) publica sozinho. Sem Supabase, mostra os colchões de
-exemplo e a prévia da Poltrona Azul (fotos aprovadas no estúdio, 3D, sem preço). O painel online depende do Supabase
-na nuvem.
+cada push na branch de produção (`claude/quirky-maxwell-xkyvq6`) publica sozinho. Sem Supabase, mostra só os dois
+produtos reais cadastrados pelo estúdio (Poltrona Azul com 3D e Cadeira Cinza Trama), com fotos de catálogo aprovadas e
+"Preço em breve" até o preço ser confirmado. O painel online depende do Supabase na nuvem.
 
 1. Importe o repositório na Vercel (framework Next.js detectado automaticamente).
 2. Variáveis: `NEXT_PUBLIC_SITE_URL` (URL final), `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
@@ -141,7 +141,7 @@ na nuvem.
 
 ```
 app/
-  (store)/            vitrine: home, produtos, categorias, busca, guia, comparar, carrinho, atendimento, políticas
+  (store)/            vitrine: home (grade de produtos), produtos, categorias, busca, carrinho, atendimento, políticas
   admin/              login e painel (rotas protegidas)
   api/cart/quote/     recálculo da sacola no servidor
 components/           ui, layout, product, catalog, cart, admin, seo

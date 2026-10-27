@@ -8,7 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [products, categories] = await Promise.all([getVisibleProducts(), getCategoriesWithProducts()]);
   const real = products.filter((p) => !p.isDemo);
 
-  const staticPages = ["", "/produtos", "/guia", "/comparar", "/atendimento", "/politicas/privacidade", "/politicas/trocas-e-devolucoes", "/politicas/entrega", "/politicas/termos-de-uso"].map(
+  const staticPages = ["", "/produtos", "/atendimento", "/politicas/privacidade", "/politicas/trocas-e-devolucoes", "/politicas/entrega", "/politicas/termos-de-uso"].map(
     (path) => ({ url: `${base}${path}` }),
   );
 
