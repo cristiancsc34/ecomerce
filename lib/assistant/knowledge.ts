@@ -47,8 +47,23 @@ function stockLine(product: Product): string {
   return s === "in_stock" ? "disponível" : s === "out_of_stock" ? "indisponível no momento" : NOT_CONFIRMED;
 }
 
+/**
+ * Descrição sem o aviso de prévia da página ("preço e medidas ainda não foram
+ * confirmados"): as linhas de preço/medidas já dizem isso, e o aviso solto fazia
+ * o assistente repeti-lo em toda recomendação.
+ */
+function salesDescription(description: string | null): string | null {
+  const text = (description ?? "")
+    .split(/\n{2,}/)
+    .filter((p) => !/^Prévia em ambiente demonstrativo/i.test(p.trim()))
+    .join("\n\n")
+    .trim();
+  return text || null;
+}
+
 export function productKnowledge(product: Product): string {
   const photos = imageMedia(product).length;
+  const description = salesDescription(product.description);
   return [
     `### ${product.name}`,
     `- Código (slug): ${product.slug}`,
@@ -60,7 +75,7 @@ export function productKnowledge(product: Product): string {
     `- Visualização 3D: ${model3d(product) ? "sim (botão “Girar em 3D” na página; modelo ilustrativo)" : "não tem"}`,
     ...specsLines(product),
     product.shortDescription ? `- Resumo: ${product.shortDescription}` : null,
-    product.description ? `- Descrição:\n${product.description.trim()}` : null,
+    description ? `- Descrição:\n${description}` : null,
   ]
     .filter((l): l is string => l !== null)
     .join("\n");

@@ -11,6 +11,10 @@ const messageSchema = z.object({
  * termina com o cliente. Tamanho limitado (custo e abuso).
  */
 export const assistantRequestSchema = z.object({
+  /** Produto que a pessoa está vendo (slug da URL). Só é usado se existir no catálogo. */
+  pagina: z
+    .object({ produto: z.string().regex(/^[a-z0-9-]{1,100}$/) })
+    .optional(),
   messages: z
     .array(messageSchema)
     .min(1)

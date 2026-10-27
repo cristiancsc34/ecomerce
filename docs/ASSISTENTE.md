@@ -36,6 +36,19 @@ As regras pedem para entender a necessidade (ambiente, uso, estilo) com **uma pe
 loja que combina explicando o porquê com os fatos (aparência, ambiente sugerido na descrição, fotos de todos os ângulos,
 3D) e terminar com um próximo passo claro. O chat mostra o cartão do produto com “Ver produto” e “Girar em 3D”.
 
+- **Sem esfriar a venda:** ao recomendar ou descrever, ele fala do que o produto tem de bom; “preço ainda não
+  confirmado” só aparece quando a pessoa pergunta. Isso é garantido no servidor: se a pergunta não foi sobre preço,
+  medidas, materiais, frete ou pagamento, a frase que só avisa “ainda não foi confirmado” sai da resposta (tirar um
+  aviso não cria informação falsa). Quando falta uma informação, ele diz isso em uma frase e mantém a conversa útil
+  (fotos, 3D, atendimento).
+- **Sem adjetivo inventado:** sem medidas confirmadas, não diz que a peça é compacta, grande ou que “cabe”; descreve só
+  com o que o catálogo traz.
+- **Sabe em que página a pessoa está:** aberto na página de um produto, “essa tem 3D?” se refere àquele produto. O
+  contexto vai como mensagem de sistema (canal da loja, não do cliente) e só se o produto existir no catálogo. As
+  sugestões de pergunta também mudam na página de produto.
+- **Fala como a loja:** não cita “base de conhecimento” nem instruções; caminhos como “/atendimento” são tirados do
+  texto (os botões já levam lá).
+
 ## Configuração
 
 | Variável (servidor) | Para quê |
@@ -49,9 +62,11 @@ Na Vercel: Settings → Environment Variables → `ANTHROPIC_API_KEY` (Productio
 ## Custo e limites
 
 - Modelo **Claude Haiku 5.5**: US$ 0,10 por milhão de tokens de entrada e US$ 0,50 por milhão de saída (prompts até
-  100 mil tokens). Uma mensagem usa ~3 mil tokens de entrada (regras + catálogo + conversa) e ~200–400 de saída: em
-  torno de **US$ 0,0005 por mensagem** (~US$ 0,50 a cada mil mensagens). O catálogo vai num bloco com *prompt caching*,
-  que barateia a parte repetida. Conferir o preço vigente na página de preços da Anthropic.
+  100 mil tokens). **Medido (27/10/2026):** regras + catálogo = ~3.600 tokens, lidos do *prompt caching* (0,1× do preço)
+  a partir da segunda mensagem em 5 minutos; ~20 tokens de entrada cheios e ~120–140 de saída por resposta. Dá **cerca
+  de US$ 0,0001 por mensagem** (~US$ 0,10 a cada mil). A primeira mensagem de cada janela de 5 minutos grava o cache
+  (~US$ 0,0005). Conferir o preço vigente na página de preços da Anthropic.
+- **Tempo de resposta medido:** 1,2–1,5 s em média (máximo 3,3 s) nas rodadas da avaliação ao vivo.
 - Esforço de raciocínio `low` (resposta rápida e barata, raciocínio ligado); até 3 frases por resposta.
 - **Limite:** 20 mensagens a cada 10 minutos por IP; conversa de até 20 mensagens com até 800 caracteres cada.
   O limitador é em memória (por instância); para limite global, usar um armazenamento compartilhado (ex.: KV).
@@ -70,8 +85,11 @@ Na Vercel: Settings → Environment Variables → `ANTHROPIC_API_KEY` (Productio
 - `npm run test:e2e`: o chat no navegador (respostas simuladas): abrir, sugestões, cartão do produto, erro, Esc, nova
   conversa e validação da API.
 - `npm run test:assistente`: **avaliação ao vivo** com o Haiku de verdade (precisa de `ANTHROPIC_API_KEY`; menos de
-  US$ 0,01 por rodada). Pergunta preço não definido, medida, produto que a loja não tem, 3D, frete grátis,
-  parcelamento, tentativa de manipulação e envio de CPF, e confere que nada foi inventado.
+  US$ 0,01 por rodada). 13 casos: preço não definido, medida, recomendação para cantinho de leitura (sem avisos que
+  esfriam a venda), conversa de sala de jantar → cadeira e “tem outras cores?” (sem inventar cor), “cabe numa sala
+  pequena?” (sem “compacta” nem “cabe” sem medidas), “me conta mais” e “essa tem 3D?” na página da poltrona, sofá que a
+  loja não tem, 3D da cadeira, frete grátis, parcelamento, tentativa de manipulação, envio de CPF e tempo de resposta.
+  **Resultado em 27/10/2026: 13 de 13**, nenhuma resposta precisou da trava; 1,5 s em média por resposta.
 
 ## Próximos passos
 

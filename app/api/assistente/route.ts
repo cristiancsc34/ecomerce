@@ -57,7 +57,12 @@ export async function POST(request: Request) {
   try {
     const catalog = await getVisibleProducts();
     const client = new Anthropic({ maxRetries: 1, timeout: 25_000 });
-    const reply = await askAssistant({ client, catalog, history: parsed.data.messages });
+    const reply = await askAssistant({
+      client,
+      catalog,
+      history: parsed.data.messages,
+      viewingSlug: parsed.data.pagina?.produto,
+    });
 
     // Só métricas, nunca o texto da conversa (privacidade).
     console.info(

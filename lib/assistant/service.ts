@@ -60,17 +60,46 @@ function sanitizeNextStep(step: AssistantNextStep, products: Product[]): Assista
   return step;
 }
 
+/** Tira caminhos de página do texto ("fale com o atendimento em /atendimento"): os botões já levam lá. */
+export function stripPaths(answer: string): string {
+  return answer
+    .replace(/(?:\s+(?:na\s+página|pela\s+página|no\s+link|em))?\s+\/[a-z][\w\-/#]*/gi, "")
+    .replace(/\s+([.,!?;:])/g, "$1")
+    .trim();
+}
+
+const ASKED_ABOUT_DETAILS =
+  /pre[çc]o|cust|valor|quanto|medida|tamanho|altura|largura|profund|cabe|material|tecido|garantia|frete|entrega|prazo|pag|parcel|estoque|dispon/i;
+const CAVEAT = /n[aã]o (foi|foram|est[aá]|est[aã]o) (confirmad|definid)|ainda n[aã]o (tem|temos|h[aá])|ainda n[aã]o (foi|foram)/i;
+const CAVEAT_TOPIC = /pre[çc]o|valor|medida|material|garantia|frete|prazo|pagamento|parcel/i;
+
+/**
+ * Venda sem balde de água fria: se a pessoa NÃO perguntou por preço, medidas,
+ * materiais, frete etc., some a frase que só avisa que isso não foi confirmado.
+ * Tirar um aviso não cria informação falsa; quando perguntam, o aviso fica.
+ */
+export function dropUnaskedCaveats(answer: string, lastQuestion: string): string {
+  if (ASKED_ABOUT_DETAILS.test(lastQuestion)) return answer;
+  const sentences = answer.split(/(?<=[.!?])\s+/);
+  const kept = sentences.filter((s) => !(CAVEAT.test(s) && CAVEAT_TOPIC.test(s)));
+  return kept.length ? kept.join(" ") : answer;
+}
+
 export async function askAssistant({
   client,
   catalog,
   history,
+  viewingSlug,
 }: {
   client: AssistantClient;
   catalog: Product[];
   history: AssistantMessage[];
+  /** Produto da página aberta (vem da URL; só vale se existir no catálogo). */
+  viewingSlug?: string;
 }): Promise<AssistantReply> {
   const knowledge = buildKnowledge(catalog);
   const bySlug = new Map(catalog.map((p) => [p.slug, p]));
+  const viewing = viewingSlug ? bySlug.get(viewingSlug) : undefined;
 
   const response = await client.messages.parse({
     model: assistantModel(),
@@ -86,7 +115,19 @@ export async function askAssistant({
         cache_control: { type: "ephemeral" },
       },
     ],
-    messages: history.map((m) => ({ role: m.role, content: m.content })),
+    messages: [
+      ...history.map((m) => ({ role: m.role, content: m.content })),
+      // Contexto da página como mensagem de sistema (canal do operador, não do cliente);
+      // o nome vem do catálogo, nunca do navegador.
+      ...(viewing
+        ? [
+            {
+              role: "system" as const,
+              content: `Contexto da página: o cliente está vendo agora o produto "${viewing.name}" (código ${viewing.slug}).`,
+            },
+          ]
+        : []),
+    ],
   });
 
   const u = response.usage;
@@ -104,12 +145,14 @@ export async function askAssistant({
   }
 
   const out = response.parsed_output;
-  const check = checkAnswer(out.resposta, knowledge);
+  const lastQuestion = history.findLast((m) => m.role === "user")?.content ?? "";
+  const answer = dropUnaskedCaveats(stripPaths(out.resposta), lastQuestion);
+  const check = checkAnswer(answer, knowledge);
   if (!check.ok) return fallback(SAFE_FALLBACK_ANSWER, check.reasons, usage);
 
   const products = [...new Set(out.produtos)].flatMap((slug) => bySlug.get(slug) ?? []);
   return {
-    answer: out.resposta.trim(),
+    answer,
     products: products.map(productCard),
     nextStep: sanitizeNextStep(out.proximo_passo, products),
     guarded: false,

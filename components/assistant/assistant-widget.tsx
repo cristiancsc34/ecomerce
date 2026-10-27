@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import type { AssistantApiResponse, AssistantNextStep } from "@/lib/assistant/types";
 import { ASSISTANT_MAX_CHARS, ASSISTANT_MAX_MESSAGES } from "@/lib/assistant/types";
-import { ArrowUpIcon, ChatIcon, CloseIcon, CubeIcon } from "@/components/ui/icons";
+import { ArrowUpIcon, ChatIcon, CloseIcon, CubeIcon, PlusIcon } from "@/components/ui/icons";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -18,6 +19,12 @@ const STORAGE_KEY = "cuxoes:assistente:v1";
 const GREETING =
   "Oi! Sou o assistente da loja. Posso te ajudar a escolher a peça ideal e tirar dúvidas sobre os produtos. O que você procura?";
 const SUGGESTIONS = ["Qual combina com a minha sala?", "Quanto custa?", "Posso ver em 3D?", "Como faço para comprar?"];
+const PRODUCT_SUGGESTIONS = ["Me conta mais sobre este produto", "Quanto custa?", "Quais são as medidas?", "Como faço para comprar?"];
+
+/** Produto da página aberta (/produtos/<slug>), para o assistente entender "essa", "ela". */
+function productSlug(pathname: string | null): string | null {
+  return pathname?.match(/^\/produtos\/([a-z0-9-]{1,100})$/)?.[1] ?? null;
+}
 
 function loadHistory(): ChatMessage[] {
   try {
@@ -54,6 +61,8 @@ export function AssistantWidget() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const viewing = productSlug(usePathname());
+  const suggestions = viewing ? PRODUCT_SUGGESTIONS : SUGGESTIONS;
 
   useEffect(() => {
     if (!open) return;
@@ -82,7 +91,7 @@ export function AssistantWidget() {
       const res = await fetch("/api/assistente", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiHistory(next) }),
+        body: JSON.stringify({ messages: apiHistory(next), ...(viewing ? { pagina: { produto: viewing } } : {}) }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) {
@@ -145,8 +154,14 @@ export function AssistantWidget() {
               <p className="truncate text-xs text-white/80">Respostas com IA, só com dados da loja</p>
             </div>
             {messages.length ? (
-              <button type="button" onClick={restart} className="shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-xs font-semibold hover:bg-white/15">
-                Nova conversa
+              <button
+                type="button"
+                onClick={restart}
+                title="Nova conversa"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-white/15"
+              >
+                <PlusIcon className="h-5 w-5" />
+                <span className="sr-only">Nova conversa</span>
               </button>
             ) : null}
             <button
@@ -194,7 +209,7 @@ export function AssistantWidget() {
             ) : null}
             {!messages.length && !loading ? (
               <div className="flex flex-wrap gap-2 pt-1">
-                {SUGGESTIONS.map((s) => (
+                {suggestions.map((s) => (
                   <button
                     key={s}
                     type="button"
