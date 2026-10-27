@@ -12,7 +12,7 @@ const calls: string[] = [];
 
 function builder(table: string) {
   const b: Record<string, unknown> = {};
-  const chain = (name: string) => (..._args: unknown[]) => {
+  const chain = (name: string) => () => {
     calls.push(`${table}.${name}`);
     return b;
   };

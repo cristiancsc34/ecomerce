@@ -5,6 +5,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { deleteCategoryAction, saveCategoryAction, type CategoryFormState } from "@/lib/admin/actions/categories";
 import { slugify } from "@/lib/catalog/slug";
 import type { Category } from "@/lib/catalog/types";
+import { useHydrated } from "@/lib/use-hydrated";
 import { Button } from "@/components/ui/button";
 import { controlClasses, FieldError, Label } from "@/components/ui/field";
 import { ConfirmButton } from "./confirm-dialog";
@@ -14,6 +15,7 @@ const initial: CategoryFormState = { ok: false, error: null };
 export function CategoryForm({ category, canDelete }: { category?: Category & { productCount: number }; canDelete: boolean }) {
   const router = useRouter();
   const [state, action, pending] = useActionState(saveCategoryAction, initial);
+  const hydrated = useHydrated();
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const slugRef = useRef<HTMLInputElement>(null);
@@ -81,7 +83,7 @@ export function CategoryForm({ category, canDelete }: { category?: Category & { 
         <FieldError>{state.fieldErrors?.description}</FieldError>
       </div>
       <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
-        <Button type="submit" size="sm" loading={pending} loadingLabel="Salvando…">
+        <Button type="submit" size="sm" loading={pending} loadingLabel="Salvando…" disabled={!hydrated}>
           {category ? "Salvar" : "Criar categoria"}
         </Button>
         {category && canDelete ? (

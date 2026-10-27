@@ -15,7 +15,7 @@ export function SizeTable({ product }: { product: Product }) {
   return (
     <div>
       <h3 className="mb-3 text-lg font-semibold">Medidas por tamanho</h3>
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-line bg-white" tabIndex={0} role="region" aria-label="Tabela de medidas (role para os lados se precisar)">
         <table className="w-full min-w-[28rem] text-left text-[0.9375rem]">
           <caption className="sr-only">Medidas e preços de {product.name} por tamanho</caption>
           <thead className="bg-pale-blue text-deep-fjord">

@@ -13,6 +13,7 @@ import {
 import type { ActionResult } from "@/lib/admin/types";
 import type { ProductMedia } from "@/lib/catalog/types";
 import { ACCEPT_ATTRIBUTE, MAX_UPLOAD_BYTES } from "@/lib/media/validate";
+import { useHydrated } from "@/lib/use-hydrated";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { controlClasses, FieldError, HelpText, Label } from "@/components/ui/field";
@@ -192,12 +193,17 @@ function MediaRow({
 }
 
 function UploadForm({ productId, onDone }: { productId: string; onDone: (text: string) => void }) {
+  const hydrated = useHydrated();
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
-  async function submit(formData: FormData) {
+  // onSubmit (e não `action`): o React 19 limpa formulários com `action` ao
+  // terminar, e quem errou o arquivo perderia o texto alternativo digitado.
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
     setError(null);
     setFieldErrors({});
     const file = formData.get("file");
@@ -209,12 +215,18 @@ function UploadForm({ productId, onDone }: { productId: string; onDone: (text: s
       setFieldErrors({ file: "O arquivo passa de 4 MB. Comprima e tente de novo." });
       return;
     }
+    if (String(formData.get("altText") ?? "").trim().length < 5) {
+      setFieldErrors({ altText: "Descreva a imagem em pelo menos 5 caracteres." });
+      return;
+    }
     setBusy(true);
     try {
       const result = await uploadMediaAction(productId, formData);
       if (!result.ok) {
-        setError(result.error);
-        setFieldErrors(result.fieldErrors ?? {});
+        const fields = result.fieldErrors ?? {};
+        setFieldErrors(fields);
+        // Erro de um campo aparece junto dele; o aviso geral fica para o resto.
+        setError(Object.keys(fields).length ? null : result.error);
         return;
       }
       formRef.current?.reset();
@@ -227,7 +239,13 @@ function UploadForm({ productId, onDone }: { productId: string; onDone: (text: s
   }
 
   return (
-    <form ref={formRef} action={submit} className="mt-6 space-y-4 rounded-2xl border border-dashed border-line p-4">
+    <form
+      ref={formRef}
+      onSubmit={submit}
+      noValidate
+      data-ready={hydrated ? "true" : undefined}
+      className="mt-6 space-y-4 rounded-2xl border border-dashed border-line p-4"
+    >
       <h3 className="font-semibold">Enviar arquivo</h3>
       {error ? (
         <Notice tone="danger" role="alert" title="Não foi possível enviar">
@@ -270,7 +288,8 @@ function UploadForm({ productId, onDone }: { productId: string; onDone: (text: s
         <input type="checkbox" name="isIllustrative" className="h-5 w-5 accent-[var(--color-deep-fjord)]" />
         É ilustrativa (montagem, ilustração ou imagem gerada) — não é foto real
       </label>
-      <Button type="submit" loading={busy} loadingLabel="Enviando…">
+      {/* Antes da hidratação o envio não funcionaria: o botão só habilita depois. */}
+      <Button type="submit" loading={busy} loadingLabel="Enviando…" disabled={!hydrated}>
         Enviar
       </Button>
     </form>

@@ -130,7 +130,7 @@ export function PurchasePanel({
       ) : null}
 
       <div>
-        <p className="text-3xl font-bold text-deep-fjord" aria-live="polite">
+        <p className="text-3xl font-bold text-deep-fjord" aria-live="polite" data-testid="preco-atual">
           {priceText ?? <span className="text-xl text-muted">Preço em definição</span>}
           {showCompare ? (
             <span className="ml-2 text-base font-medium text-muted line-through">

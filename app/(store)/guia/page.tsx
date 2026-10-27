@@ -185,7 +185,7 @@ function SizesGuide() {
         Meça a base ou o estrado da sua cama. Os nomes comerciais variam um pouco entre fabricantes; por isso, compare
         sempre as medidas em centímetros.
       </p>
-      <div className="mt-5 overflow-x-auto rounded-2xl border border-line bg-white">
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-line bg-white" tabIndex={0} role="region" aria-label="Tabela de tamanhos">
         <table className="w-full min-w-[30rem] text-left">
           <caption className="sr-only">Medidas usuais de cada tamanho de colchão</caption>
           <thead className="bg-pale-blue text-deep-fjord">

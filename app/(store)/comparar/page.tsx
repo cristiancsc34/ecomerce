@@ -79,7 +79,7 @@ export default async function ComparePage() {
       {products.length === 0 ? (
         <EmptyState title="Nada para comparar ainda">Os primeiros produtos estão sendo preparados.</EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-[1.25rem] border border-line bg-white">
+        <div className="overflow-x-auto rounded-[1.25rem] border border-line bg-white" tabIndex={0} role="region" aria-label="Tabela de comparação">
           <table className="w-full min-w-[40rem] border-collapse text-left text-[0.9375rem]">
             <caption className="sr-only">Comparação de {products.length} colchões</caption>
             <thead>

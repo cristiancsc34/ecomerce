@@ -70,7 +70,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
       </div>
 
       {products.length ? (
-        <div className="overflow-x-auto rounded-[1.25rem] border border-line bg-white">
+        <div className="overflow-x-auto rounded-[1.25rem] border border-line bg-white" tabIndex={0} role="region" aria-label="Lista de produtos">
           <table className="w-full min-w-[44rem] text-left text-[0.9375rem]">
             <caption className="sr-only">Lista de produtos</caption>
             <thead className="bg-pale-blue text-deep-fjord">

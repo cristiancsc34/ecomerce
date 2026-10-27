@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { get, useFieldArray, useForm, useWatch, type FieldErrors, type Path, type UseFormRegister } from "react-hook-form";
 import { saveProductAction } from "@/lib/admin/actions/products";
 import { productToFormValues } from "@/lib/admin/form-values";
+import { useHydrated } from "@/lib/use-hydrated";
 import { slugify } from "@/lib/catalog/slug";
 import { FIRMNESS_LABELS, FIRMNESS_LEVELS, SIZE_INFO, SIZE_KEYS, type Category, type Product } from "@/lib/catalog/types";
 import {
@@ -114,6 +115,7 @@ export function ProductForm({
   siteUrl: string;
 }) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const isNew = !product;
   const [slugTouched, setSlugTouched] = useState(!isNew);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -484,7 +486,8 @@ export function ProductForm({
               </span>
             ) : null}
           </div>
-          <Button type="submit" size="lg" loading={isSubmitting} loadingLabel="Salvando…" disabled={!canEdit}>
+          {/* Antes da hidratação, um envio nativo mandaria os campos na URL (GET). */}
+          <Button type="submit" size="lg" loading={isSubmitting} loadingLabel="Salvando…" disabled={!canEdit || !hydrated}>
             {isNew ? "Criar rascunho" : "Salvar alterações"}
           </Button>
         </div>
