@@ -80,13 +80,13 @@ export default async function ComparePage() {
         <EmptyState title="Nada para comparar ainda">Os primeiros produtos estão sendo preparados.</EmptyState>
       ) : (
         <div className="overflow-x-auto rounded-[1.25rem] border border-line bg-white" tabIndex={0} role="region" aria-label="Tabela de comparação">
-          <table className="w-full min-w-[40rem] border-collapse text-left text-[0.9375rem]">
+          <table className="w-full min-w-[44rem] table-fixed border-collapse text-left text-[0.9375rem]">
             <caption className="sr-only">Comparação de {products.length} colchões</caption>
             <thead>
               <tr>
-                <td className="sticky left-0 z-10 w-36 bg-white p-4" />
+                <td className="sticky left-0 z-10 w-32 bg-white p-4 sm:w-40" />
                 {products.map((p) => (
-                  <th key={p.id} scope="col" className="min-w-52 p-4 align-top font-normal">
+                  <th key={p.id} scope="col" className="p-4 align-top font-normal">
                     <ProductImage
                       media={primaryImage(p)}
                       sizes="240px"

@@ -125,6 +125,9 @@ test.describe("vitrine em modo demonstração", () => {
     await page.getByRole("button", { name: "Ver recomendação" }).click();
     await expect(page.getByRole("heading", { name: "Nossa sugestão para você" })).toBeVisible();
     await expect(page.getByText("Médio, Médio-firme")).toBeVisible();
+    // As respostas continuam marcadas para ajustar a recomendação.
+    await expect(page.getByRole("radio", { name: "Duas pessoas" })).toBeChecked();
+    await expect(page.getByRole("radio", { name: "De barriga para cima" })).toBeChecked();
     await page.getByRole("link", { name: /no catálogo/ }).click();
     await expect(page).toHaveURL(/firmeza=medio/);
   });

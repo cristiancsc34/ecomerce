@@ -106,7 +106,7 @@ export function CartView() {
         <ul className="divide-y divide-line overflow-hidden rounded-[1.25rem] border border-line bg-white">
           {quote.lines.map((line) => (
             <li key={`${line.productId}:${line.variantId}`} className="flex gap-4 p-4 sm:p-5">
-              <div className="relative aspect-[4/3] w-24 shrink-0 overflow-hidden rounded-xl bg-pale-blue sm:w-32">
+              <div className="relative aspect-[4/3] w-24 shrink-0 self-start overflow-hidden rounded-xl bg-pale-blue sm:w-32">
                 {line.imageUrl ? (
                   <Image
                     src={line.imageUrl}

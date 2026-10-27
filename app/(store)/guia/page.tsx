@@ -11,11 +11,14 @@ import {
   SLEEP_POSITION_LABELS,
   SLEEP_POSITIONS,
 } from "@/lib/catalog/guide";
+import { formatPrice } from "@/lib/catalog/money";
+import { fromPriceCents, primaryImage } from "@/lib/catalog/product-helpers";
 import { applyCatalogQuery, catalogQueryToSearchParams, EMPTY_QUERY } from "@/lib/catalog/query";
 import { getVisibleProducts } from "@/lib/catalog/queries";
 import { FIRMNESS_LABELS, SIZE_INFO, SIZE_KEYS } from "@/lib/catalog/types";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
-import { ProductGrid } from "@/components/product/product-card";
+import { GuideFormSync } from "@/components/catalog/guide-form-sync";
+import { ProductImage } from "@/components/product/product-image";
 import { buttonClasses, ButtonLink } from "@/components/ui/button";
 import { controlClasses } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
@@ -50,51 +53,8 @@ export default function GuidePage({ searchParams }: PageProps<"/guia">) {
       </header>
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <form action="/guia#resultado" method="get" className="min-w-0 space-y-7 rounded-[1.5rem] border border-line bg-white p-5 sm:p-7">
-          <fieldset>
-            <legend className="mb-3 text-lg font-semibold text-deep-fjord">1. Quem vai dormir no colchão?</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <OptionCard name="pessoas" value="um" label="Só eu" />
-              <OptionCard name="pessoas" value="dois" label="Duas pessoas" />
-            </div>
-          </fieldset>
-
-          <div>
-            <label htmlFor="guia-cama" className="mb-2 block text-lg font-semibold text-deep-fjord">
-              2. Já sabe o tamanho da sua cama?
-            </label>
-            <select id="guia-cama" name="cama" defaultValue="" className={controlClasses}>
-              <option value="">Ainda não sei</option>
-              {SIZE_KEYS.map((k) => (
-                <option key={k} value={k}>
-                  {SIZE_INFO[k].label} ({SIZE_INFO[k].widthCm} × {SIZE_INFO[k].lengthCm} cm)
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <fieldset>
-            <legend className="mb-3 text-lg font-semibold text-deep-fjord">3. Como você costuma dormir?</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {SLEEP_POSITIONS.map((p) => (
-                <OptionCard key={p} name="posicao" value={p} label={SLEEP_POSITION_LABELS[p]} />
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend className="mb-3 text-lg font-semibold text-deep-fjord">E que sensação você prefere?</legend>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {FEEL_PREFERENCES.map((f) => (
-                <OptionCard key={f} name="sensacao" value={f} label={FEEL_LABELS[f]} defaultChecked={f === "nao-sei"} />
-              ))}
-            </div>
-          </fieldset>
-
-          <button type="submit" className={buttonClasses({ size: "lg", className: "w-full" })}>
-            Ver recomendação
-          </button>
-        </form>
+        <GuideForm />
+        <GuideFormSync formId="guia-form" />
 
         <div id="resultado" className="min-w-0 scroll-mt-24">
           <Suspense fallback={<Skeleton className="h-80 w-full rounded-[1.5rem]" />}>
@@ -106,6 +66,64 @@ export default function GuidePage({ searchParams }: PageProps<"/guia">) {
       <SizesGuide />
       <FirmnessGuide />
     </div>
+  );
+}
+
+/**
+ * Formulário GET: funciona sem JavaScript. É estático (fora de Suspense) para não
+ * ser trocado enquanto a pessoa responde; as respostas da URL são marcadas no cliente.
+ */
+function GuideForm() {
+  return (
+      <form
+      id="guia-form"
+      action="/guia#resultado"
+      method="get"
+      className="min-w-0 space-y-7 rounded-[1.5rem] border border-line bg-white p-5 sm:p-7">
+        <fieldset>
+          <legend className="mb-3 text-lg font-semibold text-deep-fjord">1. Quem vai dormir no colchão?</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <OptionCard name="pessoas" value="um" label="Só eu" />
+            <OptionCard name="pessoas" value="dois" label="Duas pessoas" />
+          </div>
+        </fieldset>
+
+        <div>
+          <label htmlFor="guia-cama" className="mb-2 block text-lg font-semibold text-deep-fjord">
+            2. Já sabe o tamanho da sua cama?
+          </label>
+          <select id="guia-cama" name="cama" defaultValue="" className={controlClasses}>
+            <option value="">Ainda não sei</option>
+            {SIZE_KEYS.map((k) => (
+              <option key={k} value={k}>
+                {SIZE_INFO[k].label} ({SIZE_INFO[k].widthCm} × {SIZE_INFO[k].lengthCm} cm)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <fieldset>
+          <legend className="mb-3 text-lg font-semibold text-deep-fjord">3. Como você costuma dormir?</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {SLEEP_POSITIONS.map((p) => (
+              <OptionCard key={p} name="posicao" value={p} label={SLEEP_POSITION_LABELS[p]} />
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend className="mb-3 text-lg font-semibold text-deep-fjord">E que sensação você prefere?</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {FEEL_PREFERENCES.map((f) => (
+              <OptionCard key={f} name="sensacao" value={f} label={FEEL_LABELS[f]} defaultChecked={f === "nao-sei"} />
+            ))}
+          </div>
+        </fieldset>
+
+        <button type="submit" className={buttonClasses({ size: "lg", className: "w-full" })}>
+          Ver recomendação
+        </button>
+      </form>
   );
 }
 
@@ -157,7 +175,30 @@ async function Recommendation({ searchParams }: Pick<PageProps<"/guia">, "search
             <p className="mb-4 font-medium text-ink">
               {products.length === 1 ? "1 produto combina" : `${products.length} produtos combinam`} com a sugestão:
             </p>
-            <ProductGrid products={products.slice(0, 2)} />
+            <ul className="space-y-3">
+              {products.slice(0, 3).map((p) => (
+                <li key={p.id}>
+                  <Link
+                    href={`/produtos/${p.slug}${tamanhos.length === 1 ? `?tamanho=${tamanhos[0]}` : ""}`}
+                    className="flex items-center gap-4 rounded-2xl border border-line bg-white p-3 hover:border-deep-fjord"
+                  >
+                    <ProductImage media={primaryImage(p)} sizes="96px" className="w-24 shrink-0 rounded-xl" showIllustrativeBadge={false} />
+                    <span className="min-w-0">
+                      <span className="block font-semibold text-deep-fjord">{p.name}</span>
+                      {p.attributes.firmness ? (
+                        <span className="block text-sm text-muted">Firmeza {FIRMNESS_LABELS[p.attributes.firmness].toLowerCase()}</span>
+                      ) : null}
+                      {fromPriceCents(p) !== null ? (
+                        <span className="block text-sm font-medium text-ink">
+                          a partir de {formatPrice(fromPriceCents(p)!)}
+                          {p.isDemo ? " (ilustrativo)" : ""}
+                        </span>
+                      ) : null}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
             <ButtonLink href={href} className="mt-5">
               Ver {products.length === 1 ? "o produto" : "todos"} no catálogo
             </ButtonLink>
