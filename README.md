@@ -16,7 +16,7 @@ A especificação completa está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md). 
 | Modo demonstração (sem banco) com 3 produtos ilustrativos | ✅ Identificado em toda a loja, `noindex` |
 | Visualizador 3D sob demanda (GLB) | ✅ Prova de conceito com modelo ilustrativo |
 | Checkout, pagamento, frete, e-mail | ⏳ Não implementado: depende da escolha dos provedores ([decisões pendentes](docs/DECISOES.md)) |
-| Estúdio de fotos e 3D no painel | ✅ Fotos do celular com limpeza de fundo automática (modelos abertos, locais) — [`docs/ESTUDIO-IA.md`](docs/ESTUDIO-IA.md). ⏳ Gerador 3D e legenda com IA aguardando liberação/chaves |
+| Estúdio de fotos e 3D no painel | ✅ Fotos do celular com limpeza de fundo automática (modelos abertos, locais) — [`docs/ESTUDIO-IA.md`](docs/ESTUDIO-IA.md). Fotos de catálogo recriadas por IA com conferência humana (falta a chave da API de imagem). ⏳ Gerador 3D e legenda com IA aguardando liberação/chaves |
 
 **Nada aqui é dado comercial real.** Os produtos “Nuvem Essencial”, “Brisa Premium” e “Sereno Híbrido” são
 placeholders: preço, firmeza e altura são ilustrativos, materiais/garantia/cuidados estão vazios de propósito e o banco

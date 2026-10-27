@@ -103,6 +103,61 @@ export async function requestModel3dAction(productId: string, cleanJobId: string
   return { ok: true };
 }
 
+/**
+ * Pede as fotos de catálogo: a IA recria a cena nos ângulos padrão usando as
+ * fotos reais (já enviadas e limpas) como referência.
+ */
+export async function requestCatalogPhotosAction(productId: string): Promise<ActionResult> {
+  const denied = await guard();
+  if (denied) return denied;
+  if (!isUuid(productId)) return { ok: false, error: "Pedido inválido." };
+
+  const supabase = await createSessionClient();
+  const { data: photos } = await supabase
+    .from("ai_jobs")
+    .select("input_path")
+    .eq("product_id", productId)
+    .eq("kind", "background_removal")
+    .eq("status", "succeeded")
+    .order("created_at");
+  if (!photos?.length) return { ok: false, error: "Envie e limpe pelo menos uma foto real antes." };
+
+  const { data: pending } = await supabase
+    .from("ai_jobs")
+    .select("id")
+    .eq("product_id", productId)
+    .eq("kind", "catalog_photos")
+    .in("status", ["queued", "running"]);
+  if (pending?.length) return { ok: false, error: "As fotos de catálogo deste produto já estão sendo geradas." };
+
+  const { error } = await supabase
+    .from("ai_jobs")
+    .insert({ product_id: productId, kind: "catalog_photos", input_path: photos[0].input_path as string });
+  if (error) return { ok: false, error: friendlyDbError(error, "Não foi possível pedir as fotos de catálogo.") };
+  return { ok: true };
+}
+
+/**
+ * Aprova uma imagem de catálogo gerada por IA depois de conferida com as fotos
+ * reais. O banco registra quem aprovou e quando; só então ela vai para a loja.
+ */
+export async function approveAiMediaAction(mediaId: string): Promise<ActionResult> {
+  const denied = await guard();
+  if (denied) return denied;
+  if (!isUuid(mediaId)) return { ok: false, error: "Imagem inválida." };
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("product_media")
+    .update({ approved_at: new Date().toISOString() })
+    .eq("id", mediaId)
+    .eq("ai_generated", true)
+    .select("id");
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  if (!data?.length) return { ok: false, error: "Sem permissão para aprovar esta imagem." };
+  updateTag(CATALOG_TAG);
+  return { ok: true };
+}
+
 /** Descarta uma foto do estúdio: o job, o original, o recorte e o resultado. */
 export async function discardAiJobAction(jobId: string): Promise<ActionResult> {
   const denied = await guard();

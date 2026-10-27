@@ -37,7 +37,7 @@ export const PUBLIC_PRODUCT_COLUMNS = [
   "updated_at",
   "published_at",
   "category:categories(id,slug,name,requires_3d)",
-  "media:product_media(id,storage_path,media_type,alt_text,sort_order,is_primary,is_illustrative,width,height)",
+  "media:product_media(id,storage_path,media_type,alt_text,sort_order,is_primary,is_illustrative,ai_generated,width,height)",
   "variants:product_variants(id,name,sku,price_cents,stock_quantity,attributes,sort_order)",
 ].join(",");
 
@@ -75,6 +75,9 @@ export type MediaRow = {
   sort_order: number;
   is_primary: boolean;
   is_illustrative: boolean;
+  ai_generated?: boolean;
+  /** Só nas leituras do painel; a vitrine nem recebe imagens sem aprovação. */
+  approved_at?: string | null;
   width: number | null;
   height: number | null;
 };
@@ -127,6 +130,8 @@ export function mapMedia(row: MediaRow): ProductMedia {
     sortOrder: row.sort_order,
     isPrimary: row.is_primary,
     isIllustrative: row.is_illustrative,
+    aiGenerated: row.ai_generated ?? false,
+    pendingReview: Boolean(row.ai_generated) && row.approved_at === null,
     width: row.width,
     height: row.height,
   };

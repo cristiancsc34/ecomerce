@@ -141,3 +141,68 @@ describe("categoria que exige 3D", () => {
     await as(db, "admin", (tx) => tx.query("update public.products set status = 'published' where id = $1", [id]));
   });
 });
+
+describe("fotos de catálogo geradas por IA", () => {
+  async function aiImage(productId: string) {
+    const r = await db.query<{ id: string }>(
+      `insert into public.product_media (product_id, storage_path, media_type, alt_text, ai_generated, approved_at, width, height)
+       values ($1, $2, 'image', 'Cadeira, vista três-quartos (imagem de catálogo)', true, now(), 1600, 1200) returning id`,
+      [productId, `products/${productId}/ia-${Math.random().toString(36).slice(2)}.jpg`],
+    );
+    return r.rows[0].id;
+  }
+
+  it("nasce sem aprovação, não vira principal e não aparece na loja", async () => {
+    const id = await createProduct();
+    await addImage(id);
+    await db.query(
+      `insert into public.product_media (product_id, storage_path, media_type, alt_text) values ($1, $2, 'model_3d', 'Modelo 3D da cadeira')`,
+      [id, `products/${id}/m.glb`],
+    );
+    const media = await aiImage(id);
+    const row = await db.query<{ approved_at: string | null }>("select approved_at from public.product_media where id = $1", [media]);
+    expect(row.rows[0].approved_at).toBeNull();
+
+    await expect(db.query("update public.product_media set is_primary = false where product_id = $1", [id]).then(() =>
+      db.query("update public.product_media set is_primary = true where id = $1", [media]),
+    )).rejects.toThrow(/product_media_ai_primary_needs_approval/);
+    await db.query("update public.product_media set is_primary = true where product_id = $1 and storage_path like '%foto.jpg'", [id]);
+
+    await as(db, "admin", (tx) => tx.query("update public.products set status = 'published' where id = $1", [id]));
+    const visible = await as(db, "anon", (tx) => tx.query("select id from public.product_media where product_id = $1 and ai_generated", [id]));
+    expect(visible.rows).toEqual([]);
+  });
+
+  it("aprovação registra quem aprovou, audita e libera para a loja", async () => {
+    const id = await createProduct();
+    await addImage(id);
+    await db.query(
+      `insert into public.product_media (product_id, storage_path, media_type, alt_text) values ($1, $2, 'model_3d', 'Modelo 3D da cadeira')`,
+      [id, `products/${id}/m.glb`],
+    );
+    const media = await aiImage(id);
+
+    await as(db, "editor", (tx) =>
+      tx.query("update public.product_media set approved_at = '2000-01-01', approved_by = null where id = $1", [media]),
+    );
+    const row = await db.query<{ approved_at: string; approved_by: string }>(
+      "select approved_at, approved_by from public.product_media where id = $1",
+      [media],
+    );
+    expect(new Date(row.rows[0].approved_at).getFullYear()).toBeGreaterThan(2000);
+    expect(row.rows[0].approved_by).toBe("00000000-0000-4000-8000-00000000e001");
+    const audit = await db.query("select 1 from public.audit_events where action = 'media.ai_approved' and details->>'media_id' = $1", [media]);
+    expect(audit.rows).toHaveLength(1);
+
+    // A marcação de IA não sai por update.
+    await as(db, "editor", (tx) => tx.query("update public.product_media set ai_generated = false where id = $1", [media]));
+    const flag = await db.query<{ ai_generated: boolean }>("select ai_generated from public.product_media where id = $1", [media]);
+    expect(flag.rows[0].ai_generated).toBe(true);
+
+    await as(db, "admin", (tx) => tx.query("update public.products set status = 'published' where id = $1", [id]));
+    const visible = await as(db, "anon", (tx) =>
+      tx.query<{ id: string; ai_generated: boolean }>("select id, ai_generated from public.product_media where id = $1", [media]),
+    );
+    expect(visible.rows).toEqual([{ id: media, ai_generated: true }]);
+  });
+});

@@ -1,4 +1,4 @@
-export type AiJobKind = "background_removal" | "model_3d";
+export type AiJobKind = "background_removal" | "catalog_photos" | "model_3d";
 export type AiJobStatus = "queued" | "running" | "succeeded" | "failed";
 
 export type AiJobView = {

@@ -14,7 +14,7 @@ import type { AuditEvent } from "./types";
 const ADMIN_PRODUCT_SELECT =
   "id,name,slug,short_description,description,status,is_demo,price_cents,compare_at_price_cents,currency,sku,stock_quantity,dimensions,attributes,faq,seo_title,seo_description,created_at,updated_at,published_at," +
   "category:categories(id,slug,name,requires_3d)," +
-  "media:product_media(id,storage_path,media_type,alt_text,sort_order,is_primary,is_illustrative,width,height)," +
+  "media:product_media(id,storage_path,media_type,alt_text,sort_order,is_primary,is_illustrative,ai_generated,approved_at,width,height)," +
   "variants:product_variants(id,name,sku,price_cents,stock_quantity,attributes,sort_order)";
 
 export async function listAdminProducts(filter: { status?: ProductStatus | null; q?: string } = {}): Promise<Product[]> {

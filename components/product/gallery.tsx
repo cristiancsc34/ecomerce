@@ -70,6 +70,10 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
           <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-semibold text-ink shadow-sm">
             Imagem ilustrativa
           </span>
+        ) : current.aiGenerated ? (
+          <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-medium text-muted shadow-sm">
+            Cena recriada a partir das fotos reais
+          </span>
         ) : null}
 
         {current.type === "image" ? (

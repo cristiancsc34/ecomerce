@@ -44,6 +44,8 @@ function demoMedia(productIndex: number, slug: string, name: string, with3d: boo
     sortOrder: i,
     isPrimary: i === 0,
     isIllustrative: true,
+    aiGenerated: false,
+    pendingReview: false,
     width: 1200,
     height: 900,
   }));
@@ -59,6 +61,8 @@ function demoMedia(productIndex: number, slug: string, name: string, with3d: boo
       sortOrder: 99,
       isPrimary: false,
       isIllustrative: true,
+      aiGenerated: false,
+      pendingReview: false,
       width: null,
       height: null,
     },

@@ -64,6 +64,36 @@ O fluxo, a fila, a gravação do `.glb`, a prévia e a regra de publicação est
 
 Enquanto isso, o painel avisa que o gerador 3D não está habilitado e aceita um `.glb` enviado à mão na seção de mídia.
 
+## Fotos de catálogo: a IA recria a cena (padrão da loja)
+
+Problema que resolve: o vendedor fotografa de qualquer jeito — torto, de um ângulo ruim, com uma peça escondida ou um
+pouco borrado. A limpeza de fundo só recorta o que está na foto (se o braço da poltrona some num recorte, ele continua
+faltando). As **fotos de catálogo** recriam a cena:
+
+- **Sempre os mesmos 4 ângulos** para todos os produtos: frente, ¾ (a foto principal típica de e-commerce), lateral e
+  traseira; câmera na altura do meio do objeto, luz de estúdio suave, fundo claro.
+- **Referência = todas as fotos reais** do produto (3 a 4 ângulos): o que uma foto esconde, outra mostra.
+- **O produto não muda**: mesma forma, proporções, peças, cores, tecido, costuras e acabamento da madeira. Se algo não
+  aparece em nenhuma foto, a IA não inventa: a equipe tira outra foto.
+- Cada imagem gerada passa pela mesma limpeza e enquadramento das fotos comuns (escala, posição e sombra iguais).
+- **Nada vai para a loja sem conferência**: a imagem nasce “aguardando conferência”; alguém compara com as fotos reais
+  (lado a lado no painel) e aprova marcando “Conferi: cor, formato, peças e acabamento são iguais”. O banco registra
+  quem aprovou e quando (auditoria). Imagem não aprovada não aparece para o público e não pode ser a principal.
+- Na loja, essas imagens trazem o aviso discreto “Cena recriada a partir das fotos reais”.
+
+**Estado:** fila, gravação, conferência/aprovação, regras no banco e testes prontos. **Falta só o provedor de imagem**
+(plugado em `engines.catalogPhotos` de `scripts/ai-worker.mjs`), que precisa da chave `OPENAI_API_KEY`. Modelo previsto:
+GPT Image (edição com várias imagens de referência), em torno de US$ 0,05–0,21 por imagem → menos de US$ 1 por produto
+com 4 ângulos. Alternativa com a mesma chave da fal.ai do 3D: Nano Banana Pro (~US$ 0,15 por imagem).
+
+Instrução que será enviada ao modelo (por ângulo):
+
+> Use the attached photos only as the source of truth for this exact product. Create a professional e-commerce studio
+> photograph of the same product: {view}, camera at the product's mid height, 50 mm lens, light grey seamless background,
+> soft diffused light, subtle contact shadow, whole product in frame. Preserve exactly its shape, proportions, number and
+> position of parts, colors, materials, fabric and stitching pattern, wood grain and finish, wear marks. Do not add,
+> remove, repair or redesign anything; no props, text or logos. Straighten the camera and fix blur only.
+
 ## Legendas e descrições com IA
 
 Ainda não ligadas: precisam de uma chave de API (Claude ou OpenAI). Ver [`PROXIMA-FASE-IA-3D.md`](PROXIMA-FASE-IA-3D.md).

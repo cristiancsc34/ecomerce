@@ -62,6 +62,10 @@ export type ProductMedia = {
   isPrimary: boolean;
   /** Imagem/modelo ilustrativo, não é foto real do produto. */
   isIllustrative: boolean;
+  /** Imagem de catálogo recriada por IA a partir das fotos reais. */
+  aiGenerated: boolean;
+  /** Gerada por IA e ainda não conferida/aprovada pela equipe (não aparece na loja). */
+  pendingReview: boolean;
   width: number | null;
   height: number | null;
 };

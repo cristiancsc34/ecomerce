@@ -125,6 +125,9 @@ function MediaRow({
           </span>
           {media.isPrimary ? <Badge tone="dark">Principal</Badge> : null}
           {media.isIllustrative ? <Badge tone="demo">Ilustrativa</Badge> : null}
+          {media.aiGenerated ? (
+            <Badge tone={media.pendingReview ? "warm" : "info"}>{media.pendingReview ? "IA · aguardando conferência" : "IA · aprovada"}</Badge>
+          ) : null}
           {media.width && media.height ? (
             <span className="text-xs text-muted">
               {media.width}×{media.height}
@@ -161,7 +164,7 @@ function MediaRow({
             Salvar texto
           </Button>
           {media.type === "image" && !media.isPrimary ? (
-            <Button size="sm" variant="soft" disabled={!canEdit} onClick={onPrimary}>
+            <Button size="sm" variant="soft" disabled={!canEdit || media.pendingReview} onClick={onPrimary}>
               Tornar principal
             </Button>
           ) : null}

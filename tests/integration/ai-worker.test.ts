@@ -155,3 +155,104 @@ describe.skipIf(!enabled)("processador do estúdio de IA (Supabase local)", () =
     await service.from("ai_jobs").delete().eq("product_id", productId).eq("status", "queued");
   });
 });
+
+describe.skipIf(!enabled)("fotos de catálogo (Supabase local)", () => {
+  const suffix = `c${Date.now().toString(36)}`;
+  const editor = { email: `editor-cat-${suffix}@teste.local`, password: `Editor-${suffix}-!9` };
+  let service: SupabaseClient;
+  let staff: SupabaseClient;
+  let anon: SupabaseClient;
+  let productId: string;
+  const seen: { refs: number; views: string[] } = { refs: 0, views: [] };
+
+  const catalogEngines = {
+    ...fakeEngines,
+    async catalogPhotos(refs: string[], dir: string, _product: unknown, views: string[]) {
+      seen.refs = refs.length;
+      seen.views = views;
+      return Promise.all(
+        views.map(async (view) => {
+          const file = path.join(dir, `gerada-${view}.jpg`);
+          await writeFile(file, JPEG);
+          return { file, view };
+        }),
+      );
+    },
+  };
+
+  beforeAll(async () => {
+    service = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    anon = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data: created, error } = await service.auth.admin.createUser({ email: editor.email, password: editor.password, email_confirm: true });
+    if (error) throw error;
+    await service.from("admin_users").insert({ user_id: created.user.id, role: "editor" });
+    staff = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    await staff.auth.signInWithPassword(editor);
+    const { data: id, error: saveError } = await staff.rpc("save_product", {
+      p_product_id: null,
+      p_data: { name: "Poltrona Teste Catálogo", slug: `poltrona-cat-${suffix}`, dimensions: {}, attributes: {}, faq: [], variants: [] },
+    });
+    if (saveError) throw saveError;
+    productId = id;
+    await service.from("ai_jobs").delete().in("status", ["queued", "running"]);
+    // Duas fotos reais já limpas.
+    for (let i = 0; i < 2; i++) {
+      const input = `products/${productId}/originais/${crypto.randomUUID()}.jpg`;
+      await staff.storage.from(BUCKET).upload(input, JPEG, { contentType: "image/jpeg" });
+      await staff.from("ai_jobs").insert({ product_id: productId, kind: "background_removal", input_path: input });
+      await processNext(service, ["background_removal"], catalogEngines);
+    }
+  });
+
+  it("gera os 4 ângulos padrão a partir de todas as fotos reais, sem aprovação", async () => {
+    const { data: first } = await service
+      .from("ai_jobs")
+      .select("input_path")
+      .eq("product_id", productId)
+      .eq("kind", "background_removal")
+      .limit(1)
+      .single();
+    expect((await staff.from("ai_jobs").insert({ product_id: productId, kind: "catalog_photos", input_path: first!.input_path })).error).toBeNull();
+    expect((await processNext(service, ["catalog_photos"], catalogEngines))?.status).toBe("succeeded");
+    expect(seen).toEqual({ refs: 2, views: ["frente", "tres-quartos", "lateral", "traseira"] });
+
+    const { data: media } = await service
+      .from("product_media")
+      .select("id,ai_generated,approved_at,is_primary,alt_text")
+      .eq("product_id", productId)
+      .eq("ai_generated", true)
+      .order("sort_order");
+    expect(media).toHaveLength(4);
+    expect(media!.every((m) => m.approved_at === null && !m.is_primary)).toBe(true);
+    expect(media![1].alt_text).toContain("vista três-quartos");
+  });
+
+  it("só aparece para o público depois que a equipe aprova", async () => {
+    const { data: media } = await service.from("product_media").select("id").eq("product_id", productId).eq("ai_generated", true);
+    const target = media![0].id;
+    const { data: approved, error } = await staff
+      .from("product_media")
+      .update({ approved_at: new Date().toISOString() })
+      .eq("id", target)
+      .select("approved_by");
+    expect(error).toBeNull();
+    expect(approved![0].approved_by).toBeTruthy();
+
+    // Publica por fora (3D e preço) para conferir a visão do público.
+    const { data: category } = await service.from("categories").select("id").eq("slug", "colchoes").single();
+    await service.from("product_media").insert({
+      product_id: productId,
+      storage_path: `products/${productId}/m.glb`,
+      media_type: "model_3d",
+      alt_text: "Modelo 3D de teste",
+    });
+    const pub = await service
+      .from("products")
+      .update({ category_id: category!.id, description: "Teste", price_cents: 1000, status: "published" })
+      .eq("id", productId);
+    expect(pub.error).toBeNull();
+    const { data: visible } = await anon.from("product_media").select("id,ai_generated").eq("product_id", productId).eq("ai_generated", true);
+    expect(visible).toEqual([{ id: target, ai_generated: true }]);
+    await service.from("products").update({ status: "archived" }).eq("id", productId);
+  });
+});

@@ -23,4 +23,5 @@ export const AUDIT_LABELS: Record<string, string> = {
   "variant.price_changed": "Preço de variação alterado",
   "media.added": "Mídia enviada",
   "media.removed": "Mídia removida",
+  "media.ai_approved": "Imagem de IA aprovada",
 };

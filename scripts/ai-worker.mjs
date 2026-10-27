@@ -11,12 +11,14 @@
  *
  * Motores habilitados:
  *   - limpeza de fundo: quando o modelo BiRefNet está baixado (ai:setup);
+ *   - fotos de catálogo (IA recria a cena a partir das fotos reais): ainda sem
+ *     provedor ligado — aguarda a chave da API de imagem (ver docs/ESTUDIO-IA.md);
  *   - 3D: só com AI_3D_ENGINE=triposr e o TripoSR instalado (ver docs/ESTUDIO-IA.md).
  */
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +29,14 @@ export const BUCKET = "product-media";
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // limite do bucket
 const PYTHON = process.env.AI_PYTHON ?? path.join(ROOT, ".venv-ai", "bin", "python");
 const IDLE_MS = 2000;
+
+/** Ângulos padrão das fotos de catálogo (sempre os mesmos, para todos os produtos). */
+export const CATALOG_VIEWS = {
+  frente: "vista frontal",
+  "tres-quartos": "vista três-quartos",
+  lateral: "vista lateral",
+  traseira: "vista traseira",
+};
 const HEARTBEAT_MS = 10_000;
 
 /** O que este computador consegue processar. */
@@ -193,6 +203,69 @@ async function model3d(supabase, job, product, inputFile, dir, engines, uploaded
   return { output_media_id: media.id, details: meta };
 }
 
+/**
+ * Fotos de catálogo: a IA recria a cena nos ângulos padrão usando TODAS as fotos
+ * reais do produto como referência. Cada imagem gerada passa pela mesma limpeza
+ * e enquadramento das fotos comuns (padrão da loja) e entra SEM aprovação: só
+ * aparece na loja depois que alguém conferir com as fotos reais.
+ */
+async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, uploaded) {
+  const { data: cleaned, error } = await supabase
+    .from("ai_jobs")
+    .select("input_path")
+    .eq("product_id", product.id)
+    .eq("kind", "background_removal")
+    .eq("status", "succeeded")
+    .order("created_at");
+  if (error) throw new Error(error.message);
+  if (!cleaned?.length) throw new Error("Envie e limpe pelo menos uma foto real antes.");
+
+  const references = [];
+  for (const [i, row] of cleaned.entries()) {
+    const { data: blob } = await supabase.storage.from(BUCKET).download(row.input_path);
+    if (!blob) continue;
+    const file = path.join(dir, `referencia-${i + 1}${path.extname(row.input_path) || ".jpg"}`);
+    await writeFile(file, Buffer.from(await blob.arrayBuffer()));
+    references.push(file);
+  }
+  if (!references.length) throw new Error("Não foi possível ler as fotos reais.");
+
+  const shots = await engines.catalogPhotos(references, dir, product, Object.keys(CATALOG_VIEWS));
+  const mediaIds = [];
+  for (const [i, shot] of shots.entries()) {
+    const shotDir = path.join(dir, `vista-${i + 1}`);
+    await mkdir(shotDir);
+    const { studio, meta } = await engines.backgroundRemoval(shot.file, shotDir);
+    const bytes = await readFile(studio);
+    if (!isJpeg(bytes)) throw new Error("O motor gerou um arquivo inválido.");
+    const storagePath = await upload(supabase, `products/${product.id}/${randomUUID()}.jpg`, bytes, "image/jpeg");
+    uploaded.push(storagePath);
+    const slot = await nextMediaSlot(supabase, product.id);
+    const label = CATALOG_VIEWS[shot.view] ?? "vista";
+    const { data: media, error: insertError } = await supabase
+      .from("product_media")
+      .insert({
+        product_id: product.id,
+        storage_path: storagePath,
+        media_type: "image",
+        alt_text: `${product.name}, ${label} (imagem de catálogo feita a partir das fotos reais)`.slice(0, 300),
+        ai_generated: true,
+        is_primary: false,
+        is_illustrative: false,
+        sort_order: slot.sortOrder,
+        width: meta.width,
+        height: meta.height,
+        mime_type: "image/jpeg",
+        size_bytes: bytes.length,
+      })
+      .select("id")
+      .single();
+    if (insertError) throw new Error(insertError.message);
+    mediaIds.push(media.id);
+  }
+  return { output_media_id: mediaIds[0] ?? null, details: { mediaIds, views: shots.map((s) => s.view), references: references.length } };
+}
+
 /** Processa um job já marcado como "running". Nunca lança: registra a falha no job. */
 export async function processJob(supabase, job, engines = pythonEngines, engineNames = {}) {
   const uploaded = [];
@@ -206,7 +279,8 @@ export async function processJob(supabase, job, engines = pythonEngines, engineN
     const inputFile = path.join(dir, `entrada${path.extname(job.input_path) || ".jpg"}`);
     await writeFile(inputFile, Buffer.from(await blob.arrayBuffer()));
 
-    const handler = job.kind === "background_removal" ? backgroundRemoval : model3d;
+    const handler = { background_removal: backgroundRemoval, model_3d: model3d, catalog_photos: catalogPhotos }[job.kind];
+    if (!handler) throw new Error("Tipo de job desconhecido.");
     const result = await handler(supabase, job, product, inputFile, dir, engines, uploaded);
     await supabase
       .from("ai_jobs")

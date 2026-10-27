@@ -66,6 +66,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
             canEdit={canEdit}
             requires3d={product.category?.requires3d ?? false}
             hasVideo={product.media.some((m) => m.type === "video")}
+            aiMedia={product.media.filter((m) => m.aiGenerated).sort((a, b) => a.sortOrder - b.sortOrder)}
             initial={studio}
           />
           <ProductForm product={product} categories={categories} canEdit={canEdit} siteUrl={siteUrl()} />

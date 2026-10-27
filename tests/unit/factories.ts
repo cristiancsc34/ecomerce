@@ -31,6 +31,8 @@ export function makeMedia(partial: Partial<ProductMedia> = {}): ProductMedia {
     sortOrder: 0,
     isPrimary: true,
     isIllustrative: false,
+    aiGenerated: false,
+    pendingReview: false,
     width: 1200,
     height: 900,
     ...partial,

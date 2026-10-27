@@ -6,11 +6,15 @@ import { useEffect, useRef, useState } from "react";
 import {
   aiResultsSeenAction,
   aiStudioSnapshotAction,
+  approveAiMediaAction,
   discardAiJobAction,
+  requestCatalogPhotosAction,
   requestModel3dAction,
   uploadAiPhotoAction,
 } from "@/lib/admin/actions/ai";
+import { deleteMediaAction } from "@/lib/admin/actions/media";
 import { isPending, type AiJobView, type AiStudioSnapshot } from "@/lib/admin/ai-types";
+import type { ProductMedia } from "@/lib/catalog/types";
 import { useHydrated } from "@/lib/use-hydrated";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,7 +55,8 @@ function StatusBadge({ job, now }: { job: AiJobView; now: number }) {
   if (job.status === "running") {
     return (
       <Badge tone="info">
-        {job.kind === "model_3d" ? "Gerando 3D" : "Limpando o fundo"}… {elapsed(job, now)} s
+        {{ model_3d: "Gerando 3D", catalog_photos: "Criando fotos de catálogo", background_removal: "Limpando o fundo" }[job.kind]}…{" "}
+        {elapsed(job, now)} s
       </Badge>
     );
   }
@@ -69,6 +74,7 @@ export function AiStudio({
   canEdit,
   requires3d,
   hasVideo,
+  aiMedia,
   initial,
 }: {
   productId: string;
@@ -76,6 +82,8 @@ export function AiStudio({
   canEdit: boolean;
   requires3d: boolean;
   hasVideo: boolean;
+  /** Imagens de catálogo geradas por IA (aprovadas ou aguardando). */
+  aiMedia: ProductMedia[];
   initial: AiStudioSnapshot;
 }) {
   const router = useRouter();
@@ -97,6 +105,18 @@ export function AiStudio({
   const has3d = modelJobs.some((j) => j.status === "succeeded" && j.outputUrl);
   const anyPending = snapshot.jobs.some(isPending);
   const can3d = snapshot.worker.capabilities.includes("model_3d");
+  const canCatalog = snapshot.worker.capabilities.includes("catalog_photos");
+  const catalogJob = snapshot.jobs.filter((j) => j.kind === "catalog_photos").at(-1) ?? null;
+  const [requestingCatalog, setRequestingCatalog] = useState(false);
+
+  async function generateCatalog() {
+    setRequestingCatalog(true);
+    setMessage(null);
+    const result = await requestCatalogPhotosAction(productId);
+    setRequestingCatalog(false);
+    if (!result.ok) setMessage({ tone: "danger", text: result.error });
+    await refresh();
+  }
 
   async function refresh() {
     const result = await aiStudioSnapshotAction(productId);
@@ -304,9 +324,51 @@ export function AiStudio({
         </ol>
       ) : null}
 
-      {/* 2. 3D */}
+      {/* 2. Fotos de catálogo */}
       <h3 className="mt-6 flex items-center gap-2 font-bold">
-        <CubeIcon className="h-5 w-5 text-air-blue-ink" /> 2. Modelo 3D
+        <SparkIcon className="h-5 w-5 text-air-blue-ink" /> 2. Fotos de catálogo (padrão da loja)
+      </h3>
+      <p className="mt-1 max-w-prose text-sm text-muted">
+        A IA recria a cena com os mesmos ângulos (frente, ¾, lateral e traseira), luz e fundo para todos os produtos, usando as
+        fotos reais como referência. O produto não muda. Nada vai para a loja sem alguém conferir com as fotos reais e aprovar.
+      </p>
+      {!canCatalog && snapshot.worker.online ? (
+        <div className="mt-2">
+          <Notice tone="warning" title="Gerador de fotos de catálogo ainda não ligado">
+            Precisa da chave da API de imagem (OpenAI). Enquanto isso, as fotos limpas acima já servem para a loja.
+          </Notice>
+        </div>
+      ) : null}
+      {canEdit ? (
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            onClick={generateCatalog}
+            loading={requestingCatalog}
+            loadingLabel="Pedindo…"
+            disabled={!hydrated || !readyPhotos.length || (snapshot.worker.online && !canCatalog) || Boolean(catalogJob && isPending(catalogJob))}
+          >
+            <SparkIcon className="h-5 w-5" /> {aiMedia.length ? "Gerar fotos de catálogo de novo" : "Gerar fotos de catálogo"}
+          </Button>
+          {catalogJob ? <StatusBadge job={catalogJob} now={now} /> : null}
+        </div>
+      ) : null}
+      {catalogJob?.error ? <p className="mt-2 text-sm text-danger">{catalogJob.error}</p> : null}
+      {aiMedia.length ? (
+        <CatalogReview
+          media={aiMedia}
+          references={cleanJobs.map((j) => j.inputUrl)}
+          canEdit={canEdit}
+          onChange={(text, ok) => {
+            setMessage({ tone: ok ? "success" : "danger", text });
+            router.refresh();
+          }}
+        />
+      ) : null}
+
+      {/* 3. 3D */}
+      <h3 className="mt-6 flex items-center gap-2 font-bold">
+        <CubeIcon className="h-5 w-5 text-air-blue-ink" /> 3. Modelo 3D
       </h3>
       {!can3d && snapshot.worker.online ? (
         <div className="mt-2">
@@ -354,11 +416,80 @@ export function AiStudio({
       ) : null}
 
       {/* 3. Vídeo */}
-      <h3 className="mt-6 font-bold">3. Vídeo (opcional)</h3>
+      <h3 className="mt-6 font-bold">4. Vídeo (opcional)</h3>
       <p className="mt-1 text-sm text-muted">
         {hasVideo ? "Vídeo enviado. " : ""}Envie um vídeo curto do produto (MP4 ou WebM, até 4 MB) na seção “Fotos, vídeos e 3D”.
       </p>
     </section>
+  );
+}
+
+function CatalogReview({
+  media,
+  references,
+  canEdit,
+  onChange,
+}: {
+  media: ProductMedia[];
+  references: string[];
+  canEdit: boolean;
+  onChange: (message: string, ok: boolean) => void;
+}) {
+  return (
+    <div className="mt-4 space-y-3">
+      <div>
+        <p className="text-sm font-semibold">Fotos reais (referência para conferir)</p>
+        <ul className="mt-2 flex gap-2 overflow-x-auto">
+          {references.map((url, i) => (
+            <li key={url} className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-pale-blue">
+              <Image src={url} alt={`Foto real ${i + 1}`} fill sizes="80px" className="object-cover" />
+            </li>
+          ))}
+        </ul>
+      </div>
+      <ol className="grid gap-3 sm:grid-cols-2" aria-label="Fotos de catálogo geradas">
+        {media.map((m) => (
+          <li key={m.id} className="rounded-2xl border border-line bg-cloud p-3" data-testid="foto-catalogo" data-pending={m.pendingReview}>
+            <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-white">
+              <Image src={m.url} alt={m.altText} fill sizes="(min-width: 640px) 320px, 100vw" className="object-cover" />
+            </div>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              {m.pendingReview ? <Badge tone="warm">Aguardando conferência</Badge> : <Badge tone="success">Aprovada · na loja</Badge>}
+              {canEdit ? (
+                <div className="flex gap-1">
+                  {m.pendingReview ? (
+                    <ConfirmButton
+                      label="Aprovar"
+                      variant="primary"
+                      triggerVariant="soft"
+                      title="Aprovar esta imagem para a loja?"
+                      description="Compare com as fotos reais. A imagem só pode ir para a loja se mostrar exatamente o mesmo produto."
+                      requireCheck="Conferi com as fotos reais: cor, formato, peças e acabamento são iguais."
+                      confirmLabel="Aprovar"
+                      onConfirm={async () => {
+                        const r = await approveAiMediaAction(m.id);
+                        onChange(r.ok ? "Imagem aprovada: já pode aparecer na loja." : r.error, r.ok);
+                      }}
+                    />
+                  ) : null}
+                  <ConfirmButton
+                    label="Descartar"
+                    triggerVariant="ghost"
+                    title="Descartar esta imagem?"
+                    description="A imagem gerada é removida. As fotos reais continuam guardadas."
+                    confirmLabel="Descartar"
+                    onConfirm={async () => {
+                      const r = await deleteMediaAction(m.id);
+                      onChange(r.ok ? "Imagem descartada." : r.error, r.ok);
+                    }}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
