@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-labelledby="t">
+<title id="t">Ilustração da lateral do colchão brisa-premium, mostrando altura e camadas</title>
+<defs>
+  <linearGradient id="bg-brisa-premium-l" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#F6FAFC"/>
+    <stop offset="1" stop-color="#E8F2FA"/>
+  </linearGradient>
+</defs>
+<rect width="1200" height="900" fill="url(#bg-brisa-premium-l)"/>
+<ellipse cx="600" cy="592" rx="490" ry="22" fill="#132940" opacity="0.08"/>
+<g>
+<clipPath id="clip-brisa-premium"><rect x="140" y="338" width="920" height="224" rx="28"/></clipPath>
+<g clip-path="url(#clip-brisa-premium)"><rect x="140" y="338" width="920" height="56" fill="#FFFFFF" stroke="#DCE5EC" stroke-width="2"/>
+<rect x="140" y="394" width="920" height="56" fill="#C4E0F5" stroke="#DCE5EC" stroke-width="2"/>
+<rect x="140" y="450" width="920" height="56" fill="#E8F2FA" stroke="#DCE5EC" stroke-width="2"/>
+<rect x="140" y="506" width="920" height="56" fill="#408AC2" stroke="#DCE5EC" stroke-width="2"/></g>
+<rect x="140" y="338" width="920" height="224" rx="28" fill="none" stroke="#132940" stroke-opacity="0.25" stroke-width="3"/>
+</g>
+<g stroke="#132940" stroke-width="3" fill="none">
+<line x1="1110" y1="338" x2="1110" y2="562"/>
+<line x1="1096" y1="338" x2="1124" y2="338"/>
+<line x1="1096" y1="562" x2="1124" y2="562"/>
+</g>
+<text x="1110" y="320" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="600" fill="#132940">altura</text>
+<text x="1176" y="876" text-anchor="end" font-family="Inter, Arial, sans-serif" font-size="20" fill="#5E707F" opacity="0.85">Ilustração · não é foto do produto</text>
+</svg>
