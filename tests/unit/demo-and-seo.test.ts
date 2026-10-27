@@ -9,8 +9,16 @@ import { rateLimit } from "@/lib/auth/rate-limit";
 import { makeMedia, makeProduct, makeVariant } from "./factories";
 
 describe("dados de demonstração", () => {
-  it("são os três placeholders, identificados, em rascunho e não publicáveis", () => {
-    expect(DEMO_PRODUCTS.map((p) => p.name)).toEqual(["Nuvem Essencial", "Brisa Premium", "Sereno Híbrido"]);
+  const placeholders = DEMO_PRODUCTS.filter((p) => p.category?.slug === "colchoes");
+  const armchair = DEMO_PRODUCTS.find((p) => p.slug === "poltrona-azul")!;
+
+  it("são os três placeholders + a prévia da poltrona, em rascunho e não publicáveis", () => {
+    expect(DEMO_PRODUCTS.map((p) => p.name)).toEqual([
+      "Nuvem Essencial",
+      "Brisa Premium",
+      "Sereno Híbrido",
+      "Poltrona Azul Estrutura Clara",
+    ]);
     for (const p of DEMO_PRODUCTS) {
       expect(p.isDemo).toBe(true);
       expect(p.status).toBe("draft");
@@ -28,10 +36,21 @@ describe("dados de demonstração", () => {
     }
   });
 
-  it("todas as mídias são ilustrativas, com alt text e arquivo existente", () => {
+  it("poltrona: sem preço nem medidas inventados, só fotos aprovadas e 3D", () => {
+    expect(armchair.category?.requires3d).toBe(true);
+    expect(armchair.priceCents).toBeNull();
+    expect(armchair.variants).toEqual([]);
+    expect(armchair.dimensions).toEqual({});
+    const images = armchair.media.filter((m) => m.type === "image");
+    expect(images).toHaveLength(4);
+    for (const m of images) expect(m).toMatchObject({ aiGenerated: true, pendingReview: false });
+    expect(armchair.media.filter((m) => m.type === "model_3d")).toHaveLength(1);
+  });
+
+  it("todas as mídias têm alt text e arquivo existente; as dos placeholders são ilustrativas", () => {
     for (const p of DEMO_PRODUCTS) {
       for (const m of p.media) {
-        expect(m.isIllustrative).toBe(true);
+        if (placeholders.includes(p)) expect(m.isIllustrative).toBe(true);
         expect(m.altText.length).toBeGreaterThan(10);
         expect(existsSync(new URL(`../../public${m.url}`, import.meta.url)), m.url).toBe(true);
       }

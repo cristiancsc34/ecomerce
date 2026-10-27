@@ -14,7 +14,7 @@ test.describe("vitrine em modo demonstração", () => {
 
   test("catálogo: filtro reflete na URL, ordena e mostra estado vazio", async ({ page }) => {
     await page.goto("/produtos");
-    await expect(page.getByRole("status").filter({ hasText: "produtos encontrados" })).toHaveText("3 produtos encontrados");
+    await expect(page.getByRole("status").filter({ hasText: "produtos encontrados" })).toHaveText("4 produtos encontrados");
 
     if (isMobile(page)) await page.getByText("Filtrar e ordenar").click();
     const panel = isMobile(page) ? page.locator("details") : page.getByRole("complementary", { name: "Filtros" });
@@ -25,12 +25,22 @@ test.describe("vitrine em modo demonstração", () => {
 
     await page.goto("/produtos?ordem=menor-preco");
     const names = await page.locator("article h3").allTextContents();
-    expect(names).toEqual(["Nuvem Essencial", "Brisa Premium", "Sereno Híbrido"]);
+    // Sem preço definido vai para o fim.
+    expect(names).toEqual(["Nuvem Essencial", "Brisa Premium", "Sereno Híbrido", "Poltrona Azul Estrutura Clara"]);
 
     await page.goto("/produtos?tamanho=solteiro&firmeza=firme");
     await expect(page.getByRole("heading", { name: "Nenhum produto com esses filtros" })).toBeVisible();
     await page.getByRole("link", { name: "Limpar filtros" }).click();
     await expect(page).toHaveURL(/\/produtos$/);
+  });
+
+  test("poltrona (prévia): fotos de catálogo, 3D e sem preço inventado", async ({ page }) => {
+    await page.goto("/categorias/cadeiras");
+    await page.getByRole("link", { name: /Poltrona Azul Estrutura Clara/ }).first().click();
+    await expect(page.getByRole("heading", { level: 1, name: "Poltrona Azul Estrutura Clara" })).toBeVisible();
+    await expect(page.getByText("Cena recriada a partir das fotos reais").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Preço em definição" }).first()).toBeDisabled();
+    await expect(page.getByRole("region", { name: "Ver em 3D" })).toBeVisible();
   });
 
   test("busca sem acento e estado vazio", async ({ page }) => {

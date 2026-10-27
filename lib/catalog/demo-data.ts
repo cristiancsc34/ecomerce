@@ -15,6 +15,11 @@
  *
  * No banco, os mesmos produtos entram como rascunho e com `is_demo = true`;
  * uma constraint impede que sejam publicados.
+ *
+ * A "Poltrona Azul Estrutura Clara" é diferente: é um produto real da loja,
+ * cadastrado pelo estúdio do painel (fotos de catálogo recriadas a partir das
+ * fotos reais e aprovadas pela equipe, textos e 3D). Entra aqui só como prévia,
+ * sem preço nem medidas (ainda não confirmados), e também não é publicável.
  */
 import { SIZE_INFO, type Category, type Product, type ProductMedia, type ProductVariant, type SizeKey } from "./types";
 
@@ -26,6 +31,17 @@ export const DEMO_CATEGORY: Category = {
   sortOrder: 0,
   requires3d: false,
 };
+
+export const DEMO_FURNITURE_CATEGORY: Category = {
+  id: "00000000-0000-4000-8000-000000000002",
+  slug: "cadeiras",
+  name: "Cadeiras e poltronas",
+  description: "Cadeiras e poltronas com fotos reais e visualização em 3D.",
+  sortOrder: 1,
+  requires3d: true,
+};
+
+export const DEMO_CATEGORIES: Category[] = [DEMO_CATEGORY, DEMO_FURNITURE_CATEGORY];
 
 const VIEWS = [
   { key: "frente", alt: "vista em três quartos, mostrando o tampo e a lateral" },
@@ -87,6 +103,90 @@ const DEMO_NOTICE =
   "Produto demonstrativo. Nome, preço, firmeza, altura e imagens são ilustrativos e serão substituídos pelos dados reais verificados antes de qualquer publicação.";
 
 const category = { id: DEMO_CATEGORY.id, slug: DEMO_CATEGORY.slug, name: DEMO_CATEGORY.name, requires3d: false };
+
+const ARMCHAIR_VIEWS = [
+  { key: "frente", label: "vista frontal" },
+  { key: "tres-quartos", label: "vista três-quartos" },
+  { key: "lateral", label: "vista lateral" },
+  { key: "traseira", label: "vista traseira" },
+] as const;
+
+const ARMCHAIR_MEDIA_IDS = [
+  "f6a40ce8-2e34-43a7-9131-89db826e0a49",
+  "77083c14-d97c-4f4a-9e35-e4aa6a97abd4",
+  "1c392a8d-8d41-408f-9377-c37c8e3de843",
+  "014e264f-4ccb-4b60-906e-c44f16607ee3",
+];
+
+/** Prévia da poltrona azul: mídias exportadas do estúdio (aprovadas) para `public/demo`. */
+const ARMCHAIR: Product = {
+  id: "dcdaee90-64b9-4b91-832b-f5049a237cb9",
+  slug: "poltrona-azul",
+  name: "Poltrona Azul Estrutura Clara",
+  shortDescription:
+    "Poltrona azul com encosto alto e estrutura em tom de madeira clara, para deixar o ambiente mais acolhedor.",
+  description: [
+    "Esta poltrona azul tem encosto alto e almofadas com costuras marcadas, que criam um visual aconchegante e moderno. O assento é amplo e o apoio de cabeça prolonga o conforto por todo o corpo.",
+    "A estrutura em tom de madeira clara traz leveza e combina facilmente com diferentes estilos de decoração. Os braços curvos e a base contínua completam o design, ideal para sala, quarto ou cantinho de leitura.",
+    "Vista de todos os lados, a peça mantém o mesmo cuidado nos detalhes, com acabamento uniforme e linhas suaves, perfeita para quem busca um ponto de cor elegante no ambiente.",
+    "Prévia em ambiente demonstrativo: preço e medidas ainda não foram confirmados.",
+  ].join("\n\n"),
+  category: {
+    id: DEMO_FURNITURE_CATEGORY.id,
+    slug: DEMO_FURNITURE_CATEGORY.slug,
+    name: DEMO_FURNITURE_CATEGORY.name,
+    requires3d: true,
+  },
+  status: "draft",
+  isDemo: true,
+  priceCents: null,
+  compareAtPriceCents: null,
+  currency: "BRL",
+  sku: null,
+  stockQuantity: null,
+  dimensions: {},
+  attributes: {},
+  faq: [],
+  seoTitle: "Poltrona azul com estrutura em tom de madeira clara",
+  seoDescription:
+    "Poltrona azul com encosto alto, almofadas pespontadas e estrutura em tom de madeira clara. Design acolhedor para sala, quarto ou cantinho de leitura.",
+  createdAt: "2026-10-27T20:38:53.607Z",
+  updatedAt: "2026-10-27T20:43:37.011Z",
+  publishedAt: null,
+  media: [
+    ...ARMCHAIR_VIEWS.map(
+      (view, i): ProductMedia => ({
+        id: ARMCHAIR_MEDIA_IDS[i],
+        type: "image",
+        url: `/demo/poltrona-azul-${view.key}.jpg`,
+        storagePath: `demo/poltrona-azul-${view.key}.jpg`,
+        altText: `Poltrona azul, ${view.label} (imagem de catálogo feita a partir das fotos reais)`,
+        sortOrder: i,
+        isPrimary: i === 0,
+        isIllustrative: false,
+        aiGenerated: true,
+        pendingReview: false,
+        width: 1600,
+        height: 1200,
+      }),
+    ),
+    {
+      id: "2d568bb6-f0fd-4795-96df-10e50e010717",
+      type: "model_3d",
+      url: "/demo/poltrona-azul.glb",
+      storagePath: "demo/poltrona-azul.glb",
+      altText: "Modelo 3D da Poltrona Azul Estrutura Clara, gerado por IA a partir das fotos.",
+      sortOrder: 4,
+      isPrimary: false,
+      isIllustrative: true,
+      aiGenerated: false,
+      pendingReview: false,
+      width: null,
+      height: null,
+    },
+  ],
+  variants: [],
+};
 
 export const DEMO_PRODUCTS: Product[] = [
   {
@@ -177,4 +277,5 @@ export const DEMO_PRODUCTS: Product[] = [
       ["king", 349900],
     ]),
   },
+  ARMCHAIR,
 ];

@@ -126,6 +126,11 @@ Na primeira vez em uma máquina nova, rode `npx playwright install chromium` ant
 
 ## Deploy (Vercel)
 
+**No ar (modo demonstração):** https://cuxoes.vercel.app — projeto `cuxoes` na Vercel, ligado a este repositório;
+cada push na branch de produção (`claude/quirky-maxwell-xkyvq6`) publica sozinho. Sem Supabase, mostra os colchões de
+exemplo e a prévia da Poltrona Azul (fotos aprovadas no estúdio, 3D, sem preço). O painel online depende do Supabase
+na nuvem.
+
 1. Importe o repositório na Vercel (framework Next.js detectado automaticamente).
 2. Variáveis: `NEXT_PUBLIC_SITE_URL` (URL final), `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
    Sem as do Supabase, o deploy sobe em modo demonstração.

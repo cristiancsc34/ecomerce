@@ -1,7 +1,7 @@
 import "server-only";
 import { catalogSource } from "@/config/site";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { DEMO_CATEGORY, DEMO_PRODUCTS } from "./demo-data";
+import { DEMO_CATEGORIES, DEMO_PRODUCTS } from "./demo-data";
 import { mapCategory, mapProduct, PUBLIC_PRODUCT_COLUMNS, type CategoryRow, type ProductRow } from "./mappers";
 import type { Category, Product } from "./types";
 
@@ -21,7 +21,7 @@ const demoRepository: CatalogRepository = {
     return DEMO_PRODUCTS;
   },
   async listCategories() {
-    return [DEMO_CATEGORY];
+    return DEMO_CATEGORIES;
   },
 };
 
