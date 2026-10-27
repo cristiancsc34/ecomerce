@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { model3d, primaryImage } from "@/lib/catalog/product-helpers";
+import { fromPriceCents, model3d, primaryImage } from "@/lib/catalog/product-helpers";
 import type { Product } from "@/lib/catalog/types";
 import { CubeIcon } from "@/components/ui/icons";
 import { ProductPrice } from "./price";
@@ -17,6 +17,7 @@ export function ProductCard({
 }) {
   const image = primaryImage(product);
   const has3d = Boolean(model3d(product));
+  const hasPrice = fromPriceCents(product) !== null;
   const Heading = headingLevel;
 
   return (
@@ -41,8 +42,15 @@ export function ProductCard({
             {product.name}
           </Link>
         </Heading>
-        <div className="mt-auto">
+        <div className="mt-auto space-y-2">
           <ProductPrice product={product} />
+          {/* Visual de botão; o link do card inteiro já leva ao produto. */}
+          <span
+            aria-hidden="true"
+            className="flex h-9 items-center justify-center rounded-md bg-deep-fjord text-sm font-semibold text-white transition-colors group-hover:bg-[#1d3a58]"
+          >
+            {hasPrice ? "Comprar" : "Ver produto"}
+          </span>
         </div>
       </div>
     </article>
@@ -53,7 +61,7 @@ export function ProductGrid({ products, priorityCount = 0 }: { products: Product
   return (
     <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
       {products.map((p, i) => (
-        <li key={p.id}>
+        <li key={p.id} className="min-w-0">
           <ProductCard product={p} priority={i < priorityCount} />
         </li>
       ))}

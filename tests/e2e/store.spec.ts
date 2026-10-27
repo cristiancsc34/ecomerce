@@ -3,9 +3,11 @@ import { expect, test, type Page } from "@playwright/test";
 const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1280) < 1024;
 
 test.describe("vitrine em modo demonstração", () => {
-  test("home: abre direto nos produtos, sem página de apresentação", async ({ page }) => {
+  test("home: página de venda com banner, vitrine e chamada para o 3D", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1, name: "Produtos" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Conforto e estilo para a sua casa" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Escolha o seu" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Gire a Poltrona Azul Estrutura Clara em 3D" })).toBeVisible();
     await expect(page.locator("article h3")).toHaveText(["Poltrona Azul Estrutura Clara", "Cadeira Cinza Trama"]);
     await expect(page.getByRole("status").filter({ hasText: "produtos" })).toHaveText("2 produtos");
     // Só a poltrona já tem 3D.
@@ -15,9 +17,27 @@ test.describe("vitrine em modo demonstração", () => {
     await expect(page.locator('a[href="/guia"], a[href="/comparar"]')).toHaveCount(0);
   });
 
+  test("celular: 2 cards por linha, mesmo tamanho, sem sair da tela", async ({ page }) => {
+    for (const width of [360, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto("/");
+      const boxes = await page.locator("article").evaluateAll((els) =>
+        els.map((e) => {
+          const r = e.getBoundingClientRect();
+          return { top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height), right: r.right };
+        }),
+      );
+      expect(boxes, `${width}px`).toHaveLength(2);
+      expect(boxes[0].top, `${width}px`).toBe(boxes[1].top);
+      expect(boxes[0].width, `${width}px`).toBe(boxes[1].width);
+      expect(boxes[0].height, `${width}px`).toBe(boxes[1].height);
+      expect(boxes[1].right, `${width}px`).toBeLessThanOrEqual(width);
+    }
+  });
+
   test("produto sem preço: nada inventado e o destaque vai para o 3D", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("link", { name: "Poltrona Azul Estrutura Clara" }).click();
+    await page.getByRole("link", { name: "Poltrona Azul Estrutura Clara", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Poltrona Azul Estrutura Clara" })).toBeVisible();
     await expect(page.getByTestId("preco-atual")).toHaveText("Preço em breve");
     await expect(page.getByText("Cena recriada a partir das fotos reais").first()).toBeVisible();
