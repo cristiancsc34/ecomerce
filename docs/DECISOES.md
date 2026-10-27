@@ -19,6 +19,27 @@
 | **Fonte Inter via `next/font`** | Auto-hospedada no build, com métricas de fallback (evita salto de layout) |
 | **`air-blue-ink` (#2E6E9E)** | O `#408AC2` tem contraste 3,7:1 sobre branco (abaixo de AA para texto). Usamos uma variante escura só para texto de links; o azul original fica para ícones e elementos grandes |
 
+## Revisão de código independente (27/10/2026)
+
+Corrigido (com teste que falha sem a correção):
+
+| Achado | Correção |
+| --- | --- |
+| Editor conseguia sobrescrever ou apagar, direto pela API do Storage, a foto de um produto publicado | Migração `20261027000200_review_fixes.sql`: sobrescrever só admin; editor só apaga arquivo que não está em produto publicado/arquivado |
+| Com variações, o preço-base entrava no “a partir de”, filtros, ordenação e JSON-LD, mas a sacola só vende variações | `purchasablePrices`: com variações, só os preços delas |
+| Salvar duas vezes seguidas recriava os tamanhos novos (ids mudavam e sacolas abertas perdiam o item) | O formulário recarrega os ids gravados após salvar |
+| Slug da cópia (`duplicate_product`) podia passar de 80 caracteres ou gerar `--` | Corte em 67 caracteres sem hífen final |
+
+Registrado como melhoria futura (baixo risco, não alterado para não mexer no que funciona):
+
+- As regras de publicação (preço, foto principal real, textos alternativos) são checadas na **mudança** para
+  publicado. Um admin pode, depois, trocar a principal por uma ilustrativa ou apagar o preço de um produto já no ar;
+  preço 0 é aceito. O painel avisa, mas o banco não bloqueia. Melhoria: validar também em updates de produtos
+  publicados e exigir preço > 0.
+- `set_primary_media` e `reorder_media` respondem “ok” mesmo quando a RLS não deixou alterar nenhuma linha (por
+  exemplo, editor em produto publicado). Nada muda no banco, mas a mensagem de sucesso aparece. Melhoria: checar
+  `found`/quantidade de linhas e devolver erro.
+
 ## Medições de desempenho (locais)
 
 Build de produção em modo demonstração, celular emulado (390 px), rede ~4G (150 ms, 1,6 Mbps) e CPU 4× mais lenta,
@@ -39,7 +60,7 @@ Vercel Speed Insights ou o PageSpeed Insights, com fotos reais (mais pesadas que
 2. **Mix do catálogo**: só colchões ou também bases, camas e acessórios? (Basta criar categorias no painel.)
 3. **Pagamento desde o primeiro dia?** Hoje a sacola simula valores e a venda é pelo atendimento.
 4. **Estoque e regras de entrega/devolução**: definir fonte do estoque, regiões atendidas e procedimento de troca.
-5. **Provedores**: pagamento, frete, IA de imagem e 3D.
+5. **Provedores**: pagamento, frete, IA de imagem e 3D (proposta em [`PROXIMA-FASE-IA-3D.md`](PROXIMA-FASE-IA-3D.md)).
 6. **3D no lançamento?** A prova de conceito está pronta; o modelo real precisa ser produzido e revisado.
 
 Também faltam os dados para preencher: contatos, razão social, CNPJ e endereço (`config/brand.ts`), e as fotos e

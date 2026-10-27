@@ -12,6 +12,13 @@ describe("preço exibido", () => {
     expect(hasPriceRange(p)).toBe(true);
     expect(fromPriceCents(makeProduct({ priceCents: null, variants: [] }))).toBeNull();
   });
+
+  it("com variações, ignora o preço-base (não anuncia um preço que a sacola não vende)", () => {
+    const p = makeProduct({ priceCents: 50, variants: [makeVariant({ priceCents: 300 }), makeVariant({ priceCents: 100 })] });
+    expect(fromPriceCents(p)).toBe(100);
+    expect(toPriceCents(p)).toBe(300);
+    expect(fromPriceCents(makeProduct({ priceCents: 19900, variants: [] }))).toBe(19900);
+  });
 });
 
 describe("disponibilidade", () => {

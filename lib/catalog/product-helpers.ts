@@ -1,20 +1,24 @@
 import type { Product, ProductMedia, ProductVariant, SizeKey } from "./types";
 
-/** Menor preço entre o preço-base e as variações. */
+/**
+ * Preços que o cliente consegue de fato comprar: com variações, só os preços
+ * delas (o preço-base é ignorado, como na sacola); sem variações, o preço-base.
+ * Nunca anunciar um "a partir de" que não pode ser comprado.
+ */
+export function purchasablePrices(product: Pick<Product, "priceCents" | "variants">): number[] {
+  if (product.variants.length) return product.variants.map((v) => v.priceCents);
+  return product.priceCents !== null ? [product.priceCents] : [];
+}
+
+/** Menor preço comprável. */
 export function fromPriceCents(product: Pick<Product, "priceCents" | "variants">): number | null {
-  const prices = [
-    ...(product.priceCents !== null ? [product.priceCents] : []),
-    ...product.variants.map((v) => v.priceCents),
-  ];
+  const prices = purchasablePrices(product);
   return prices.length ? Math.min(...prices) : null;
 }
 
-/** Maior preço entre o preço-base e as variações. */
+/** Maior preço comprável. */
 export function toPriceCents(product: Pick<Product, "priceCents" | "variants">): number | null {
-  const prices = [
-    ...(product.priceCents !== null ? [product.priceCents] : []),
-    ...product.variants.map((v) => v.priceCents),
-  ];
+  const prices = purchasablePrices(product);
   return prices.length ? Math.max(...prices) : null;
 }
 

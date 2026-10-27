@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { get, useFieldArray, useForm, useWatch, type FieldErrors, type Path, type UseFormRegister } from "react-hook-form";
 import { saveProductAction } from "@/lib/admin/actions/products";
 import { productToFormValues } from "@/lib/admin/form-values";
@@ -135,6 +135,15 @@ export function ProductForm({
     defaultValues: productToFormValues(product),
     mode: "onBlur",
   });
+
+  // Depois de salvar, a página recarrega o produto com os ids das variações
+  // criadas; sem isso, o próximo salvamento as recriaria (e quebraria sacolas).
+  const syncedVersion = useRef(product?.updatedAt);
+  useEffect(() => {
+    if (!product || product.updatedAt === syncedVersion.current) return;
+    syncedVersion.current = product.updatedAt;
+    if (!isDirty) reset(productToFormValues(product));
+  }, [product, isDirty, reset]);
 
   const variants = useFieldArray({ control, name: "variants", keyName: "key" });
   const specs = useFieldArray({ control, name: "extraSpecs" });
@@ -298,7 +307,7 @@ export function ProductForm({
               {variants.fields.map((field, i) => {
                 const base = `variants.${i}` as const;
                 return (
-                  <li key={field.key} className="rounded-2xl border border-line bg-cloud p-4">
+                  <li key={field.key} data-variant-id={field.id} className="rounded-2xl border border-line bg-cloud p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <p className="font-semibold text-deep-fjord">Variação {i + 1}</p>
                       <div className="flex gap-1">

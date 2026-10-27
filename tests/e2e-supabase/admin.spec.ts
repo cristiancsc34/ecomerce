@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
 import { ACCOUNTS } from "./accounts";
 
 const unique = Date.now().toString(36);
@@ -157,4 +158,39 @@ test("produto de demonstração não pode ser publicado", async ({ page }) => {
   await page.getByRole("link", { name: "Nuvem Essencial" }).click();
   await expect(page.getByText("Produto de demonstração não pode ser publicado")).toBeVisible();
   await expect(page.getByRole("button", { name: "Publicar" })).toBeDisabled();
+});
+
+test("salvar de novo não recria os tamanhos (sacolas continuam válidas)", async ({ page }) => {
+  const service = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const variants = async () => {
+    const { data: product } = await service.from("products").select("id").eq("slug", productSlug).single();
+    const { data } = await service
+      .from("product_variants")
+      .select("id, price_cents")
+      .eq("product_id", product!.id)
+      .order("sort_order");
+    return data ?? [];
+  };
+
+  await login(page, "admin");
+  await page.goto(`/admin/produtos?q=${encodeURIComponent(unique)}`);
+  await page.getByRole("link", { name: productName }).click();
+  const save = page.getByRole("button", { name: "Salvar alterações" });
+  await expect(save).toBeEnabled();
+
+  await page.getByRole("button", { name: "Adicionar tamanho" }).click();
+  await page.getByLabel(/Tamanho-padrão/).last().selectOption("queen");
+  await page.getByLabel(/^Preço$/).last().fill("2.199,00");
+  await save.click();
+  await expect.poll(async () => (await variants()).length).toBe(2);
+  const first = await variants();
+  // A página recarrega o produto salvo e o formulário passa a conhecer o id do tamanho novo.
+  await expect(page.locator(`li[data-variant-id="${first[1].id}"]`)).toBeAttached();
+
+  await page.getByLabel(/^Preço$/).last().fill("2.299,00");
+  await save.click();
+  await expect.poll(async () => (await variants()).map((v) => v.price_cents)).toEqual([179900, 229900]);
+  expect((await variants()).map((v) => v.id)).toEqual(first.map((v) => v.id));
 });

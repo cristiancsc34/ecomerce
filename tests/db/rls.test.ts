@@ -163,6 +163,36 @@ describe("editor", () => {
       as(db, "editor", (tx) => tx.query("insert into storage.objects (bucket_id, name) values ('product-media', 'outra/foto.jpg')")),
     ).rejects.toThrow(/row-level security/);
   });
+
+  it("não sobrescreve nem apaga no Storage a foto de produto publicado", async () => {
+    const id = await createProduct("admin");
+    const mediaId = await addMedia(id);
+    const path = (await db.query<{ storage_path: string }>("select storage_path from public.product_media where id = $1", [mediaId])).rows[0].storage_path;
+    await db.query("insert into storage.objects (bucket_id, name) values ('product-media', $1)", [path]);
+    await setStatus("admin", id, "published");
+
+    const updated = await as(db, "editor", (tx) =>
+      tx.query("update storage.objects set name = name where bucket_id = 'product-media' and name = $1 returning name", [path]),
+    );
+    expect(updated.rows).toEqual([]);
+    const deleted = await as(db, "editor", (tx) =>
+      tx.query("delete from storage.objects where bucket_id = 'product-media' and name = $1 returning name", [path]),
+    );
+    expect(deleted.rows).toEqual([]);
+
+    // Arquivo que não está no ar (rascunho ou órfão) o editor ainda pode apagar.
+    await db.query("insert into storage.objects (bucket_id, name) values ('product-media', 'products/rascunho/solta.jpg')");
+    const orphan = await as(db, "editor", (tx) =>
+      tx.query("delete from storage.objects where bucket_id = 'product-media' and name = 'products/rascunho/solta.jpg' returning name"),
+    );
+    expect(orphan.rows).toEqual([{ name: "products/rascunho/solta.jpg" }]);
+
+    // O administrador continua podendo.
+    const byAdmin = await as(db, "admin", (tx) =>
+      tx.query("delete from storage.objects where bucket_id = 'product-media' and name = $1 returning name", [path]),
+    );
+    expect(byAdmin.rows).toEqual([{ name: path }]);
+  });
 });
 
 describe("publicação controlada (administrador)", () => {
@@ -288,6 +318,17 @@ describe("funções do painel", () => {
     expect(row.name).toMatch(/\(cópia\)$/);
     const counts = (await db.query<{ m: number; v: number }>("select (select count(*) from public.product_media where product_id = $1)::int m, (select count(*) from public.product_variants where product_id = $1)::int v", [copy])).rows[0];
     expect(counts).toEqual({ m: 1, v: 1 });
+  });
+
+  it("duplicate_product mantém o slug da cópia válido mesmo com slug longo", async () => {
+    // 66 caracteres + "-": o corte em 67 cairia num hífen.
+    const slug = `${"a".repeat(66)}-b`;
+    const id = await createProduct("admin", { slug });
+    const copy = await as(db, "admin", async (tx) => (await tx.query<{ duplicate_product: string }>("select public.duplicate_product($1)", [id])).rows[0].duplicate_product);
+    const row = (await db.query<{ slug: string }>("select slug from public.products where id = $1", [copy])).rows[0];
+    expect(row.slug.length).toBeLessThanOrEqual(80);
+    expect(row.slug).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+    expect(row.slug).toMatch(new RegExp(`^${"a".repeat(66)}-copia-[0-9a-f]{6}$`));
   });
 });
 

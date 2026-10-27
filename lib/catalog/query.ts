@@ -1,4 +1,4 @@
-import { fromPriceCents, productSizes } from "./product-helpers";
+import { fromPriceCents, productSizes, purchasablePrices } from "./product-helpers";
 import {
   FIRMNESS_LEVELS,
   SIZE_KEYS,
@@ -163,12 +163,6 @@ export function searchScore(product: Product, q: string): number | null {
   return score;
 }
 
-function productPrices(product: Product): number[] {
-  return [
-    ...(product.priceCents !== null ? [product.priceCents] : []),
-    ...product.variants.map((v) => v.priceCents),
-  ];
-}
 
 function recency(product: Product): string {
   return product.publishedAt ?? product.createdAt;
@@ -193,7 +187,7 @@ export function applyCatalogQuery(products: Product[], query: CatalogQuery): Pro
     if (query.precoMin !== null || query.precoMax !== null) {
       const min = query.precoMin !== null ? query.precoMin * 100 : -Infinity;
       const max = query.precoMax !== null ? query.precoMax * 100 : Infinity;
-      if (!productPrices(product).some((p) => p >= min && p <= max)) continue;
+      if (!purchasablePrices(product).some((p) => p >= min && p <= max)) continue;
     }
 
     const score = query.q ? searchScore(product, query.q) : 0;
@@ -258,7 +252,7 @@ export function catalogFacets(products: Product[]): CatalogFacets {
     if (p.attributes.firmness) {
       firmness.set(p.attributes.firmness, (firmness.get(p.attributes.firmness) ?? 0) + 1);
     }
-    prices.push(...productPrices(p));
+    prices.push(...purchasablePrices(p));
   }
 
   return {

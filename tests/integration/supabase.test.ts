@@ -125,4 +125,50 @@ describe.skipIf(!enabled)("Supabase real (local)", () => {
     await service.storage.from("product-media").remove([path]);
     await service.from("products").delete().eq("id", id);
   });
+
+  it("editor não sobrescreve nem apaga pelo Storage a foto de um produto publicado", async () => {
+    const c = await signedIn(editor.email, editor.password);
+    const { data: id, error } = await c.rpc("save_product", {
+      p_product_id: null,
+      p_data: {
+        name: "Publicado",
+        slug: `publicado-${suffix}`,
+        description: "Teste",
+        priceCents: 1000,
+        dimensions: {},
+        attributes: {},
+        faq: [],
+        variants: [],
+      },
+    });
+    expect(error).toBeNull();
+    const path = `products/${id}/${suffix}-pub.png`;
+    expect((await c.storage.from("product-media").upload(path, PNG_1x1, { contentType: "image/png" })).error).toBeNull();
+
+    // Publicado por fora (service role), com a foto como principal.
+    const { data: category } = await service.from("categories").select("id").eq("slug", "colchoes").single();
+    const media = await service.from("product_media").insert({
+      product_id: id,
+      storage_path: path,
+      media_type: "image",
+      alt_text: "Foto real do produto",
+      is_primary: true,
+      width: 1,
+      height: 1,
+    });
+    expect(media.error).toBeNull();
+    const pub = await service.from("products").update({ category_id: category!.id, status: "published" }).eq("id", id);
+    expect(pub.error).toBeNull();
+
+    const overwrite = await c.storage.from("product-media").upload(path, PNG_1x1, { contentType: "image/png", upsert: true });
+    expect(overwrite.error).not.toBeNull();
+
+    await c.storage.from("product-media").remove([path]);
+    const stillThere = await service.storage.from("product-media").list(`products/${id}`);
+    expect((stillThere.data ?? []).map((f) => f.name)).toContain(`${suffix}-pub.png`);
+
+    await service.storage.from("product-media").remove([path]);
+    await service.from("products").update({ status: "archived" }).eq("id", id);
+    await service.from("products").delete().eq("id", id);
+  });
 });
