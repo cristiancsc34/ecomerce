@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { CloseIcon, MenuIcon, SearchIcon } from "@/components/ui/icons";
 import { MAIN_NAV } from "./nav-links";
@@ -11,14 +10,9 @@ export function MobileMenu() {
   const panelId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const pathname = usePathname();
-  const [lastPath, setLastPath] = useState(pathname);
-
-  // Fecha ao navegar.
-  if (pathname !== lastPath) {
-    setLastPath(pathname);
-    setOpen(false);
-  }
+  // Sem usePathname(): ler a URL num componente do cabeçalho impediria o
+  // pré-render das rotas dinâmicas. O menu fecha ao escolher um link ou buscar.
+  const close = () => setOpen(false);
 
   useEffect(() => {
     if (!open) return;
@@ -54,7 +48,7 @@ export function MobileMenu() {
         className="absolute inset-x-0 top-full border-b border-line bg-white shadow-[var(--shadow-lift)]"
       >
         <div className="container-page py-4">
-          <form action="/busca" method="get" role="search" className="relative mb-3">
+          <form action="/busca" method="get" role="search" className="relative mb-3" onSubmit={close}>
             <label htmlFor={`${panelId}-q`} className="sr-only">
               Buscar produtos
             </label>
@@ -71,11 +65,7 @@ export function MobileMenu() {
             <ul className="divide-y divide-line">
               {MAIN_NAV.map((item) => (
                 <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    aria-current={pathname === item.href ? "page" : undefined}
-                    className="flex min-h-12 items-center text-base font-medium text-deep-fjord aria-[current=page]:text-air-blue-ink"
-                  >
+                  <Link href={item.href} onClick={close} className="flex min-h-12 items-center text-base font-medium text-deep-fjord">
                     {item.label}
                   </Link>
                 </li>

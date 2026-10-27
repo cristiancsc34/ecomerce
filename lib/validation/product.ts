@@ -290,8 +290,12 @@ export function publishIssues(product: Product): PublishIssue[] {
   }
   const images = product.media.filter((m) => m.type === "image");
   if (images.length === 0) issues.push({ field: "media", message: "Envie pelo menos uma foto." });
-  if (images.length > 0 && !images.some((m) => m.isPrimary)) {
+  const primary = images.find((m) => m.isPrimary);
+  if (images.length > 0 && !primary) {
     issues.push({ field: "media", message: "Defina a foto principal." });
+  }
+  if (primary?.isIllustrative) {
+    issues.push({ field: "media", message: "A foto principal precisa ser uma foto real do produto, não uma ilustração." });
   }
   const noAlt = product.media.filter((m) => m.altText.trim().length < 5);
   if (noAlt.length) {

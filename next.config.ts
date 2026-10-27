@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseOrigin = supabaseUrl ? new URL(supabaseUrl).origin : null;
 const isDev = process.env.NODE_ENV !== "production";
+// Supabase local (supabase start) roda em http://127.0.0.1: só nesse caso
+// liberamos imagens de IP local e não forçamos HTTPS nas requisições.
+const isLocalSupabase = supabaseOrigin ? /^http:\/\/(127\.0\.0\.1|localhost)(:|$)/.test(supabaseOrigin) : false;
 
 // CSP pragmática: sem nonces (que forçariam renderização dinâmica em todas as
 // rotas). Mesmo com 'unsafe-inline' em scripts, ela bloqueia frames, plugins,
@@ -24,7 +27,7 @@ function contentSecurityPolicy() {
     "form-action 'self'",
     "frame-ancestors 'none'",
   ];
-  if (!isDev) directives.push("upgrade-insecure-requests");
+  if (!isDev && !isLocalSupabase) directives.push("upgrade-insecure-requests");
   return directives.join("; ");
 }
 
@@ -48,6 +51,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Permite builds separados (ex.: testes E2E em modo demonstração e com Supabase).
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
@@ -61,6 +66,7 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ["image/avif", "image/webp"],
+    dangerouslyAllowLocalIP: isLocalSupabase,
     remotePatterns: supabaseOrigin
       ? [
           {

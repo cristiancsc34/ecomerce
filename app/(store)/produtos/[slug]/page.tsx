@@ -38,6 +38,12 @@ export async function generateMetadata({ params }: PageProps<"/produtos/[slug]">
   };
 }
 
+/**
+ * Produtos conhecidos são pré-renderizados; os novos são renderizados na
+ * primeira visita e guardados (ISR). Com Partial Prerendering o "shell" é
+ * enviado antes, então um produto inexistente responde com a página de "não
+ * encontrado" e `noindex` (status 200 do streaming), o que evita indexação.
+ */
 export default function ProductPage({ params }: PageProps<"/produtos/[slug]">) {
   return (
     <Suspense fallback={<ProductSkeleton />}>

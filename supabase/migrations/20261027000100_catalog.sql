@@ -293,6 +293,10 @@ begin
         raise exception 'Somente administradores podem publicar ou arquivar produtos.'
           using errcode = '42501';
       end if;
+      if new.is_demo is distinct from old.is_demo then
+        raise exception 'Somente administradores podem converter um produto de demonstração.'
+          using errcode = '42501';
+      end if;
     end if;
   end if;
 
@@ -305,6 +309,10 @@ begin
   new.updated_by := coalesce(v_actor, new.updated_by);
 
   if new.status = 'published' and (tg_op = 'INSERT' or old.status is distinct from 'published') then
+    if new.is_demo then
+      raise exception 'Produto de demonstração não pode ser publicado. Cadastre o produto real.'
+        using errcode = '23514', constraint = 'products_demo_never_published';
+    end if;
     if new.price_cents is null
        and not exists (select 1 from public.product_variants v where v.product_id = new.id) then
       raise exception 'Para publicar, informe o preço ou cadastre variações com preço.'
@@ -316,6 +324,13 @@ begin
     ) then
       raise exception 'Para publicar, envie uma foto e defina a foto principal.'
         using errcode = '23514', constraint = 'publish_requires_primary_image';
+    end if;
+    if exists (
+      select 1 from public.product_media m
+      where m.product_id = new.id and m.is_primary and m.is_illustrative
+    ) then
+      raise exception 'Para publicar, a foto principal precisa ser uma foto real do produto (não ilustrativa).'
+        using errcode = '23514', constraint = 'publish_requires_real_primary_image';
     end if;
     if exists (
       select 1 from public.product_media m
