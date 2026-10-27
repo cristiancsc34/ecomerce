@@ -4,6 +4,10 @@ Estado: **3D com carregamento sob demanda implementado** (prova de conceito com 
 implementada** — a spec pede para não simular integrações sem provedor e credenciais. Este documento descreve como
 encaixar quando o provedor for escolhido.
 
+> **Próxima fase pedida pelo dono do projeto** (foto suja → foto limpa → 3D → legenda com IA, dentro do painel, e o vídeo
+> passo a passo): plano, provedores e o que falta em [`PROXIMA-FASE-IA-3D.md`](PROXIMA-FASE-IA-3D.md). **Só começa quando ele
+> disser “ok, faça isso”.**
+
 ## 3D (pronto para uso)
 
 - Envie um `.glb` (glTF 2.0 binário) pelo painel, na seção de mídia, com texto alternativo. O tipo é validado pelo
