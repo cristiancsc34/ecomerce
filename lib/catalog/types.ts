@@ -47,6 +47,8 @@ export type Category = {
   name: string;
   description: string | null;
   sortOrder: number;
+  /** Produtos desta categoria só são publicados com modelo 3D (móveis). */
+  requires3d: boolean;
 };
 
 export type ProductMedia = {
@@ -104,7 +106,7 @@ export type Product = {
   name: string;
   shortDescription: string | null;
   description: string | null;
-  category: Pick<Category, "id" | "slug" | "name"> | null;
+  category: Pick<Category, "id" | "slug" | "name" | "requires3d"> | null;
   status: ProductStatus;
   /** Produto de demonstração: nunca pode ser publicado. */
   isDemo: boolean;

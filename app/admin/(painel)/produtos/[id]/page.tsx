@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { siteUrl } from "@/config/site";
+import { getAiStudioSnapshot } from "@/lib/admin/ai";
 import { getAdminProduct, listAdminCategories, listAuditEvents } from "@/lib/admin/data";
 import { requireStaffPage } from "@/lib/auth/staff";
 import { publishIssues } from "@/lib/validation/product";
+import { AiStudio } from "@/components/admin/ai-studio";
 import { AuditList } from "@/components/admin/audit-list";
 import { MediaManager } from "@/components/admin/media-manager";
 import { ProductForm } from "@/components/admin/product-form";
@@ -17,10 +19,11 @@ export const metadata: Metadata = { title: "Editar produto" };
 export default async function EditProductPage({ params, searchParams }: PageProps<"/admin/produtos/[id]">) {
   const staff = await requireStaffPage();
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const [product, categories, events] = await Promise.all([
+  const [product, categories, events, studio] = await Promise.all([
     getAdminProduct(id),
     listAdminCategories(),
     listAuditEvents({ productId: id, limit: 15 }),
+    getAiStudioSnapshot(id),
   ]);
   if (!product) notFound();
 
@@ -57,6 +60,14 @@ export default async function EditProductPage({ params, searchParams }: PageProp
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
+          <AiStudio
+            productId={product.id}
+            productName={product.name}
+            canEdit={canEdit}
+            requires3d={product.category?.requires3d ?? false}
+            hasVideo={product.media.some((m) => m.type === "video")}
+            initial={studio}
+          />
           <ProductForm product={product} categories={categories} canEdit={canEdit} siteUrl={siteUrl()} />
           <MediaManager productId={product.id} media={product.media} canEdit={canEdit} />
         </div>

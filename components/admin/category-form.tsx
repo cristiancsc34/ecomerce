@@ -82,6 +82,13 @@ export function CategoryForm({ category, canDelete }: { category?: Category & { 
         <input id={`${prefix}-desc`} name="description" defaultValue={category?.description ?? ""} maxLength={300} className={controlClasses} />
         <FieldError>{state.fieldErrors?.description}</FieldError>
       </div>
+      <label className="flex items-start gap-2 text-sm sm:col-span-3">
+        <input type="checkbox" name="requires3d" defaultChecked={category?.requires3d ?? false} className="mt-0.5 h-4 w-4" />
+        <span>
+          <span className="font-semibold">Exige modelo 3D para publicar</span>
+          <span className="block text-muted">Use para móveis: fotos e 3D obrigatórios, vídeo opcional.</span>
+        </span>
+      </label>
       <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
         <Button type="submit" size="sm" loading={pending} loadingLabel="Salvando…" disabled={!hydrated}>
           {category ? "Salvar" : "Criar categoria"}

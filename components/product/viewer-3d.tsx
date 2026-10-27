@@ -15,6 +15,7 @@ declare module "react" {
         src: string;
         alt: string;
         "camera-controls"?: boolean;
+        "auto-rotate"?: boolean;
         "touch-action"?: string;
         "shadow-intensity"?: string;
         exposure?: string;

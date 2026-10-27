@@ -1,8 +1,9 @@
 # Próxima fase: foto suja → foto profissional → 3D → legenda (no painel)
 
-> **Status: aguardando autorização.** Nada desta fase foi implementado e **nenhuma API de imagem, 3D ou texto está
-> conectada**. Pedido do dono do projeto: *“não faço isso agora, eu só faço quando isso acabar e quando eu falar aqui:
-> ok, faça isso”*. Só começar depois dessa frase.
+> **Status (28/10/2026):** o estúdio está no painel — envio das fotos do celular, **limpeza de fundo automática
+> funcionando** (modelos abertos, rodando localmente), fila, antes × depois, regra “3D obrigatório” por categoria.
+> **Falta ligar o gerador 3D e a legenda com IA**: ver [`ESTUDIO-IA.md`](ESTUDIO-IA.md). O vídeo passo a passo será
+> gravado quando o 3D estiver ligado.
 
 ## O pedido (registrado em 27/10/2026)
 

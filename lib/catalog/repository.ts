@@ -42,7 +42,7 @@ const supabaseRepository: CatalogRepository = {
     const supabase = createPublicSupabaseClient();
     const { data, error } = await supabase
       .from("categories")
-      .select("id,slug,name,description,sort_order")
+      .select("id,slug,name,description,sort_order,requires_3d")
       .order("sort_order")
       .order("name");
     if (error) throw new Error(`Falha ao carregar categorias: ${error.message}`);

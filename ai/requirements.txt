@@ -1,0 +1,15 @@
+# Estúdio de IA (CPU). O torch vem do índice CPU do PyTorch (ver scripts/ai-setup.sh).
+torch==2.14.1
+transformers==4.57.6
+onnxruntime==1.31.1
+numpy==2.5.4
+pillow==13.0.0
+scipy==1.18.1
+huggingface_hub==0.36.2
+safetensors==0.8.0
+# Somente para o 3D local (TripoSR), opcional:
+omegaconf==2.4.0
+einops==0.8.2
+trimesh==5.2.0
+PyMCubes==0.1.6
+fast_simplification==0.2.0

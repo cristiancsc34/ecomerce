@@ -95,6 +95,17 @@ test("editor cria rascunho com foto e envia para revisão, mas não publica", as
   await expect(page.getByText("Arquivo enviado.")).toBeVisible();
   await expect(page.getByText("Principal", { exact: true })).toBeVisible();
 
+  // Estúdio de IA: a foto do celular entra na fila de limpeza; sem processador ligado, espera.
+  await page.locator("#estudio-fotos").setInputFiles({ name: "celular.png", mimeType: "image/png", buffer: await photo(page) });
+  await expect(page.getByText("Foto na fila de limpeza.")).toBeVisible();
+  const studioPhoto = page.getByTestId("foto-estudio").first();
+  await expect(studioPhoto).toHaveAttribute("data-status", "queued");
+  await expect(page.getByTestId("estado-processador")).toContainText("Processador de IA desligado");
+  await expect(page.getByRole("button", { name: "Gerar modelo 3D" })).toBeDisabled();
+  await studioPhoto.getByRole("button", { name: "Descartar" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Descartar" }).click();
+  await expect(page.getByTestId("foto-estudio")).toHaveCount(0);
+
   await expect(page.getByText("Somente administradores publicam.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Publicar" })).toHaveCount(0);
   await page.getByRole("button", { name: "Enviar para revisão" }).click();

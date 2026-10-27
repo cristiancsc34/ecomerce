@@ -297,6 +297,9 @@ export function publishIssues(product: Product): PublishIssue[] {
   if (primary?.isIllustrative) {
     issues.push({ field: "media", message: "A foto principal precisa ser uma foto real do produto, não uma ilustração." });
   }
+  if (product.category?.requires3d && !product.media.some((m) => m.type === "model_3d")) {
+    issues.push({ field: "media", message: "Esta categoria exige o modelo 3D: gere no estúdio de fotos e 3D ou envie um arquivo .glb." });
+  }
   const noAlt = product.media.filter((m) => m.altText.trim().length < 5);
   if (noAlt.length) {
     issues.push({ field: "media", message: `${noAlt.length} mídia(s) sem texto alternativo descritivo.` });
@@ -321,4 +324,5 @@ export const categorySaveSchema = z.object({
   slug: slugSchema,
   description: optionalText.pipe(z.string().max(300).nullable()),
   sortOrder: z.coerce.number().int().min(0).max(999),
+  requires3d: z.boolean(),
 });

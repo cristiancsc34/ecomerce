@@ -49,3 +49,9 @@ next-env.d.ts
 
 # builds de teste E2E
 /.next-e2e-*/
+
+# Estúdio de IA: ambiente Python, modelos baixados e código de terceiros
+.venv-ai/
+ai/models/
+ai/vendor/
+__pycache__/

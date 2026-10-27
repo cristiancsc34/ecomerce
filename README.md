@@ -16,7 +16,7 @@ A especificação completa está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md). 
 | Modo demonstração (sem banco) com 3 produtos ilustrativos | ✅ Identificado em toda a loja, `noindex` |
 | Visualizador 3D sob demanda (GLB) | ✅ Prova de conceito com modelo ilustrativo |
 | Checkout, pagamento, frete, e-mail | ⏳ Não implementado: depende da escolha dos provedores ([decisões pendentes](docs/DECISOES.md)) |
-| IA para imagens e descrições | ⏳ Desenhado em [`docs/IA-E-3D.md`](docs/IA-E-3D.md); fluxo foto suja → foto limpa → 3D → legenda planejado em [`docs/PROXIMA-FASE-IA-3D.md`](docs/PROXIMA-FASE-IA-3D.md), aguardando autorização e chaves |
+| Estúdio de fotos e 3D no painel | ✅ Fotos do celular com limpeza de fundo automática (modelos abertos, locais) — [`docs/ESTUDIO-IA.md`](docs/ESTUDIO-IA.md). ⏳ Gerador 3D e legenda com IA aguardando liberação/chaves |
 
 **Nada aqui é dado comercial real.** Os produtos “Nuvem Essencial”, “Brisa Premium” e “Sereno Híbrido” são
 placeholders: preço, firmeza e altura são ilustrativos, materiais/garantia/cuidados estão vazios de propósito e o banco
@@ -158,5 +158,6 @@ docs/                 segurança, decisões, referências de UX, IA e 3D
 - [Checklist de segurança](docs/SEGURANCA.md)
 - [Decisões, integrações pendentes e limitações conhecidas](docs/DECISOES.md)
 - [Referências de UX pesquisadas](docs/REFERENCIAS-UX.md)
+- [Estúdio de fotos e 3D: instalar e rodar o processador de IA](docs/ESTUDIO-IA.md)
 - [Plano de IA (imagens/descrições) e 3D](docs/IA-E-3D.md)
 - [Próxima fase: foto suja → foto limpa → 3D → legenda no painel](docs/PROXIMA-FASE-IA-3D.md)

@@ -45,8 +45,8 @@ describe("visitante anônimo", () => {
   });
 
   it("vê categorias", async () => {
-    const rows = await as(db, "anon", (tx) => tx.query("select slug from public.categories"));
-    expect(rows.rows).toEqual([{ slug: "colchoes" }]);
+    const rows = await as(db, "anon", (tx) => tx.query("select slug from public.categories order by sort_order"));
+    expect(rows.rows).toEqual([{ slug: "colchoes" }, { slug: "cadeiras" }]);
   });
 
   it("não escreve em nada", async () => {

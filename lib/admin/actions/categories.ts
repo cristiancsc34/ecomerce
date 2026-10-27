@@ -23,6 +23,7 @@ export async function saveCategoryAction(_prev: CategoryFormState, formData: For
     slug: formData.get("slug") ?? "",
     description: formData.get("description") ?? "",
     sortOrder: formData.get("sortOrder") ?? "0",
+    requires3d: formData.get("requires3d") === "on",
   });
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
@@ -34,6 +35,7 @@ export async function saveCategoryAction(_prev: CategoryFormState, formData: For
     slug: parsed.data.slug,
     description: parsed.data.description,
     sort_order: parsed.data.sortOrder,
+    requires_3d: parsed.data.requires3d,
   };
   const supabase = await createSessionClient();
   const { error } = id && isUuid(id)

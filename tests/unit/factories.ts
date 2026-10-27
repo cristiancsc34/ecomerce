@@ -45,7 +45,7 @@ export function makeProduct(partial: Partial<Product> = {}): Product {
     name: "Colchão Teste",
     shortDescription: "Descrição curta",
     description: "Descrição completa revisada.",
-    category: { id: "00000000-0000-4000-8000-0000000000c1", slug: "colchoes", name: "Colchões" },
+    category: { id: "00000000-0000-4000-8000-0000000000c1", slug: "colchoes", name: "Colchões", requires3d: false },
     status: "published",
     isDemo: false,
     priceCents: null,

@@ -17,6 +17,10 @@ const eslintConfig = defineConfig([
     "test-results/**",
     "playwright-report/**",
     "supabase/.temp/**",
+    // Ambiente Python e modelos do estúdio de IA (não versionados)
+    ".venv-ai/**",
+    "ai/vendor/**",
+    "ai/models/**",
   ]),
 ]);
 

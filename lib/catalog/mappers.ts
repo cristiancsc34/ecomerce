@@ -36,7 +36,7 @@ export const PUBLIC_PRODUCT_COLUMNS = [
   "created_at",
   "updated_at",
   "published_at",
-  "category:categories(id,slug,name)",
+  "category:categories(id,slug,name,requires_3d)",
   "media:product_media(id,storage_path,media_type,alt_text,sort_order,is_primary,is_illustrative,width,height)",
   "variants:product_variants(id,name,sku,price_cents,stock_quantity,attributes,sort_order)",
 ].join(",");
@@ -62,7 +62,7 @@ export type ProductRow = {
   created_at: string;
   updated_at: string;
   published_at: string | null;
-  category: { id: string; slug: string; name: string } | null;
+  category: { id: string; slug: string; name: string; requires_3d?: boolean } | null;
   media: MediaRow[] | null;
   variants: VariantRow[] | null;
 };
@@ -95,6 +95,7 @@ export type CategoryRow = {
   name: string;
   description: string | null;
   sort_order: number;
+  requires_3d?: boolean;
 };
 
 /**
@@ -168,7 +169,9 @@ export function mapProduct(row: ProductRow): Product {
     name: row.name,
     shortDescription: row.short_description,
     description: row.description,
-    category: row.category ? { id: row.category.id, slug: row.category.slug, name: row.category.name } : null,
+    category: row.category
+      ? { id: row.category.id, slug: row.category.slug, name: row.category.name, requires3d: row.category.requires_3d ?? false }
+      : null,
     status: asStatus(row.status),
     isDemo: row.is_demo,
     priceCents: row.price_cents,
@@ -196,5 +199,6 @@ export function mapCategory(row: CategoryRow): Category {
     name: row.name,
     description: row.description,
     sortOrder: row.sort_order,
+    requires3d: row.requires_3d ?? false,
   };
 }

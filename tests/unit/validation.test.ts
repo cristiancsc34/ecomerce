@@ -97,6 +97,16 @@ describe("prontidão para publicar", () => {
     expect(publishIssues(makeProduct({ isDemo: true })).map((i) => i.field)).toContain("isDemo");
   });
 
+  it("categoria de móveis exige o modelo 3D", () => {
+    const chair = makeProduct({ category: { id: "00000000-0000-4000-8000-0000000000c2", slug: "cadeiras", name: "Cadeiras", requires3d: true } });
+    expect(publishIssues(chair).map((i) => i.message).join(" ")).toMatch(/exige o modelo 3D/);
+    const withModel = makeProduct({
+      category: chair.category,
+      media: [...chair.media, makeMedia({ type: "model_3d", isPrimary: false, storagePath: "products/x/m.glb" })],
+    });
+    expect(publishIssues(withModel)).toEqual([]);
+  });
+
   it("exige preço, descrição, categoria, foto principal real e alt text", () => {
     const issues = publishIssues(
       makeProduct({

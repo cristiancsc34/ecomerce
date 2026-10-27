@@ -24,6 +24,7 @@ export const DEMO_CATEGORY: Category = {
   name: "Colchões",
   description: "Colchões para diferentes preferências de firmeza e tamanhos de cama.",
   sortOrder: 0,
+  requires3d: false,
 };
 
 const VIEWS = [
@@ -81,7 +82,7 @@ function demoVariants(productIndex: number, entries: [SizeKey, number][]): Produ
 const DEMO_NOTICE =
   "Produto demonstrativo. Nome, preço, firmeza, altura e imagens são ilustrativos e serão substituídos pelos dados reais verificados antes de qualquer publicação.";
 
-const category = { id: DEMO_CATEGORY.id, slug: DEMO_CATEGORY.slug, name: DEMO_CATEGORY.name };
+const category = { id: DEMO_CATEGORY.id, slug: DEMO_CATEGORY.slug, name: DEMO_CATEGORY.name, requires3d: false };
 
 export const DEMO_PRODUCTS: Product[] = [
   {
