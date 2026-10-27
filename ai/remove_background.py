@@ -3,7 +3,7 @@ Remove o fundo de uma foto de produto e gera duas saídas:
 
   * recorte PNG com transparência (entrada do gerador 3D);
   * foto "de estúdio" JPEG 4:3 (mesmo formato da galeria da loja), com fundo
-    claro e sombra suave, pronta para o catálogo.
+    creme (ou neutro, com ESTUDIO_FUNDO=neutro) e sombra suave.
 
 Motores (rodam na CPU, nada é enviado para fora):
   * BiRefNet (licença MIT, ONNX) separa objeto e fundo;
@@ -36,8 +36,17 @@ MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 STUDIO_SIZE = (1600, 1200)  # 4:3, como a galeria
-STUDIO_TOP = (252, 252, 253)
-STUDIO_BOTTOM = (236, 239, 243)
+# Fundo das fotos de estúdio (degradê do topo para a base) e cor da sombra.
+# Padrão da loja: creme (decisão do dono do projeto, 28/10/2026). "neutro" é o
+# cinza-claro anterior; escolha com a variável ESTUDIO_FUNDO.
+BACKGROUNDS = {
+    "creme": {"top": (249, 245, 239), "bottom": (239, 231, 219), "shadow": (62, 52, 42)},
+    "neutro": {"top": (252, 252, 253), "bottom": (236, 239, 243), "shadow": (40, 48, 60)},
+}
+_FUNDO = BACKGROUNDS.get(os.environ.get("ESTUDIO_FUNDO", "creme"), BACKGROUNDS["creme"])
+STUDIO_TOP = _FUNDO["top"]
+STUDIO_BOTTOM = _FUNDO["bottom"]
+STUDIO_SHADOW = _FUNDO["shadow"]
 MAX_CUTOUT_SIDE = 1024
 
 
@@ -157,7 +166,7 @@ def studio(cutout: Image.Image) -> Image.Image:
     shadow.paste(contact, (x, floor - round(shadow_h * 0.8)))
     shadow = shadow.filter(ImageFilter.GaussianBlur(radius=max(6, obj.height // 45)))
     shadow = shadow.point(lambda v: int(v * 0.42))
-    dark = Image.new("RGBA", (w, h), (40, 48, 60, 255))
+    dark = Image.new("RGBA", (w, h), (*STUDIO_SHADOW, 255))
     canvas = Image.composite(dark, canvas, shadow)
 
     canvas.alpha_composite(obj, (x, y))

@@ -13,6 +13,7 @@
  *   - limpeza de fundo: quando o modelo BiRefNet está baixado (ai:setup);
  *   - fotos de catálogo (IA recria a cena a partir das fotos reais): com
  *     OPENAI_API_KEY (GPT Image, edição com várias fotos de referência);
+ *     estilo em CATALOG_STYLE (padrão "creme"; ou "neutro" / "ambiente-vazio");
  *   - 3D: só com AI_3D_ENGINE=triposr e o TripoSR instalado (ver docs/ESTUDIO-IA.md).
  */
 import { spawn } from "node:child_process";
@@ -29,6 +30,19 @@ export const BUCKET = "product-media";
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // limite do bucket
 const PYTHON = process.env.AI_PYTHON ?? path.join(ROOT, ".venv-ai", "bin", "python");
 const IDLE_MS = 2000;
+
+/**
+ * Estilo das fotos de catálogo (CATALOG_STYLE). Padrão da loja: "creme" — o
+ * produto recortado sobre fundo creme, como nas lojas de referência. Também
+ * disponíveis: "neutro" (cinza-claro) e "ambiente-vazio" (o produto num cômodo
+ * vazio — sempre o mesmo, ai/cenarios/ambiente-vazio.jpg — sem nenhum outro objeto).
+ */
+export const CATALOG_STYLES = ["creme", "neutro", "ambiente-vazio"];
+export function catalogStyle(env = process.env) {
+  return CATALOG_STYLES.includes(env.CATALOG_STYLE) ? env.CATALOG_STYLE : "creme";
+}
+const fundoFor = (style) => (style === "neutro" ? "neutro" : "creme");
+const SCENE_TEMPLATE = path.join(ROOT, "ai", "cenarios", "ambiente-vazio.jpg");
 
 /** Ângulos padrão das fotos de catálogo (sempre os mesmos, para todos os produtos). */
 export const CATALOG_VIEWS = {
@@ -59,9 +73,9 @@ export function detectEngines(root = ROOT, env = process.env) {
   return engines;
 }
 
-function runPython(script, args, timeoutMs) {
+function runPython(script, args, timeoutMs, extraEnv = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(PYTHON, [path.join(ROOT, "ai", script), ...args], { cwd: ROOT });
+    const child = spawn(PYTHON, [path.join(ROOT, "ai", script), ...args], { cwd: ROOT, env: { ...process.env, ...extraEnv } });
     let stdout = "";
     let stderr = "";
     const timer = setTimeout(() => {
@@ -91,10 +105,10 @@ function runPython(script, args, timeoutMs) {
 
 /** Motores reais (scripts Python em ai/). */
 export const pythonEngines = {
-  async backgroundRemoval(input, dir) {
+  async backgroundRemoval(input, dir, { fundo = "creme" } = {}) {
     const cutout = path.join(dir, "recorte.png");
     const studio = path.join(dir, "estudio.jpg");
-    const meta = await runPython("remove_background.py", [input, cutout, studio], 5 * 60_000);
+    const meta = await runPython("remove_background.py", [input, cutout, studio], 5 * 60_000, { ESTUDIO_FUNDO: fundo });
     return { cutout, studio, meta };
   },
   async model3d(input, dir, heightCm) {
@@ -140,7 +154,23 @@ export function catalogPrompt(view, referenceCount) {
 
 const MIME_BY_EXT = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
 
-async function openaiImageEdit({ apiKey, model, references, prompt, output }) {
+/** Instrução para pôr o produto (já fotografado) no cômodo vazio padrão. */
+export function scenePrompt() {
+  return [
+    "Image 1 is a catalog photo of ONE real product on a plain studio background. Image 2 is an empty room.",
+    "",
+    "Create one single photorealistic photograph: the product from image 1 standing on the floor of the room from image 2,",
+    "centered horizontally, in front of the corner, the whole product in frame and occupying about 60% of the image height.",
+    "",
+    "Keep the product exactly as in image 1: same viewing angle, shape, proportions, every part, colors, fabric and",
+    "stitching, wood color and finish, wear marks. Keep the room exactly as in image 2: same walls, baseboards, floor,",
+    "window light and camera. Add only a realistic contact shadow of the product on the floor, consistent with the light.",
+    "",
+    "Nothing else may appear: no other furniture, objects, plants, rugs, people, text or logos. Not a collage.",
+  ].join("\n");
+}
+
+async function openaiImageEdit({ apiKey, model, references, prompt, output, size = "1536x1024", transparent = true }) {
   const form = new FormData();
   form.set("model", model);
   for (const ref of references) {
@@ -148,10 +178,10 @@ async function openaiImageEdit({ apiKey, model, references, prompt, output }) {
     form.append("image[]", new Blob([await readFile(ref)], { type }), path.basename(ref));
   }
   form.set("prompt", prompt);
-  form.set("size", "1536x1024");
+  form.set("size", size);
   form.set("quality", "high");
-  form.set("background", "transparent");
-  form.set("output_format", "png");
+  if (transparent) form.set("background", "transparent");
+  form.set("output_format", transparent ? "png" : "jpeg");
   const res = await fetch("https://api.openai.com/v1/images/edits", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -181,7 +211,26 @@ export function openaiCatalogEngine(apiKey = process.env.OPENAI_API_KEY, model =
       }
       return shots;
     },
+    /** Põe a foto de estúdio no cômodo vazio padrão (estilo "ambiente-vazio"). */
+    async placeInScene(studioFile, dir) {
+      const output = path.join(dir, "ambiente.jpg");
+      const usage = await openaiImageEdit({
+        apiKey,
+        model,
+        references: [studioFile, SCENE_TEMPLATE],
+        prompt: scenePrompt(),
+        output,
+        size: "1600x1200",
+        transparent: false,
+      });
+      return { file: output, usage };
+    },
   };
+}
+
+function mergeUsage(a, b) {
+  if (!a) return b;
+  return { input_tokens: (a.input_tokens ?? 0) + (b.input_tokens ?? 0), output_tokens: (a.output_tokens ?? 0) + (b.output_tokens ?? 0) };
 }
 
 const isJpeg = (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
@@ -216,29 +265,13 @@ async function backgroundRemoval(supabase, job, product, inputFile, dir, engines
 
   const cutoutPath = await upload(supabase, `products/${product.id}/recortes/${randomUUID()}.png`, cutoutBytes, "image/png");
   uploaded.push(cutoutPath);
-  const studioPath = await upload(supabase, `products/${product.id}/${randomUUID()}.jpg`, studioBytes, "image/jpeg");
+  const studioPath = await upload(supabase, `products/${product.id}/limpas/${randomUUID()}.jpg`, studioBytes, "image/jpeg");
   uploaded.push(studioPath);
 
-  const slot = await nextMediaSlot(supabase, product.id);
-  const { data: media, error } = await supabase
-    .from("product_media")
-    .insert({
-      product_id: product.id,
-      storage_path: studioPath,
-      media_type: "image",
-      alt_text: `${product.name} com fundo limpo, foto ${slot.imageCount + 1}`.slice(0, 300),
-      is_primary: !slot.hasPrimary,
-      is_illustrative: false, // é a foto real do produto; só o fundo foi trocado
-      sort_order: slot.sortOrder,
-      width: meta.width,
-      height: meta.height,
-      mime_type: "image/jpeg",
-      size_bytes: studioBytes.length,
-    })
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
-  return { output_media_id: media.id, cutout_path: cutoutPath, details: meta };
+  // A foto do celular limpa é material de trabalho (antes × depois, base do 3D e
+  // referência): não vai para a galeria da loja. A loja recebe só as fotos de
+  // catálogo padronizadas e aprovadas.
+  return { output_media_id: null, cutout_path: cutoutPath, details: { ...meta, studioPath } };
 }
 
 async function model3d(supabase, job, product, inputFile, dir, engines, uploaded) {
@@ -311,13 +344,34 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
   }
   if (!references.length) throw new Error("Não foi possível ler as fotos reais.");
 
+  const style = catalogStyle();
   const shots = await engines.catalogPhotos(references, dir, product, Object.keys(CATALOG_VIEWS));
+
+  // Um novo conjunto substitui as imagens anteriores que ninguém aprovou (as aprovadas ficam).
+  const { data: stale } = await supabase
+    .from("product_media")
+    .delete()
+    .eq("product_id", product.id)
+    .eq("ai_generated", true)
+    .is("approved_at", null)
+    .select("storage_path");
+  if (stale?.length) await supabase.storage.from(BUCKET).remove(stale.map((m) => m.storage_path));
+
   const mediaIds = [];
   for (const [i, shot] of shots.entries()) {
     const shotDir = path.join(dir, `vista-${i + 1}`);
     await mkdir(shotDir);
-    const { studio, meta } = await engines.backgroundRemoval(shot.file, shotDir);
-    const bytes = await readFile(studio);
+    const composed = await engines.backgroundRemoval(shot.file, shotDir, { fundo: fundoFor(style) });
+    let finalFile = composed.studio;
+    const meta = composed.meta;
+    if (style === "ambiente-vazio") {
+      const scene = await engines.placeInScene(composed.studio, shotDir);
+      finalFile = scene.file;
+      if (scene.usage) shot.usage = mergeUsage(shot.usage, scene.usage);
+      meta.width = 1600;
+      meta.height = 1200;
+    }
+    const bytes = await readFile(finalFile);
     if (!isJpeg(bytes)) throw new Error("O motor gerou um arquivo inválido.");
     const storagePath = await upload(supabase, `products/${product.id}/${randomUUID()}.jpg`, bytes, "image/jpeg");
     uploaded.push(storagePath);
@@ -349,6 +403,7 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
     output_media_id: mediaIds[0] ?? null,
     details: {
       mediaIds,
+      style,
       views: shots.map((s) => s.view),
       references: references.length,
       ...(usage.length

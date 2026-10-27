@@ -4,9 +4,9 @@ Na página de cada produto, o painel tem o **Estúdio de fotos e 3D**:
 
 1. **Fotos do celular**: o funcionário envia 3 ou 4 fotos (frente, lateral, traseira) com qualquer fundo. O navegador
    reduz fotos grandes antes de enviar (limite de 4 MB por arquivo).
-2. **Limpeza de fundo automática**: cada foto vira uma foto de estúdio 4:3 (o formato da galeria da loja), com fundo
-   claro e sombra suave. O painel mostra **antes × depois**; a foto limpa já entra na galeria do produto (a primeira vira
-   a principal). Se um móvel ao fundo “grudou” na máscara, ele é retirado automaticamente.
+2. **Limpeza de fundo automática**: cada foto vira uma foto de estúdio 4:3, com fundo creme e sombra suave. O painel
+   mostra **antes × depois**. Se um móvel ao fundo “grudou” na máscara, ele é retirado automaticamente. Essas fotos são
+   referência (não vão para a loja).
 3. **Modelo 3D** gerado a partir da foto escolhida, com prévia girando no painel. Fica marcado como **ilustrativo** até
    alguém revisar.
 4. **Vídeo (opcional)**: enviado na seção de mídia.
@@ -94,6 +94,34 @@ Instrução enviada ao modelo (por ângulo; ver `catalogPrompt` em `scripts/ai-w
 > soft diffused light, subtle contact shadow, whole product in frame. Preserve exactly its shape, proportions, number and
 > position of parts, colors, materials, fabric and stitching pattern, wood grain and finish, wear marks. Do not add,
 > remove, repair or redesign anything; no props, text or logos. Straighten the camera and fix blur only.
+
+## Estilo das fotos de catálogo (fundo)
+
+**Decisão do dono do projeto (28/10/2026): fundo creme (B)** — o produto recortado sobre um creme quente, com sombra
+suave, igual para todos os produtos. Outras opções prontas (variável `CATALOG_STYLE` do processador):
+
+| Estilo | Valor | Como é feito |
+| --- | --- | --- |
+| **Fundo creme (padrão)** | `creme` | Enquadramento padrão da loja sobre creme (`#F9F5EF` → `#EFE7DB`) |
+| Fundo claro neutro | `neutro` | O mesmo, sobre cinza-claro |
+| Ambiente vazio | `ambiente-vazio` | O produto no **mesmo cômodo vazio** para todos (`ai/cenarios/ambiente-vazio.jpg`: paredes creme, piso de madeira clara, luz de janela), sem nenhum outro móvel ou objeto. +1 chamada à OpenAI por foto |
+
+![Comparação dos três estilos com as duas cadeiras reais](img/comparacao-fundos.jpg)
+
+Pesquisa que embasou as opções (27–28/10/2026):
+
+- **O que as lojas de referência fazem** (vimos as páginas): Mobly — produto recortado em fundo branco (`#FAFAFA`);
+  IKEA — fundo branco puro, ambientes em blocos separados; **Westwing** — produto recortado em **fundo creme**
+  (`#FAF6F3`) e, no produto, 4 ângulos + 3 closes de textura/costura. Marketplaces (Mercado Livre, Amazon) exigem fundo
+  branco na foto principal (o Mercado Livre admite contexto em algumas categorias de casa e móveis).
+- **Dados (Baymard):** 79% das pessoas vão primeiro às fotos na página do produto; 42% tentam avaliar o tamanho do
+  móvel pelas fotos; 38% consideram fotos ambientadas/em escala essenciais para decidir se cabe. Ganhos de 20–40% com
+  fotos ambientadas aparecem em blogs de fornecedores, sem estudo sólido; nenhuma fonte mostrou creme × branco.
+- Por isso: fundo uniforme e neutro-quente como padrão (cara premium, sem poluição na grade da loja) e o ambiente
+  vazio disponível como opção. Medir com teste A/B quando houver tráfego.
+
+**As fotos do celular limpas não vão para a galeria da loja**: servem de antes × depois, de referência para a IA e
+de base para o 3D. A loja recebe só as fotos de catálogo **aprovadas**; a primeira aprovada vira a foto principal.
 
 ## Nome e textos da loja com IA
 

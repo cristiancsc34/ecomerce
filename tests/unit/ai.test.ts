@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { confirmedFacts, unconfirmedNumbers } from "@/lib/ai/copy";
-import { CATALOG_VIEWS, catalogPrompt, detectEngines } from "../../scripts/ai-worker.mjs";
+import { CATALOG_STYLES, CATALOG_VIEWS, catalogPrompt, catalogStyle, detectEngines, scenePrompt } from "../../scripts/ai-worker.mjs";
 import { makeProduct } from "./factories";
 
 const env = (vars: Record<string, string>) => vars as unknown as NodeJS.ProcessEnv;
@@ -20,6 +20,20 @@ describe("fotos de catálogo: instrução para a IA", () => {
   it("tem os 4 ângulos padrão, sempre na mesma ordem", () => {
     expect(Object.keys(CATALOG_VIEWS)).toEqual(["frente", "tres-quartos", "lateral", "traseira"]);
     for (const view of Object.keys(CATALOG_VIEWS)) expect(catalogPrompt(view, 1)).not.toContain("undefined");
+  });
+
+  it("estilo padrão é o fundo creme; neutro e ambiente vazio são opções", () => {
+    expect(CATALOG_STYLES).toEqual(["creme", "neutro", "ambiente-vazio"]);
+    expect(catalogStyle(env({}))).toBe("creme");
+    expect(catalogStyle(env({ CATALOG_STYLE: "ambiente-vazio" }))).toBe("ambiente-vazio");
+    expect(catalogStyle(env({ CATALOG_STYLE: "qualquer" }))).toBe("creme");
+  });
+
+  it("ambiente vazio: só o produto, sem inventar outros objetos", () => {
+    const prompt = scenePrompt();
+    expect(prompt).toMatch(/Keep the product exactly as in image 1/);
+    expect(prompt).toMatch(/no other furniture, objects, plants, rugs, people, text or logos/);
+    expect(prompt).toMatch(/Not a collage/);
   });
 
   it("só habilita as fotos de catálogo com a chave e o motor de limpeza instalados", () => {

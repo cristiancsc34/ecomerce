@@ -52,7 +52,12 @@ export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSn
       kind: j.kind,
       status: j.status,
       inputUrl: mediaPublicUrl(j.input_path),
-      outputUrl: j.output ? mediaPublicUrl(j.output.storage_path) : null,
+      // Foto do celular limpa: guardada à parte (não vai para a galeria). Demais: a mídia gerada.
+      outputUrl: j.output
+        ? mediaPublicUrl(j.output.storage_path)
+        : typeof j.details?.studioPath === "string"
+          ? mediaPublicUrl(j.details.studioPath)
+          : null,
       outputMediaId: j.output_media_id,
       sourceMediaId: j.source_media_id,
       hasCutout: Boolean(j.cutout_path),

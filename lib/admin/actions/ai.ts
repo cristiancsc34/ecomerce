@@ -158,6 +158,18 @@ export async function approveAiMediaAction(mediaId: string): Promise<ActionResul
     .select("id");
   if (error) return { ok: false, error: friendlyDbError(error) };
   if (!data?.length) return { ok: false, error: "Sem permissão para aprovar esta imagem." };
+
+  // A primeira imagem aprovada vira a foto principal, se o produto ainda não tem uma.
+  const { data: media } = await supabase.from("product_media").select("product_id").eq("id", mediaId).single();
+  if (media) {
+    const { data: primary } = await supabase
+      .from("product_media")
+      .select("id")
+      .eq("product_id", media.product_id)
+      .eq("is_primary", true)
+      .maybeSingle();
+    if (!primary) await supabase.rpc("set_primary_media", { p_media_id: mediaId });
+  }
   updateTag(CATALOG_TAG);
   return { ok: true };
 }
@@ -171,14 +183,18 @@ export async function discardAiJobAction(jobId: string): Promise<ActionResult> {
   const supabase = await createSessionClient();
   const { data: job } = await supabase
     .from("ai_jobs")
-    .select("id,kind,status,input_path,cutout_path,output_media_id")
+    .select("id,kind,status,input_path,cutout_path,output_media_id,details")
     .eq("id", jobId)
     .maybeSingle();
   if (!job) return { ok: false, error: "Item não encontrado." };
   if (job.status === "running") return { ok: false, error: "Aguarde o processamento terminar para descartar." };
 
   const paths = [job.cutout_path as string | null].filter(Boolean) as string[];
-  if (job.kind === "background_removal") paths.push(job.input_path as string);
+  if (job.kind === "background_removal") {
+    paths.push(job.input_path as string);
+    const studioPath = (job.details as { studioPath?: unknown } | null)?.studioPath;
+    if (typeof studioPath === "string") paths.push(studioPath);
+  }
 
   if (job.output_media_id) {
     const { data: media } = await supabase
@@ -234,12 +250,27 @@ export async function suggestCopyAction(productId: string): Promise<ActionResult
     .filter((m) => m.type === "image" && !m.pendingReview && !m.isIllustrative)
     .sort((a, b) => Number(b.aiGenerated) - Number(a.aiGenerated) || Number(b.isPrimary) - Number(a.isPrimary) || a.sortOrder - b.sortOrder)
     .slice(0, 4);
-  if (!photos.length) return { ok: false, error: "Envie e limpe as fotos antes de pedir os textos." };
-
   const supabase = await createSessionClient();
+  let paths = photos.map((p) => p.storagePath);
+  if (!paths.length) {
+    // Ainda sem fotos aprovadas: usa as fotos do celular já limpas.
+    const { data: cleaned } = await supabase
+      .from("ai_jobs")
+      .select("details")
+      .eq("product_id", productId)
+      .eq("kind", "background_removal")
+      .eq("status", "succeeded")
+      .order("created_at")
+      .limit(4);
+    paths = (cleaned ?? [])
+      .map((j) => (j.details as { studioPath?: unknown } | null)?.studioPath)
+      .filter((p): p is string => typeof p === "string");
+  }
+  if (!paths.length) return { ok: false, error: "Envie e limpe as fotos antes de pedir os textos." };
+
   const images: { mime: string; bytes: Uint8Array }[] = [];
-  for (const photo of photos) {
-    const { data } = await supabase.storage.from(MEDIA_BUCKET).download(photo.storagePath);
+  for (const storagePath of paths) {
+    const { data } = await supabase.storage.from(MEDIA_BUCKET).download(storagePath);
     if (data) images.push({ mime: data.type || "image/jpeg", bytes: new Uint8Array(await data.arrayBuffer()) });
   }
   try {

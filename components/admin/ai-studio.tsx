@@ -78,6 +78,7 @@ export function AiStudio({
   canEdit,
   requires3d,
   hasVideo,
+  hasGalleryPhoto,
   aiMedia,
   copyEnabled,
   initial,
@@ -87,6 +88,8 @@ export function AiStudio({
   canEdit: boolean;
   requires3d: boolean;
   hasVideo: boolean;
+  /** O produto já tem foto na galeria da loja (aprovada ou enviada à mão). */
+  hasGalleryPhoto: boolean;
   /** Imagens de catálogo geradas por IA (aprovadas ou aguardando). */
   aiMedia: ProductMedia[];
   /** A chave da OpenAI está configurada no servidor (textos com IA). */
@@ -192,14 +195,14 @@ export function AiStudio({
             <SparkIcon className="h-5 w-5 text-air-blue-ink" /> Estúdio de fotos e 3D
           </h2>
           <p className="mt-1 max-w-prose text-sm text-muted">
-            Envie as fotos tiradas no celular (fundo qualquer). O sistema limpa o fundo, deixa no padrão da loja e gera o
-            modelo 3D a partir de uma delas.
+            Envie as fotos tiradas no celular (fundo qualquer). O sistema limpa o fundo, recria as fotos de catálogo no padrão
+            da loja (mesmos ângulos, fundo creme) e gera o modelo 3D.
           </p>
         </div>
         <ul aria-label="O que este produto precisa" className="flex flex-wrap gap-2 text-sm">
           <li>
-            <Badge tone={readyPhotos.length ? "success" : "neutral"}>
-              {readyPhotos.length ? <CheckIcon className="h-3.5 w-3.5" /> : null} Fotos · obrigatório
+            <Badge tone={hasGalleryPhoto ? "success" : "neutral"}>
+              {hasGalleryPhoto ? <CheckIcon className="h-3.5 w-3.5" /> : null} Fotos · obrigatório
             </Badge>
           </li>
           <li>
@@ -287,7 +290,7 @@ export function AiStudio({
                     )}
                   </div>
                   <figcaption className="mt-1 text-xs text-muted">
-                    Depois: fundo limpo
+                    Depois: fundo limpo (referência; a loja usa as fotos de catálogo)
                     {job.droppedBackgroundObject ? " (móvel ao fundo removido)" : ""}
                   </figcaption>
                 </figure>
@@ -314,7 +317,7 @@ export function AiStudio({
                       label="Descartar"
                       triggerVariant="ghost"
                       title={`Descartar a foto ${i + 1}?`}
-                      description="Remove a foto enviada e a versão com fundo limpo (inclusive da galeria do produto)."
+                      description="Remove a foto enviada e a versão com fundo limpo. As fotos de catálogo já geradas continuam."
                       confirmLabel="Descartar"
                       onConfirm={async () => {
                         const r = await discardAiJobAction(job.id);

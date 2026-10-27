@@ -93,7 +93,7 @@ describe.skipIf(!enabled)("processador do estúdio de IA (Supabase local)", () =
     return data!.id as string;
   }
 
-  it("limpeza: grava a foto limpa como foto principal e guarda o recorte", async () => {
+  it("limpeza: guarda a foto limpa e o recorte, sem pôr na galeria da loja", async () => {
     const jobId = await enqueuePhoto();
     const done = await processNext(service, ["background_removal"], fakeEngines, { background_removal: "teste" });
     expect(done).toEqual({ id: jobId, kind: "background_removal", status: "succeeded" });
@@ -101,14 +101,15 @@ describe.skipIf(!enabled)("processador do estúdio de IA (Supabase local)", () =
     const { data: job } = await service.from("ai_jobs").select("*").eq("id", jobId).single();
     expect(job.status).toBe("succeeded");
     expect(job.engine).toBe("teste");
+    expect(job.output_media_id).toBeNull();
     expect(job.cutout_path).toMatch(new RegExp(`^products/${productId}/recortes/.+\\.png$`));
     expect(job.details).toMatchObject({ droppedBackgroundObject: true });
+    expect(job.details.studioPath).toMatch(new RegExp(`^products/${productId}/limpas/.+\\.jpg$`));
+    expect((await service.storage.from(BUCKET).download(job.details.studioPath)).error).toBeNull();
 
-    const { data: media } = await service.from("product_media").select("*").eq("id", job.output_media_id).single();
-    expect(media).toMatchObject({ media_type: "image", is_primary: true, is_illustrative: false, width: 1600, height: 1200 });
-    expect(media.alt_text).toContain("Cadeira Teste IA");
-    const file = await service.storage.from(BUCKET).download(media.storage_path);
-    expect(file.error).toBeNull();
+    // A galeria da loja só recebe as fotos de catálogo aprovadas.
+    const { data: media } = await service.from("product_media").select("id").eq("product_id", productId);
+    expect(media).toEqual([]);
   });
 
   it("falha do motor fica registrada no job, sem deixar arquivo para trás", async () => {
@@ -227,6 +228,37 @@ describe.skipIf(!enabled)("fotos de catálogo (Supabase local)", () => {
     expect(media![1].alt_text).toContain("vista três-quartos");
   });
 
+  it("estilo ambiente vazio põe cada ângulo no cômodo padrão e substitui as imagens não aprovadas", async () => {
+    const before = await service.from("product_media").select("id").eq("product_id", productId).eq("ai_generated", true);
+    const scenes: string[] = [];
+    const sceneEngines = {
+      ...catalogEngines,
+      async placeInScene(studioFile: string, dir: string) {
+        scenes.push(studioFile);
+        const file = path.join(dir, "ambiente.jpg");
+        await writeFile(file, JPEG);
+        return { file, usage: { input_tokens: 10, output_tokens: 20 } };
+      },
+    };
+    const { data: first } = await service.from("ai_jobs").select("input_path").eq("product_id", productId).eq("kind", "background_removal").limit(1).single();
+    await staff.from("ai_jobs").insert({ product_id: productId, kind: "catalog_photos", input_path: first!.input_path });
+    process.env.CATALOG_STYLE = "ambiente-vazio";
+    try {
+      expect((await processNext(service, ["catalog_photos"], sceneEngines))?.status).toBe("succeeded");
+    } finally {
+      delete process.env.CATALOG_STYLE;
+    }
+    expect(scenes).toHaveLength(4);
+
+    const after = await service.from("product_media").select("id,width,height").eq("product_id", productId).eq("ai_generated", true);
+    expect(after.data).toHaveLength(4);
+    // O conjunto anterior (sem aprovação) foi substituído.
+    expect(after.data!.some((m) => before.data!.some((b) => b.id === m.id))).toBe(false);
+    expect(after.data!.every((m) => m.width === 1600 && m.height === 1200)).toBe(true);
+    const { data: job } = await service.from("ai_jobs").select("details").eq("product_id", productId).eq("kind", "catalog_photos").order("created_at", { ascending: false }).limit(1).single();
+    expect(job!.details.style).toBe("ambiente-vazio");
+  });
+
   it("só aparece para o público depois que a equipe aprova", async () => {
     const { data: media } = await service.from("product_media").select("id").eq("product_id", productId).eq("ai_generated", true);
     const target = media![0].id;
@@ -237,6 +269,8 @@ describe.skipIf(!enabled)("fotos de catálogo (Supabase local)", () => {
       .select("approved_by");
     expect(error).toBeNull();
     expect(approved![0].approved_by).toBeTruthy();
+    // Aprovada, pode virar a foto principal (o painel faz isso na primeira aprovação).
+    expect((await staff.from("product_media").update({ is_primary: true }).eq("id", target)).error).toBeNull();
 
     // Publica por fora (3D e preço) para conferir a visão do público.
     const { data: category } = await service.from("categories").select("id").eq("slug", "colchoes").single();
