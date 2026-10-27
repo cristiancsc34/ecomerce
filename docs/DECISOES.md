@@ -19,6 +19,20 @@
 | **Fonte Inter via `next/font`** | Auto-hospedada no build, com métricas de fallback (evita salto de layout) |
 | **`air-blue-ink` (#2E6E9E)** | O `#408AC2` tem contraste 3,7:1 sobre branco (abaixo de AA para texto). Usamos uma variante escura só para texto de links; o azul original fica para ícones e elementos grandes |
 
+## Medições de desempenho (locais)
+
+Build de produção em modo demonstração, celular emulado (390 px), rede ~4G (150 ms, 1,6 Mbps) e CPU 4× mais lenta,
+em 27/10/2026:
+
+| Página | LCP | CLS | JS transferido |
+| --- | --- | --- | --- |
+| `/` | 0,84 s | 0 | ~199 KB |
+| `/produtos` | 0,80 s | 0 | ~205 KB |
+| `/produtos/sereno-hibrido` | 0,89 s | 0 | ~205 KB (3D não incluso: só baixa no clique) |
+
+Metas da spec: LCP ≤ 2,5 s, CLS ≤ 0,1. São medições de laboratório num servidor local; confirme em produção com o
+Vercel Speed Insights ou o PageSpeed Insights, com fotos reais (mais pesadas que as ilustrações SVG).
+
 ## Decisões pendentes (da especificação, seção 18)
 
 1. **Nome**: “Cuxões” segue como placeholder (trocar em `config/brand.ts` e `NEXT_PUBLIC_BRAND_NAME`). Validar marca e domínio antes de investir.
