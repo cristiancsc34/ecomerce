@@ -15,7 +15,9 @@ A especificação completa está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md). 
 | Banco (Postgres/Supabase) com RLS, Storage, regras de publicação e auditoria | ✅ Migração versionada e testada |
 | Modo demonstração (sem banco) com 3 produtos ilustrativos | ✅ Identificado em toda a loja, `noindex` |
 | Visualizador 3D sob demanda (GLB) | ✅ Prova de conceito com modelo ilustrativo |
-| Checkout, pagamento, frete, e-mail | ⏳ Não implementado: depende da escolha dos provedores ([decisões pendentes](docs/DECISOES.md)) |
+| Assistente de vendas (chat “Ajuda”) | ✅ Claude Haiku, só com dados do catálogo, com trava contra preço/medida/prazo inventados — liga com `ANTHROPIC_API_KEY` ([`docs/ASSISTENTE.md`](docs/ASSISTENTE.md)) |
+| Avisos de pedido (WhatsApp e e-mail) | 🧱 Estrutura pronta e testada (mensagens, fila idempotente, novas tentativas); falta checkout e provedor ([`docs/NOTIFICACOES.md`](docs/NOTIFICACOES.md)) |
+| Checkout, pagamento, frete | ⏳ Não implementado: depende da escolha dos provedores ([decisões pendentes](docs/DECISOES.md)) |
 | Estúdio de fotos e 3D no painel | ✅ Fotos do celular com limpeza de fundo automática (modelos abertos, locais) — [`docs/ESTUDIO-IA.md`](docs/ESTUDIO-IA.md). Fotos de catálogo recriadas por IA (4 ângulos padrão, com conferência humana) e nome/textos sugeridos pelo ChatGPT. 3D pela API do Tripo a partir das fotos de catálogo. |
 
 **Nada aqui é dado comercial real.** Os produtos “Nuvem Essencial”, “Brisa Premium” e “Sereno Híbrido” são
@@ -164,5 +166,7 @@ docs/                 segurança, decisões, referências de UX, IA e 3D
 - [Decisões, integrações pendentes e limitações conhecidas](docs/DECISOES.md)
 - [Referências de UX pesquisadas](docs/REFERENCIAS-UX.md)
 - [Estúdio de fotos e 3D: instalar e rodar o processador de IA](docs/ESTUDIO-IA.md)
+- [Assistente de vendas com IA (Claude Haiku)](docs/ASSISTENTE.md)
+- [Avisos de pedido por WhatsApp e e-mail: estrutura e opções de provedor](docs/NOTIFICACOES.md)
 - [Plano de IA (imagens/descrições) e 3D](docs/IA-E-3D.md)
 - [Próxima fase: foto suja → foto limpa → 3D → legenda no painel](docs/PROXIMA-FASE-IA-3D.md)

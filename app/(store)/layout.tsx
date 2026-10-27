@@ -1,6 +1,8 @@
+import { AssistantWidget } from "@/components/assistant/assistant-widget";
 import { AnnouncementBar, SkipLink } from "@/components/layout/banners";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
+import { assistantEnabled } from "@/lib/assistant/config";
 
 export default function StoreLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -12,6 +14,7 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
         {children}
       </main>
       <Footer />
+      {assistantEnabled() ? <AssistantWidget /> : null}
     </div>
   );
 }

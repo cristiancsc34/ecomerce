@@ -34,6 +34,8 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "",
       NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}`,
       NEXT_TELEMETRY_DISABLED: "1",
+      // Chave FALSA: só liga o widget do assistente; as respostas são simuladas nos testes.
+      ANTHROPIC_API_KEY: "sk-ant-teste-falsa",
     },
   },
 });

@@ -31,8 +31,8 @@ export default function PrivacyPage() {
       <h2>O que coletamos hoje</h2>
       <ul>
         <li>
-          <strong>Navegação sem cadastro:</strong> você pode ver produtos, usar o guia e montar a sacola sem criar conta e
-          sem informar dados pessoais.
+          <strong>Navegação sem cadastro:</strong> você pode ver produtos e montar a sacola sem criar conta e sem informar
+          dados pessoais.
         </li>
         <li>
           <strong>Sacola:</strong> fica guardada no seu próprio navegador (armazenamento local). Para mostrar os valores,
@@ -42,6 +42,12 @@ export default function PrivacyPage() {
         <li>
           <strong>Registros técnicos:</strong> o provedor de hospedagem pode registrar dados técnicos de acesso, como
           endereço IP, data e hora, para segurança e funcionamento do site.
+        </li>
+        <li>
+          <strong>Assistente virtual (quando disponível):</strong> o que você escreve no chat é enviado à Anthropic,
+          empresa que fornece a inteligência artificial, só para gerar a resposta, conforme os termos dela. Não guardamos
+          o conteúdo das conversas nos nossos servidores; a conversa fica no seu navegador até você fechar a aba. Não envie
+          dados pessoais no chat.
         </li>
         <li>
           <strong>Contato:</strong> se você falar com o atendimento, usamos os dados que enviar (como nome e telefone)
@@ -58,8 +64,9 @@ export default function PrivacyPage() {
 
       <h2>Compartilhamento</h2>
       <p>
-        Não vendemos dados pessoais. Usamos fornecedores de infraestrutura (hospedagem e banco de dados) que tratam dados
-        em nosso nome, com medidas de segurança adequadas.
+        Não vendemos dados pessoais. Usamos fornecedores de infraestrutura (hospedagem e banco de dados) e, no assistente
+        virtual, o provedor de inteligência artificial (Anthropic), que tratam dados em nosso nome, com medidas de
+        segurança adequadas.
       </p>
 
       <h2>Seus direitos</h2>
