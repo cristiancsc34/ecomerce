@@ -27,7 +27,7 @@ export default function ReturnsPage() {
 
       <h2>Produto com defeito</h2>
       <p>
-        Para produtos duráveis, como colchões, o prazo para reclamar de defeitos aparentes é de 90 dias a partir da entrega
+        Para produtos duráveis, como móveis, o prazo para reclamar de defeitos aparentes é de 90 dias a partir da entrega
         (art. 26 do CDC). Para defeitos ocultos, o prazo começa quando o defeito aparece. A garantia do fabricante, quando
         existir, é informada na página de cada produto e se soma à garantia legal.
       </p>

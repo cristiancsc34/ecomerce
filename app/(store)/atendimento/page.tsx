@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { brand, hasAnyContact, whatsappHref } from "@/config/brand";
 import { STORE_FAQ } from "@/content/faq";
-import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { FaqList } from "@/components/ui/faq-list";
 import { ChatIcon } from "@/components/ui/icons";
 import { Notice } from "@/components/ui/notice";
@@ -19,11 +18,10 @@ export default function SupportPage() {
 
   return (
     <div className="container-page py-8 sm:py-10">
-      <Breadcrumbs items={[{ label: "Início", href: "/" }, { label: "Atendimento" }]} />
-      <header className="mt-4 max-w-3xl">
+      <header className="max-w-3xl">
         <h1 className="text-3xl font-bold sm:text-4xl">Atendimento</h1>
         <p className="mt-3 text-lg text-ink/85">
-          Tire dúvidas sobre tamanhos, firmeza e disponibilidade. Enquanto a compra online não está ativa, é por aqui que
+          Tire dúvidas sobre medidas, cores e disponibilidade. Enquanto a compra online não está ativa, é por aqui que
           você compra.
         </p>
       </header>

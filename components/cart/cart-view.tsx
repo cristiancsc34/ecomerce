@@ -10,7 +10,7 @@ import { formatPrice } from "@/lib/catalog/money";
 import { useHydrated } from "@/lib/use-hydrated";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { BagIcon, MinusIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
-import { EmptyState, Skeleton } from "@/components/ui/misc";
+import { Skeleton } from "@/components/ui/misc";
 import { Notice } from "@/components/ui/notice";
 
 type State =
@@ -67,13 +67,16 @@ export function CartView() {
     return (
       <div className="space-y-5">
         {removed.length ? <Issues issues={removed} /> : null}
-        <EmptyState
-          icon={<BagIcon className="h-7 w-7" />}
-          title="Sua sacola está vazia"
-          action={<ButtonLink href="/produtos">Conhecer os produtos</ButtonLink>}
-        >
-          Escolha um colchão e o tamanho; ele aparece aqui com o valor calculado pela loja.
-        </EmptyState>
+        <div className="flex flex-col items-center rounded-lg bg-white px-6 py-12 text-center">
+          <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-pale-blue text-air-blue-ink">
+            <BagIcon className="h-8 w-8" />
+          </span>
+          <h2 className="text-xl font-semibold">Sua sacola está vazia</h2>
+          <p className="mt-2 max-w-sm text-muted">Escolha um produto e ele aparece aqui, com o valor calculado pela loja.</p>
+          <ButtonLink href="/" className="mt-6">
+            Ver produtos
+          </ButtonLink>
+        </div>
       </div>
     );
   }
@@ -94,7 +97,7 @@ export function CartView() {
   const { quote } = state;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-6">
       <div className="min-w-0 space-y-4">
         {quote.issues.length ? <Issues issues={quote.issues} /> : null}
         {quote.hasDemoItems ? (
@@ -103,10 +106,10 @@ export function CartView() {
           </Notice>
         ) : null}
 
-        <ul className="divide-y divide-line overflow-hidden rounded-[1.25rem] border border-line bg-white">
+        <ul className="divide-y divide-line overflow-hidden rounded-lg bg-white">
           {quote.lines.map((line) => (
             <li key={`${line.productId}:${line.variantId}`} className="flex gap-4 p-4 sm:p-5">
-              <div className="relative aspect-[4/3] w-24 shrink-0 self-start overflow-hidden rounded-xl bg-pale-blue sm:w-32">
+              <div className="relative aspect-square w-20 shrink-0 self-start overflow-hidden rounded-md bg-pale-blue sm:w-28">
                 {line.imageUrl ? (
                   <Image
                     src={line.imageUrl}
@@ -127,7 +130,7 @@ export function CartView() {
                     {line.variantName ? <p className="text-sm text-muted">{line.variantName}</p> : null}
                     <p className="text-sm text-muted">{formatPrice(line.unitPriceCents)} cada</p>
                   </div>
-                  <p className="font-bold text-deep-fjord">{formatPrice(line.lineTotalCents)}</p>
+                  <p className="font-bold text-air-blue-ink">{formatPrice(line.lineTotalCents)}</p>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <QuantityStepper
@@ -151,7 +154,7 @@ export function CartView() {
       </div>
 
       <aside aria-labelledby="resumo-titulo" className="lg:sticky lg:top-24 lg:self-start">
-        <div className="space-y-4 rounded-[1.25rem] border border-line bg-white p-5">
+        <div className="space-y-4 rounded-lg bg-white p-4 shadow-[var(--shadow-soft)] sm:p-5">
           <h2 id="resumo-titulo" className="text-lg font-bold">
             Resumo
           </h2>

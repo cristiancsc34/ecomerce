@@ -41,12 +41,3 @@ export async function getCategoryBySlug(slug: string): Promise<Category | null> 
   const categories = await getCategories();
   return categories.find((c) => c.slug === slug) ?? null;
 }
-
-/** Relacionados: mesma categoria primeiro, depois os demais; nunca o próprio. */
-export async function getRelatedProducts(product: Product, limit = 3): Promise<Product[]> {
-  const products = await getVisibleProducts();
-  const others = products.filter((p) => p.id !== product.id);
-  const sameCategory = others.filter((p) => p.category?.slug && p.category.slug === product.category?.slug);
-  const rest = others.filter((p) => !sameCategory.includes(p));
-  return [...sameCategory, ...rest].slice(0, limit);
-}

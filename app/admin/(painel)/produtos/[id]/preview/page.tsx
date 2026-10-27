@@ -26,7 +26,7 @@ export default async function PreviewPage({ params }: PageProps<"/admin/produtos
         </Link>
       </div>
       <div className="bg-cloud">
-        <ProductView product={product} related={[]} preview />
+        <ProductView product={product} preview />
       </div>
     </div>
   );

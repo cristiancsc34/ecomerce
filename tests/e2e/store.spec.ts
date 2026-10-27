@@ -53,9 +53,9 @@ test.describe("vitrine em modo demonstração", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Cadeira Cinza Trama" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Ver em 3D" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /3D/ })).toHaveCount(0);
-    // "Você também pode gostar" leva à poltrona.
-    await page.getByRole("region", { name: "Você também pode gostar" }).getByRole("link", { name: "Poltrona Azul Estrutura Clara" }).click();
-    await expect(page).toHaveURL(/\/produtos\/poltrona-azul$/);
+    // Sem "produtos relacionados": poltrona não é cadeira, cada produto é um.
+    await expect(page.getByText("Você também pode gostar")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Poltrona Azul Estrutura Clara" })).toHaveCount(0);
   });
 
   test("busca pelo cabeçalho, sem acento, e estado vazio", async ({ page }) => {

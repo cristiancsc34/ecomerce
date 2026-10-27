@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { brand } from "@/config/brand";
 import { primaryImage } from "@/lib/catalog/product-helpers";
-import { getRelatedProducts, getVisibleProductBySlug, getVisibleProducts } from "@/lib/catalog/queries";
+import { getVisibleProductBySlug, getVisibleProducts } from "@/lib/catalog/queries";
 import { ProductView } from "@/components/product/product-view";
 import { Skeleton } from "@/components/ui/misc";
 
@@ -56,8 +56,7 @@ async function ProductContent({ params }: Pick<PageProps<"/produtos/[slug]">, "p
   const { slug } = await params;
   const product = await getVisibleProductBySlug(slug);
   if (!product) notFound();
-  const related = await getRelatedProducts(product);
-  return <ProductView product={product} related={related} />;
+  return <ProductView product={product} />;
 }
 
 function ProductSkeleton() {

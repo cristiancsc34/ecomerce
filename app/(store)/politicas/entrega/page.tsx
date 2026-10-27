@@ -22,7 +22,7 @@ export default function ShippingPage() {
         <li>Frete e prazo serão calculados pelo seu CEP, antes do pagamento, com o valor real da transportadora.</li>
         <li>Não exibimos prazos ou valores estimados sem esse cálculo.</li>
         <li>
-          Colchões são volumosos: as regiões atendidas e as condições de entrega serão informadas aqui assim que forem
+          Móveis são volumosos: as regiões atendidas e as condições de entrega serão informadas aqui assim que forem
           definidas.
         </li>
       </ul>

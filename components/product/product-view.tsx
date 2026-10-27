@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { FaqList } from "@/components/ui/faq-list";
 import { FirmnessScale } from "./firmness-scale";
 import { Gallery } from "./gallery";
-import { ProductGrid } from "./product-card";
 import { PurchasePanel, PurchasePanelWithParams } from "./purchase-panel";
 import { SizeTable, SpecsList } from "./specs";
 import { Viewer3D } from "./viewer-3d";
@@ -44,15 +43,7 @@ function Block({ id, title, children }: { id: string; title: string; children: R
  * Página de produto. Usada pela vitrine e pela pré-visualização do painel
  * (`preview`), que mostra rascunhos sem dados estruturados.
  */
-export function ProductView({
-  product,
-  related,
-  preview = false,
-}: {
-  product: Product;
-  related: Product[];
-  preview?: boolean;
-}) {
+export function ProductView({ product, preview = false }: { product: Product; preview?: boolean }) {
   const media = galleryMedia(product);
   const model = model3d(product);
   const base = siteUrl();
@@ -138,17 +129,6 @@ export function ProductView({
           </Block>
         ) : null}
 
-        {related.length ? (
-          <section aria-labelledby="relacionados-titulo" className="px-1.5 sm:px-0">
-            <h2
-              id="relacionados-titulo"
-              className="mb-2 border-b-4 border-air-blue-ink bg-white px-4 py-3 text-base font-bold uppercase tracking-wide text-air-blue-ink sm:rounded-t-lg"
-            >
-              Você também pode gostar
-            </h2>
-            <ProductGrid products={related} />
-          </section>
-        ) : null}
       </div>
 
       {/* Espaço para a barra fixa de compra no celular não cobrir o fim da página. */}
