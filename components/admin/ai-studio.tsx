@@ -6,12 +6,15 @@ import { useEffect, useRef, useState } from "react";
 import {
   aiResultsSeenAction,
   aiStudioSnapshotAction,
+  applyCopyAction,
   approveAiMediaAction,
   discardAiJobAction,
   requestCatalogPhotosAction,
   requestModel3dAction,
+  suggestCopyAction,
   uploadAiPhotoAction,
 } from "@/lib/admin/actions/ai";
+import type { CopySuggestion } from "@/lib/ai/copy";
 import { deleteMediaAction } from "@/lib/admin/actions/media";
 import { isPending, type AiJobView, type AiStudioSnapshot } from "@/lib/admin/ai-types";
 import type { ProductMedia } from "@/lib/catalog/types";
@@ -19,6 +22,7 @@ import { useHydrated } from "@/lib/use-hydrated";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckIcon, CubeIcon, ImageIcon, SparkIcon } from "@/components/ui/icons";
+import { controlClasses, Label } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { ConfirmButton } from "./confirm-dialog";
 
@@ -75,6 +79,7 @@ export function AiStudio({
   requires3d,
   hasVideo,
   aiMedia,
+  copyEnabled,
   initial,
 }: {
   productId: string;
@@ -84,6 +89,8 @@ export function AiStudio({
   hasVideo: boolean;
   /** Imagens de catálogo geradas por IA (aprovadas ou aguardando). */
   aiMedia: ProductMedia[];
+  /** A chave da OpenAI está configurada no servidor (textos com IA). */
+  copyEnabled: boolean;
   initial: AiStudioSnapshot;
 }) {
   const router = useRouter();
@@ -415,12 +422,131 @@ export function AiStudio({
         </div>
       ) : null}
 
-      {/* 3. Vídeo */}
+      {/* 4. Vídeo */}
       <h3 className="mt-6 font-bold">4. Vídeo (opcional)</h3>
       <p className="mt-1 text-sm text-muted">
         {hasVideo ? "Vídeo enviado. " : ""}Envie um vídeo curto do produto (MP4 ou WebM, até 4 MB) na seção “Fotos, vídeos e 3D”.
       </p>
+
+      {/* 5. Textos */}
+      <h3 className="mt-6 flex items-center gap-2 font-bold">
+        <SparkIcon className="h-5 w-5 text-air-blue-ink" /> 5. Nome e textos da loja (IA)
+      </h3>
+      <CopyAssistant
+        productId={productId}
+        enabled={copyEnabled && canEdit && hydrated}
+        hasPhotos={readyPhotos.length > 0 || aiMedia.some((m) => !m.pendingReview)}
+        onApplied={(text) => {
+          setMessage({ tone: "success", text });
+          router.refresh();
+        }}
+      />
     </section>
+  );
+}
+
+function CopyAssistant({
+  productId,
+  enabled,
+  hasPhotos,
+  onApplied,
+}: {
+  productId: string;
+  enabled: boolean;
+  hasPhotos: boolean;
+  onApplied: (message: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<(CopySuggestion & { name: string | null }) | null>(null);
+
+  async function suggest() {
+    setBusy(true);
+    setError(null);
+    const r = await suggestCopyAction(productId);
+    setBusy(false);
+    if (!r.ok) return setError(r.error);
+    setDraft({ ...r.data, name: null });
+  }
+
+  async function apply() {
+    if (!draft) return;
+    setBusy(true);
+    const r = await applyCopyAction(productId, {
+      name: draft.name,
+      shortDescription: draft.shortDescription,
+      description: draft.description,
+      seoTitle: draft.seoTitle,
+      seoDescription: draft.seoDescription,
+    });
+    setBusy(false);
+    if (!r.ok) return setError(r.error);
+    setDraft(null);
+    onApplied("Textos aplicados ao produto. Revise no formulário abaixo antes de publicar.");
+  }
+
+  const field = (key: "shortDescription" | "description" | "seoTitle" | "seoDescription", label: string, rows: number, max: number) => (
+    <div>
+      <Label htmlFor={`copy-${key}`}>{label}</Label>
+      <textarea
+        id={`copy-${key}`}
+        rows={rows}
+        maxLength={max}
+        value={draft?.[key] ?? ""}
+        onChange={(e) => setDraft((d) => (d ? { ...d, [key]: e.target.value } : d))}
+        className={controlClasses}
+      />
+    </div>
+  );
+
+  return (
+    <div className="mt-2">
+      <p className="max-w-prose text-sm text-muted">
+        O ChatGPT olha as fotos e os dados confirmados e sugere nome, descrições e textos para o Google. Não inventa medidas,
+        materiais nem garantia: o que não foi confirmado ele descreve só pela aparência. Você revisa antes de aplicar.
+      </p>
+      {!enabled && hasPhotos ? <p className="mt-2 text-sm text-muted">Disponível quando a chave da OpenAI estiver configurada.</p> : null}
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <Button type="button" variant="secondary" onClick={suggest} loading={busy && !draft} loadingLabel="Escrevendo…" disabled={!enabled || !hasPhotos || busy}>
+          <SparkIcon className="h-5 w-5" /> {draft ? "Sugerir de novo" : "Sugerir textos com IA"}
+        </Button>
+      </div>
+      {error ? <p className="mt-2 text-sm text-danger" role="alert">{error}</p> : null}
+      {draft ? (
+        <div className="mt-4 space-y-4 rounded-2xl border border-line bg-cloud p-4" data-testid="sugestao-textos">
+          <fieldset>
+            <legend className="text-sm font-semibold">Nome (opcional)</legend>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[null, ...draft.nameSuggestions].map((name) => (
+                <label key={name ?? "manter"} className="flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-sm">
+                  <input type="radio" name="copy-name" checked={draft.name === name} onChange={() => setDraft((d) => (d ? { ...d, name } : d))} />
+                  {name ?? "Manter o nome atual"}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {field("shortDescription", "Descrição curta", 2, 240)}
+          {field("description", "Descrição completa", 7, 1500)}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {field("seoTitle", "Título para o Google", 2, 70)}
+            {field("seoDescription", "Descrição para o Google", 3, 170)}
+          </div>
+          {draft.unconfirmedNumbers.length ? (
+            <Notice tone="warning" title="Confira os números">
+              O texto cita {draft.unconfirmedNumbers.join(", ")}, que não está nos dados confirmados. Corrija ou remova antes de aplicar.
+            </Notice>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={apply} loading={busy} loadingLabel="Aplicando…">
+              Aplicar ao produto
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setDraft(null)}>
+              Descartar sugestão
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

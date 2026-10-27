@@ -168,14 +168,23 @@ def main() -> None:
     if len(sys.argv) != 4:
         raise SystemExit(__doc__)
     source, cutout_path, studio_path = sys.argv[1:]
-    if not MODEL_PATH.exists():
-        raise SystemExit(f"Modelo não encontrado em {MODEL_PATH}. Rode: npm run ai:setup")
 
-    photo = load_photo(source)
-    mask, dropped = drop_background_objects(photo, predict_mask(photo))
-    mask = keep_main_object(mask)
-    rgba = photo.copy()
-    rgba.putalpha(mask)
+    original = ImageOps.exif_transpose(Image.open(source))
+    dropped = False
+    if original.mode in ("RGBA", "LA") and original.getchannel("A").getextrema()[0] < 250:
+        # Já veio recortada (ex.: foto de catálogo gerada com fundo transparente):
+        # só aplica o enquadramento padrão da loja.
+        rgba = original.convert("RGBA")
+        photo = rgba.convert("RGB")
+        mask = rgba.getchannel("A")
+    else:
+        if not MODEL_PATH.exists():
+            raise SystemExit(f"Modelo não encontrado em {MODEL_PATH}. Rode: npm run ai:setup")
+        photo = original.convert("RGB")
+        mask, dropped = drop_background_objects(photo, predict_mask(photo))
+        mask = keep_main_object(mask)
+        rgba = photo.copy()
+        rgba.putalpha(mask)
 
     x0, y0, x1, y1 = bbox(np.asarray(mask))
     pad = round(max(x1 - x0, y1 - y0) * 0.02)

@@ -11,8 +11,8 @@
  *
  * Motores habilitados:
  *   - limpeza de fundo: quando o modelo BiRefNet está baixado (ai:setup);
- *   - fotos de catálogo (IA recria a cena a partir das fotos reais): ainda sem
- *     provedor ligado — aguarda a chave da API de imagem (ver docs/ESTUDIO-IA.md);
+ *   - fotos de catálogo (IA recria a cena a partir das fotos reais): com
+ *     OPENAI_API_KEY (GPT Image, edição com várias fotos de referência);
  *   - 3D: só com AI_3D_ENGINE=triposr e o TripoSR instalado (ver docs/ESTUDIO-IA.md).
  */
 import { spawn } from "node:child_process";
@@ -44,6 +44,9 @@ export function detectEngines(root = ROOT, env = process.env) {
   const engines = {};
   if (existsSync(PYTHON) && existsSync(path.join(root, "ai", "models", "birefnet", "model.onnx"))) {
     engines.background_removal = "BiRefNet + Depth Anything V2 (local)";
+  }
+  if (env.OPENAI_API_KEY && engines.background_removal) {
+    engines.catalog_photos = `OpenAI ${env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL}`;
   }
   if (
     env.AI_3D_ENGINE === "triposr" &&
@@ -102,6 +105,84 @@ export const pythonEngines = {
     return { glb, meta };
   },
 };
+
+// ---------------------------------------------------------------------------
+// Fotos de catálogo com a API de imagem da OpenAI
+// ---------------------------------------------------------------------------
+
+export const DEFAULT_IMAGE_MODEL = "gpt-image-2.5-sunburst";
+
+const VIEW_INSTRUCTIONS = {
+  frente: "straight front view: camera facing the front of the product head-on",
+  "tres-quartos": "three-quarter front view: camera rotated about 35 degrees from the front, showing the front and one side",
+  lateral: "side profile view: camera at 90 degrees, showing one full side of the product",
+  traseira: "straight back view: camera facing the back of the product head-on",
+};
+
+/** Instrução enviada ao modelo. As fotos reais são a única fonte de verdade. */
+export function catalogPrompt(view, referenceCount) {
+  const refs = Array.from({ length: referenceCount }, (_, i) => `image ${i + 1}`).join(", ");
+  return [
+    `The attached photos (${refs}) show ONE real product from different angles, photographed casually (possibly tilted,`,
+    "blurry or partly hidden) in a cluttered room. They are the only source of truth for this exact product.",
+    "",
+    `Create a professional e-commerce catalog photograph of this same product: ${VIEW_INSTRUCTIONS[view]},`,
+    "camera at the height of the middle of the product, 50 mm lens, perfectly level and straight, whole product in frame",
+    "with some margin, sharp focus, soft diffused studio light.",
+    "",
+    "Preserve exactly: overall shape and proportions, every part and how parts connect, colors, materials, fabric texture",
+    "and stitching pattern, wood color, grain and finish, small wear marks. Use the other photos to see parts hidden in one",
+    "of them. Do not add, remove, repair, restyle or redesign anything. No props, no people, no text, no logos.",
+    "",
+    "Output only the product on a fully transparent background, with no floor and no shadow.",
+  ].join("\n");
+}
+
+const MIME_BY_EXT = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
+
+async function openaiImageEdit({ apiKey, model, references, prompt, output }) {
+  const form = new FormData();
+  form.set("model", model);
+  for (const ref of references) {
+    const type = MIME_BY_EXT[path.extname(ref).toLowerCase()] ?? "image/jpeg";
+    form.append("image[]", new Blob([await readFile(ref)], { type }), path.basename(ref));
+  }
+  form.set("prompt", prompt);
+  form.set("size", "1536x1024");
+  form.set("quality", "high");
+  form.set("background", "transparent");
+  form.set("output_format", "png");
+  const res = await fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+    signal: AbortSignal.timeout(4 * 60_000),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(`OpenAI: ${body?.error?.message ?? `erro ${res.status}`}`.slice(0, 300));
+  const b64 = body?.data?.[0]?.b64_json;
+  if (!b64) throw new Error("A OpenAI não devolveu a imagem.");
+  await writeFile(output, Buffer.from(b64, "base64"));
+  return body.usage ?? null;
+}
+
+/** Motor de fotos de catálogo (gera os ângulos de 2 em 2). */
+export function openaiCatalogEngine(apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL) {
+  return {
+    async catalogPhotos(references, dir, _product, views) {
+      const shots = [];
+      for (let i = 0; i < views.length; i += 2) {
+        const batch = views.slice(i, i + 2).map(async (view) => {
+          const file = path.join(dir, `catalogo-${view}.png`);
+          const usage = await openaiImageEdit({ apiKey, model, references, prompt: catalogPrompt(view, references.length), output: file });
+          return { file, view, usage };
+        });
+        shots.push(...(await Promise.all(batch)));
+      }
+      return shots;
+    },
+  };
+}
 
 const isJpeg = (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 const isPng = (b) => b.length > 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
@@ -263,7 +344,23 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
     if (insertError) throw new Error(insertError.message);
     mediaIds.push(media.id);
   }
-  return { output_media_id: mediaIds[0] ?? null, details: { mediaIds, views: shots.map((s) => s.view), references: references.length } };
+  const usage = shots.map((s) => s.usage).filter(Boolean);
+  return {
+    output_media_id: mediaIds[0] ?? null,
+    details: {
+      mediaIds,
+      views: shots.map((s) => s.view),
+      references: references.length,
+      ...(usage.length
+        ? {
+            usage: {
+              inputTokens: usage.reduce((n, u) => n + (u.input_tokens ?? 0), 0),
+              outputTokens: usage.reduce((n, u) => n + (u.output_tokens ?? 0), 0),
+            },
+          }
+        : {}),
+    },
+  };
 }
 
 /** Processa um job já marcado como "running". Nunca lança: registra a falha no job. */
@@ -326,6 +423,7 @@ async function main() {
   }
   const supabase = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const engineNames = detectEngines();
+  const engines = { ...pythonEngines, ...(engineNames.catalog_photos ? openaiCatalogEngine() : {}) };
   const kinds = Object.keys(engineNames);
   const workerId = `local-${hostname()}`.slice(0, 80);
 
@@ -354,7 +452,7 @@ async function main() {
 
   while (!stopping) {
     try {
-      const done = await processNext(supabase, kinds, pythonEngines, engineNames);
+      const done = await processNext(supabase, kinds, engines, engineNames);
       if (done) {
         console.log(`${new Date().toLocaleTimeString("pt-BR")} job ${done.id} (${done.kind}): ${done.status}`);
         await heartbeat();

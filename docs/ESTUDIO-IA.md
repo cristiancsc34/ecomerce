@@ -81,12 +81,13 @@ faltando). As **fotos de catálogo** recriam a cena:
   quem aprovou e quando (auditoria). Imagem não aprovada não aparece para o público e não pode ser a principal.
 - Na loja, essas imagens trazem o aviso discreto “Cena recriada a partir das fotos reais”.
 
-**Estado:** fila, gravação, conferência/aprovação, regras no banco e testes prontos. **Falta só o provedor de imagem**
-(plugado em `engines.catalogPhotos` de `scripts/ai-worker.mjs`), que precisa da chave `OPENAI_API_KEY`. Modelo previsto:
-GPT Image (edição com várias imagens de referência), em torno de US$ 0,05–0,21 por imagem → menos de US$ 1 por produto
-com 4 ângulos. Alternativa com a mesma chave da fal.ai do 3D: Nano Banana Pro (~US$ 0,15 por imagem).
+**Estado: funcionando** com a API da OpenAI (`OPENAI_API_KEY` no `.env.local` do processador). Modelo padrão
+`gpt-image-2.5-sunburst` (troque com `OPENAI_IMAGE_MODEL`), edição com todas as fotos reais como referência, fundo
+transparente, 1536×1024, qualidade alta. Medido com as duas cadeiras reais (28/10/2026): **~40 s por imagem** (2 em
+paralelo, ~1,5 min para os 4 ângulos) e **~US$ 0,08 por imagem** (~4,7 mil tokens de entrada + ~1,4 mil de saída) →
+**~US$ 0,35 por produto**. Alternativa com a mesma chave da fal.ai do 3D: Nano Banana Pro (~US$ 0,15 por imagem).
 
-Instrução que será enviada ao modelo (por ângulo):
+Instrução enviada ao modelo (por ângulo; ver `catalogPrompt` em `scripts/ai-worker.mjs`):
 
 > Use the attached photos only as the source of truth for this exact product. Create a professional e-commerce studio
 > photograph of the same product: {view}, camera at the product's mid height, 50 mm lens, light grey seamless background,
@@ -94,6 +95,12 @@ Instrução que será enviada ao modelo (por ângulo):
 > position of parts, colors, materials, fabric and stitching pattern, wood grain and finish, wear marks. Do not add,
 > remove, repair or redesign anything; no props, text or logos. Straighten the camera and fix blur only.
 
-## Legendas e descrições com IA
+## Nome e textos da loja com IA
 
-Ainda não ligadas: precisam de uma chave de API (Claude ou OpenAI). Ver [`PROXIMA-FASE-IA-3D.md`](PROXIMA-FASE-IA-3D.md).
+**Funcionando** no painel (seção 5 do estúdio), com a mesma `OPENAI_API_KEY` no servidor do Next.js (modelo padrão
+`gpt-5.1`; troque com `OPENAI_TEXT_MODEL`). O ChatGPT recebe as fotos (as aprovadas primeiro) e **só os dados
+confirmados** e sugere 3 nomes, descrição curta, descrição completa e textos para o Google. Regras na instrução:
+não inventar medidas, materiais, garantia, certificações ou benefícios; o que não foi confirmado é descrito só pela
+aparência (ex.: “estrutura em tom de madeira clara”). Se o texto citar um número que não está nos dados confirmados, o
+painel avisa antes de aplicar. Nada é salvo sem a pessoa revisar e clicar em “Aplicar ao produto”. Limite: 10 pedidos a
+cada 10 minutos por pessoa. Leva ~8 s e custa centavos.

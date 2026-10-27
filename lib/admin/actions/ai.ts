@@ -1,13 +1,17 @@
 "use server";
 
 import { updateTag } from "next/cache";
+import { suggestCopy, type CopySuggestion } from "@/lib/ai/copy";
+import { rateLimit } from "@/lib/auth/rate-limit";
 import { AuthorizationError, requireStaffAction } from "@/lib/auth/staff";
 import { MEDIA_BUCKET } from "@/lib/catalog/mappers";
 import { CATALOG_TAG } from "@/lib/catalog/queries";
 import { isUuid } from "@/lib/catalog/slug";
 import { validateMediaUpload } from "@/lib/media/validate";
 import { createSessionClient } from "@/lib/supabase/server";
+import { z } from "zod";
 import { getAiStudioSnapshot } from "../ai";
+import { getAdminProduct } from "../data";
 import type { AiStudioSnapshot } from "../ai-types";
 import { friendlyDbError } from "../errors";
 import { removeOrphanFiles } from "../storage";
@@ -202,6 +206,80 @@ export async function discardAiJobAction(jobId: string): Promise<ActionResult> {
   const { data: stillUsed } = await supabase.from("ai_jobs").select("input_path").in("input_path", paths);
   const used = new Set((stillUsed ?? []).map((r) => r.input_path as string));
   await removeOrphanFiles(paths.filter((p) => !used.has(p)));
+  updateTag(CATALOG_TAG);
+  return { ok: true };
+}
+
+/**
+ * Sugere nome, descrições e SEO a partir das fotos e dos dados confirmados.
+ * Só sugere: nada é salvo aqui.
+ */
+export async function suggestCopyAction(productId: string): Promise<ActionResult<CopySuggestion>> {
+  let staffId: string;
+  try {
+    staffId = (await requireStaffAction()).userId;
+  } catch (e) {
+    return { ok: false, error: e instanceof AuthorizationError ? e.message : "Sem permissão." };
+  }
+  if (!isUuid(productId)) return { ok: false, error: "Produto inválido." };
+  if (!process.env.OPENAI_API_KEY) return { ok: false, error: "A chave da OpenAI não está configurada no servidor." };
+  if (!rateLimit(`copy:${staffId}`, { limit: 10, windowMs: 10 * 60_000 }).allowed) {
+    return { ok: false, error: "Muitos pedidos seguidos. Aguarde alguns minutos." };
+  }
+
+  const product = await getAdminProduct(productId);
+  if (!product) return { ok: false, error: "Produto não encontrado." };
+  // Fotos que representam o produto: aprovadas primeiro, sem as que aguardam conferência.
+  const photos = product.media
+    .filter((m) => m.type === "image" && !m.pendingReview && !m.isIllustrative)
+    .sort((a, b) => Number(b.aiGenerated) - Number(a.aiGenerated) || Number(b.isPrimary) - Number(a.isPrimary) || a.sortOrder - b.sortOrder)
+    .slice(0, 4);
+  if (!photos.length) return { ok: false, error: "Envie e limpe as fotos antes de pedir os textos." };
+
+  const supabase = await createSessionClient();
+  const images: { mime: string; bytes: Uint8Array }[] = [];
+  for (const photo of photos) {
+    const { data } = await supabase.storage.from(MEDIA_BUCKET).download(photo.storagePath);
+    if (data) images.push({ mime: data.type || "image/jpeg", bytes: new Uint8Array(await data.arrayBuffer()) });
+  }
+  try {
+    return { ok: true, data: await suggestCopy({ product, images }) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Não foi possível gerar os textos." };
+  }
+}
+
+const applyCopySchema = z.object({
+  name: z.string().trim().min(2).max(120).nullable(),
+  shortDescription: z.string().trim().min(10).max(240),
+  description: z.string().trim().min(40).max(8000),
+  seoTitle: z.string().trim().max(70),
+  seoDescription: z.string().trim().max(170),
+});
+
+/** Aplica os textos revisados ao produto (o nome só se a pessoa escolheu um). */
+export async function applyCopyAction(productId: string, input: z.input<typeof applyCopySchema>): Promise<ActionResult> {
+  const denied = await guard();
+  if (denied) return denied;
+  if (!isUuid(productId)) return { ok: false, error: "Produto inválido." };
+  const parsed = applyCopySchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Textos fora do tamanho permitido." };
+
+  const { name, shortDescription, description, seoTitle, seoDescription } = parsed.data;
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase
+    .from("products")
+    .update({
+      ...(name ? { name } : {}),
+      short_description: shortDescription,
+      description,
+      seo_title: seoTitle || null,
+      seo_description: seoDescription || null,
+    })
+    .eq("id", productId)
+    .select("id");
+  if (error) return { ok: false, error: friendlyDbError(error) };
+  if (!data?.length) return { ok: false, error: "Sem permissão para alterar este produto." };
   updateTag(CATALOG_TAG);
   return { ok: true };
 }
