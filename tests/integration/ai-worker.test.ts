@@ -225,6 +225,25 @@ describe.skipIf(!enabled)("fotos de catálogo (Supabase local)", () => {
       .order("sort_order");
     expect(media).toHaveLength(4);
     expect(media!.every((m) => m.approved_at === null && !m.is_primary)).toBe(true);
+
+    // O recorte de cada ângulo fica guardado para o 3D.
+    const { data: job } = await service.from("ai_jobs").select("details").eq("product_id", productId).eq("kind", "catalog_photos").single();
+    expect(Object.keys(job!.details.cutouts).sort()).toEqual(["frente", "lateral", "traseira", "tres-quartos"]);
+
+    // O 3D usa frente, lado direito e costas das fotos de catálogo.
+    let received: Record<string, string> | null = null;
+    const engines3d = {
+      ...catalogEngines,
+      async model3d(_input: string, dir: string, _height: unknown, views?: Record<string, string> | null) {
+        received = views ?? null;
+        const out = path.join(dir, "modelo.glb");
+        await writeFile(out, glb());
+        return { glb: out, meta: { engine: "teste" } };
+      },
+    };
+    await staff.from("ai_jobs").insert({ product_id: productId, kind: "model_3d", input_path: job!.details.cutouts["tres-quartos"] });
+    expect((await processNext(service, ["model_3d"], engines3d))?.status).toBe("succeeded");
+    expect(Object.keys(received ?? {}).sort()).toEqual(["back", "front", "right"]);
     expect(media![1].alt_text).toContain("vista três-quartos");
   });
 

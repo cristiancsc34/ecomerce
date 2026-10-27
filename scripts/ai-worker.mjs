@@ -14,7 +14,8 @@
  *   - fotos de catálogo (IA recria a cena a partir das fotos reais): com
  *     OPENAI_API_KEY (GPT Image, edição com várias fotos de referência);
  *     estilo em CATALOG_STYLE (padrão "creme"; ou "neutro" / "ambiente-vazio");
- *   - 3D: só com AI_3D_ENGINE=triposr e o TripoSR instalado (ver docs/ESTUDIO-IA.md).
+ *   - 3D: com TRIPO_API_KEY (API do Tripo, a partir da foto de catálogo ¾); ou
+ *     AI_3D_ENGINE=triposr com o TripoSR instalado (ver docs/ESTUDIO-IA.md).
  */
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -23,7 +24,11 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { NodeIO } from "@gltf-transform/core";
+import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
+import { dedup, prune, textureCompress } from "@gltf-transform/functions";
 import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const BUCKET = "product-media";
@@ -62,7 +67,9 @@ export function detectEngines(root = ROOT, env = process.env) {
   if (env.OPENAI_API_KEY && engines.background_removal) {
     engines.catalog_photos = `OpenAI ${env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL}`;
   }
-  if (
+  if (env.TRIPO_API_KEY) {
+    engines.model_3d = `Tripo ${env.TRIPO_MODEL || DEFAULT_TRIPO_MODEL} (API)`;
+  } else if (
     env.AI_3D_ENGINE === "triposr" &&
     existsSync(PYTHON) &&
     existsSync(path.join(root, "ai", "models", "triposr", "model.ckpt")) &&
@@ -111,7 +118,8 @@ export const pythonEngines = {
     const meta = await runPython("remove_background.py", [input, cutout, studio], 5 * 60_000, { ESTUDIO_FUNDO: fundo });
     return { cutout, studio, meta };
   },
-  async model3d(input, dir, heightCm) {
+  // O TripoSR local usa uma foto só (ignora os ângulos do catálogo).
+  async model3d(input, dir, heightCm, _views = null) {
     const glb = path.join(dir, "modelo.glb");
     const args = [input, glb];
     if (heightCm) args.push(String(heightCm));
@@ -129,7 +137,7 @@ export const DEFAULT_IMAGE_MODEL = "gpt-image-2.5-sunburst";
 const VIEW_INSTRUCTIONS = {
   frente: "straight front view: camera facing the front of the product head-on",
   "tres-quartos": "three-quarter front view: camera rotated about 35 degrees from the front, showing the front and one side",
-  lateral: "side profile view: camera at 90 degrees, showing one full side of the product",
+  lateral: "side profile view of the product's right side: camera at 90 degrees, the product's front pointing to the right edge of the image",
   traseira: "straight back view: camera facing the back of the product head-on",
 };
 
@@ -233,6 +241,122 @@ function mergeUsage(a, b) {
   return { input_tokens: (a.input_tokens ?? 0) + (b.input_tokens ?? 0), output_tokens: (a.output_tokens ?? 0) + (b.output_tokens ?? 0) };
 }
 
+// ---------------------------------------------------------------------------
+// 3D com a API do Tripo (https://developers.tripo3d.ai)
+// ---------------------------------------------------------------------------
+
+export const DEFAULT_TRIPO_MODEL = "v3.1-20260211";
+const TRIPO_API = "https://openapi.tripo3d.ai/v3";
+const TRIPO_POLL_MS = 5000;
+
+async function tripoRequest(apiKey, pathname, init = {}) {
+  const res = await fetch(`${TRIPO_API}${pathname}`, {
+    ...init,
+    headers: { Authorization: `Bearer ${apiKey}`, ...(init.headers ?? {}) },
+    signal: AbortSignal.timeout(2 * 60_000),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok || body?.code !== 0) {
+    const message = body?.code === 2010 ? "Sem créditos no Tripo. Recarregue a conta." : body?.message ?? `erro ${res.status}`;
+    throw new Error(`Tripo: ${message}`.slice(0, 300));
+  }
+  return body.data;
+}
+
+/**
+ * Motor 3D do Tripo: envia o recorte (de preferência a foto de catálogo ¾),
+ * cria a tarefa image-to-model, acompanha até terminar e baixa o .glb.
+ */
+export function tripoEngine(apiKey = process.env.TRIPO_API_KEY, model = process.env.TRIPO_MODEL || DEFAULT_TRIPO_MODEL, pollMs = TRIPO_POLL_MS) {
+  return {
+    /**
+     * Com as fotos de catálogo (frente, lado direito e costas) usa o modo de
+     * várias fotos — a traseira e o perfil saem fiéis. Sem elas, usa uma foto só.
+     */
+    async model3d(input, dir, _heightCm, views = null) {
+      const upload = async (file) => {
+        const form = new FormData();
+        const type = MIME_BY_EXT[path.extname(file).toLowerCase()] ?? "image/png";
+        form.set("file", new Blob([await readFile(file)], { type }), path.basename(file));
+        return (await tripoRequest(apiKey, "/files", { method: "POST", body: form })).file_token;
+      };
+      const common = { model, texture: true, pbr: true, texture_quality: "standard", face_limit: 60000 }; // leve no celular
+      let endpoint;
+      let body;
+      if (views?.front && (views.right || views.back)) {
+        const inputs = [];
+        for (const key of ["front", "right", "back"]) if (views[key]) inputs.push({ [key]: await upload(views[key]) });
+        endpoint = "/generation/multiview-to-model";
+        body = { inputs, ...common };
+      } else {
+        endpoint = "/generation/image-to-model";
+        body = { input: await upload(input), ...common };
+      }
+      const { task_id: taskId } = await tripoRequest(apiKey, endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const started = Date.now();
+      let task;
+      for (;;) {
+        task = await tripoRequest(apiKey, `/tasks/${taskId}`);
+        if (task.status === "success") break;
+        if (task.status === "failed" || task.status === "cancelled") throw new Error(`Tripo: tarefa ${task.status}.`);
+        if (Date.now() - started > 15 * 60_000) throw new Error("Tripo: o 3D passou de 15 minutos.");
+        await new Promise((r) => setTimeout(r, pollMs));
+      }
+
+      const url = task.output?.model_url;
+      if (!url) throw new Error("Tripo: a tarefa terminou sem arquivo 3D.");
+      const res = await fetch(url, { signal: AbortSignal.timeout(5 * 60_000) });
+      if (!res.ok) throw new Error(`Tripo: falha ao baixar o 3D (${res.status}).`);
+      const glb = path.join(dir, "modelo.glb");
+      await writeFile(glb, Buffer.from(await res.arrayBuffer()));
+      return {
+        glb,
+        meta: {
+          engine: "tripo",
+          mode: endpoint.includes("multiview") ? "multiview" : "single",
+          taskId,
+          model,
+          credits: task.credits_consumed ?? null,
+          seconds: Math.round((Date.now() - started) / 1000),
+        },
+      };
+    },
+  };
+}
+
+/**
+ * Prepara o .glb para a loja: gira para a frente do produto ficar virada para a
+ * câmera inicial do visualizador (+Z, padrão glTF) e comprime as texturas em
+ * WebP até caber no limite de upload — leve para abrir no celular.
+ * O Tripo exporta com a frente em +X (padrão "export_orientation": "+x").
+ */
+export async function optimizeGlb(bytes, { frontAxis = "+z", maxBytes = MAX_UPLOAD_BYTES } = {}) {
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+  const ROTATIONS = { "+x": [0, -Math.SQRT1_2, 0, Math.SQRT1_2], "-x": [0, Math.SQRT1_2, 0, Math.SQRT1_2], "+z": null };
+  for (const size of [2048, 1536, 1024, 768, 512]) {
+    const doc = await io.readBinary(new Uint8Array(bytes));
+    const rotation = ROTATIONS[frontAxis];
+    if (rotation) {
+      const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
+      const pivot = doc.createNode("frente-do-produto").setRotation(rotation);
+      for (const child of scene.listChildren()) {
+        scene.removeChild(child);
+        pivot.addChild(child);
+      }
+      scene.addChild(pivot);
+    }
+    await doc.transform(dedup(), prune({ keepLeaves: true }), textureCompress({ encoder: sharp, targetFormat: "webp", resize: [size, size], quality: 88 }));
+    const out = Buffer.from(await io.writeBinary(doc));
+    if (out.length <= maxBytes) return { bytes: out, textureSize: size };
+  }
+  throw new Error("O modelo 3D continua grande demais mesmo com as texturas reduzidas.");
+}
+
 const isJpeg = (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 const isPng = (b) => b.length > 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
 const isGlb = (b) => b.length > 12 && b.toString("latin1", 0, 4) === "glTF" && b.readUInt32LE(4) === 2;
@@ -276,9 +400,38 @@ async function backgroundRemoval(supabase, job, product, inputFile, dir, engines
 
 async function model3d(supabase, job, product, inputFile, dir, engines, uploaded) {
   const heightCm = Number(product.dimensions?.heightCm) > 0 ? Number(product.dimensions.heightCm) : null;
-  const { glb, meta } = await engines.model3d(inputFile, dir, heightCm);
-  const bytes = await readFile(glb);
+
+  // Fotos de catálogo mais recentes: frente, lado direito e costas viram a base do 3D.
+  let views = null;
+  const { data: catalog } = await supabase
+    .from("ai_jobs")
+    .select("details")
+    .eq("product_id", product.id)
+    .eq("kind", "catalog_photos")
+    .eq("status", "succeeded")
+    .order("finished_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const cutouts = catalog?.details?.cutouts ?? {};
+  if (cutouts.frente && (cutouts.lateral || cutouts.traseira)) {
+    views = {};
+    for (const [key, view] of [["front", "frente"], ["right", "lateral"], ["back", "traseira"]]) {
+      if (!cutouts[view]) continue;
+      const { data: blob } = await supabase.storage.from(BUCKET).download(cutouts[view]);
+      if (!blob) continue;
+      views[key] = path.join(dir, `vista-3d-${view}.png`);
+      await writeFile(views[key], Buffer.from(await blob.arrayBuffer()));
+    }
+  }
+  const { glb, meta } = await engines.model3d(inputFile, dir, heightCm, views);
+  let bytes = await readFile(glb);
   if (!isGlb(bytes)) throw new Error("O motor gerou um arquivo 3D inválido.");
+  if (meta.engine === "tripo") {
+    const optimized = await optimizeGlb(bytes, { frontAxis: "+x" });
+    meta.originalBytes = bytes.length;
+    meta.textureSize = optimized.textureSize;
+    bytes = optimized.bytes;
+  }
   const glbPath = await upload(supabase, `products/${product.id}/${randomUUID()}.glb`, bytes, "model/gltf-binary");
   uploaded.push(glbPath);
 
@@ -358,10 +511,18 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
   if (stale?.length) await supabase.storage.from(BUCKET).remove(stale.map((m) => m.storage_path));
 
   const mediaIds = [];
+  const cutouts = {};
   for (const [i, shot] of shots.entries()) {
     const shotDir = path.join(dir, `vista-${i + 1}`);
     await mkdir(shotDir);
     const composed = await engines.backgroundRemoval(shot.file, shotDir, { fundo: fundoFor(style) });
+    // O recorte de cada ângulo fica guardado: o de ¾ é a melhor base para o 3D.
+    const cutoutBytes = await readFile(composed.cutout);
+    if (isPng(cutoutBytes)) {
+      const cutoutPath = await upload(supabase, `products/${product.id}/recortes/${randomUUID()}.png`, cutoutBytes, "image/png");
+      uploaded.push(cutoutPath);
+      cutouts[shot.view] = cutoutPath;
+    }
     let finalFile = composed.studio;
     const meta = composed.meta;
     if (style === "ambiente-vazio") {
@@ -403,6 +564,7 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
     output_media_id: mediaIds[0] ?? null,
     details: {
       mediaIds,
+      cutouts,
       style,
       views: shots.map((s) => s.view),
       references: references.length,
@@ -478,7 +640,11 @@ async function main() {
   }
   const supabase = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const engineNames = detectEngines();
-  const engines = { ...pythonEngines, ...(engineNames.catalog_photos ? openaiCatalogEngine() : {}) };
+  const engines = {
+    ...pythonEngines,
+    ...(engineNames.catalog_photos ? openaiCatalogEngine() : {}),
+    ...(engineNames.model_3d?.startsWith("Tripo") ? tripoEngine() : {}),
+  };
   const kinds = Object.keys(engineNames);
   const workerId = `local-${hostname()}`.slice(0, 80);
 

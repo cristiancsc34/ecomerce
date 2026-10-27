@@ -48,21 +48,22 @@ Tempo medido (4 vCPUs, sem GPU): **35 a 45 s por foto**. As fotos são processad
 | Tirar móveis ao fundo | [Depth Anything V2 Small](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf) | Apache-2.0 |
 | 3D (opcional, ver abaixo) | [TripoSR](https://huggingface.co/stabilityai/TripoSR) | MIT |
 
-## Estado do 3D automático
+## 3D automático (API do Tripo)
 
-O fluxo, a fila, a gravação do `.glb`, a prévia e a regra de publicação estão prontos e testados. **O motor que gera o
-3D ainda não foi ligado**:
+**Funcionando** com `TRIPO_API_KEY` no `.env.local` do processador (conta em https://platform.tripo3d.ai, créditos
+pré-pagos a partir de US$ 1). Modelo padrão `v3.1-20260211` (troque com `TRIPO_MODEL`).
 
-- **Local (grátis, TripoSR):** o script `ai/image_to_3d.py` usa o código do TripoSR (GitHub, licença MIT). Neste
-  ambiente, a execução de código de terceiros baixado do GitHub foi bloqueada pela política de segurança até o dono do
-  projeto autorizar; por isso ele **ainda não foi validado**. Para ligar depois da autorização:
-  `git clone https://github.com/VAST-AI-Research/TripoSR ai/vendor/TripoSR` (commit `107cefd`), baixar
-  `stabilityai/TripoSR` em `ai/models/triposr/` e rodar o processador com `AI_3D_ENGINE=triposr`.
-  Qualidade esperada: média (usa uma foto só; o que a foto não mostra é estimado).
-- **Na nuvem (melhor qualidade, usa 3 a 4 fotos):** Tripo multiview pela fal.ai (~US$ 0,30–0,40 por modelo). Precisa
-  da chave `FAL_KEY`; ver [`PROXIMA-FASE-IA-3D.md`](PROXIMA-FASE-IA-3D.md).
+- **Base do 3D:** com fotos de catálogo prontas, o processador envia **frente, lado direito e costas** (modo de várias
+  fotos do Tripo) — a traseira e o perfil saem fiéis (ex.: as ripas de madeira nas costas da poltrona). Sem fotos de
+  catálogo, usa uma foto limpa só (a traseira é estimada).
+- **Pós-processamento:** o modelo é girado para abrir de frente no visualizador (o Tripo exporta com a frente em +X) e
+  as texturas são comprimidas em WebP até caber em 4 MB.
+- **Medido com a poltrona azul (28/10/2026):** 30 créditos (**US$ 0,30**) por modelo, ~2 min 15 s, arquivo de 4,6 MB →
+  2,2 MB depois da compressão.
+- O 3D entra marcado como **ilustrativo** até alguém conferir com as fotos reais.
 
-Enquanto isso, o painel avisa que o gerador 3D não está habilitado e aceita um `.glb` enviado à mão na seção de mídia.
+Alternativa local (TripoSR, grátis, qualidade menor): `AI_3D_ENGINE=triposr` com o código em `ai/vendor/TripoSR`
+(ainda não validado neste ambiente — a execução de código de terceiros precisa de autorização).
 
 ## Fotos de catálogo: a IA recria a cena (padrão da loja)
 

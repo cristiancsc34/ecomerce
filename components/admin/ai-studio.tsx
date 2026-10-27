@@ -177,11 +177,13 @@ export function AiStudio({
     }
   }
 
+  const catalogReady = catalogJob?.status === "succeeded";
+
   async function generate3d() {
-    if (!chosenBase) return;
+    if (!chosenBase && !catalogReady) return;
     setRequesting3d(true);
     setMessage(null);
-    const result = await requestModel3dAction(productId, chosenBase.id);
+    const result = await requestModel3dAction(productId, catalogReady ? null : (chosenBase?.id ?? null));
     setRequesting3d(false);
     if (!result.ok) setMessage({ tone: "danger", text: result.error });
     await refresh();
@@ -395,14 +397,18 @@ export function AiStudio({
             onClick={generate3d}
             loading={requesting3d}
             loadingLabel="Pedindo…"
-            disabled={!hydrated || !chosenBase || (snapshot.worker.online && !can3d) || Boolean(latestModel && isPending(latestModel))}
+            disabled={
+              !hydrated || (!chosenBase && !catalogReady) || (snapshot.worker.online && !can3d) || Boolean(latestModel && isPending(latestModel))
+            }
           >
             <CubeIcon className="h-5 w-5" /> {has3d ? "Gerar o 3D de novo" : "Gerar modelo 3D"}
           </Button>
           <span className="text-sm text-muted">
-            {chosenBase
-              ? `Base: foto ${cleanJobs.indexOf(chosenBase) + 1}. Leva de 1 a 3 minutos.`
-              : "Primeiro envie e limpe pelo menos uma foto."}
+            {catalogReady
+              ? "Base: as fotos de catálogo (frente, lado e costas). Leva de 2 a 3 minutos."
+              : chosenBase
+                ? `Base: foto ${cleanJobs.indexOf(chosenBase) + 1}. Leva de 2 a 3 minutos.`
+                : "Primeiro envie e limpe pelo menos uma foto."}
           </span>
         </div>
       ) : null}
@@ -418,8 +424,8 @@ export function AiStudio({
           ) : null}
           {latestModel.status === "succeeded" ? (
             <p className="mt-2 text-xs text-muted">
-              Gerado por IA a partir de uma foto: confira proporções e cores. Fica marcado como ilustrativo até alguém revisar
-              (desmarque na seção de mídia).
+              Gerado por IA a partir das fotos: confira proporções, cores e peças. Fica marcado como ilustrativo até alguém
+              revisar (desmarque na seção de mídia).
             </p>
           ) : null}
         </div>

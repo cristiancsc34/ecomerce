@@ -73,21 +73,37 @@ export async function aiResultsSeenAction(): Promise<ActionResult> {
 }
 
 /** Gera o 3D a partir de uma foto já limpa (usa o recorte com transparência). */
-export async function requestModel3dAction(productId: string, cleanJobId: string): Promise<ActionResult> {
+export async function requestModel3dAction(productId: string, cleanJobId: string | null): Promise<ActionResult> {
   const denied = await guard();
   if (denied) return denied;
-  if (!isUuid(productId) || !isUuid(cleanJobId)) return { ok: false, error: "Pedido inválido." };
+  if (!isUuid(productId) || (cleanJobId !== null && !isUuid(cleanJobId))) return { ok: false, error: "Pedido inválido." };
 
   const supabase = await createSessionClient();
-  const { data: base } = await supabase
+  // Com fotos de catálogo prontas, o 3D usa os ângulos delas (o processador busca frente, lado e costas).
+  const { data: catalog } = await supabase
     .from("ai_jobs")
-    .select("id,cutout_path,output_media_id")
-    .eq("id", cleanJobId)
+    .select("details")
     .eq("product_id", productId)
-    .eq("kind", "background_removal")
+    .eq("kind", "catalog_photos")
     .eq("status", "succeeded")
+    .order("finished_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
-  if (!base?.cutout_path) return { ok: false, error: "Escolha uma foto já limpa para gerar o 3D." };
+  const cutouts = ((catalog?.details as { cutouts?: Record<string, string> } | null)?.cutouts ?? {}) as Record<string, string>;
+  let base: { cutout_path: string | null; output_media_id: string | null } | null = null;
+  if (cleanJobId) {
+    const { data } = await supabase
+      .from("ai_jobs")
+      .select("cutout_path,output_media_id")
+      .eq("id", cleanJobId)
+      .eq("product_id", productId)
+      .eq("kind", "background_removal")
+      .eq("status", "succeeded")
+      .maybeSingle();
+    base = data;
+  }
+  const inputPath = cutouts["tres-quartos"] ?? cutouts.frente ?? base?.cutout_path ?? null;
+  if (!inputPath) return { ok: false, error: "Gere as fotos de catálogo ou escolha uma foto já limpa para o 3D." };
 
   const { data: pending } = await supabase
     .from("ai_jobs")
@@ -100,8 +116,8 @@ export async function requestModel3dAction(productId: string, cleanJobId: string
   const { error } = await supabase.from("ai_jobs").insert({
     product_id: productId,
     kind: "model_3d",
-    input_path: base.cutout_path,
-    source_media_id: base.output_media_id,
+    input_path: inputPath,
+    source_media_id: base?.output_media_id ?? null,
   });
   if (error) return { ok: false, error: friendlyDbError(error, "Não foi possível pedir o modelo 3D.") };
   return { ok: true };

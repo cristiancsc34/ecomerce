@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { confirmedFacts, unconfirmedNumbers } from "@/lib/ai/copy";
-import { CATALOG_STYLES, CATALOG_VIEWS, catalogPrompt, catalogStyle, detectEngines, scenePrompt } from "../../scripts/ai-worker.mjs";
+import { Document, NodeIO } from "@gltf-transform/core";
+import { CATALOG_STYLES, CATALOG_VIEWS, catalogPrompt, catalogStyle, detectEngines, optimizeGlb, scenePrompt } from "../../scripts/ai-worker.mjs";
 import { makeProduct } from "./factories";
 
 const env = (vars: Record<string, string>) => vars as unknown as NodeJS.ProcessEnv;
@@ -66,5 +67,32 @@ describe("textos com IA: números não confirmados", () => {
   it("aceita números confirmados pela equipe", () => {
     const facts = confirmedFacts(makeProduct({ dimensions: { heightCm: 100 } }));
     expect(unconfirmedNumbers({ ...copy, description: "Tem 100 cm de altura." }, facts)).toEqual([]);
+  });
+});
+
+describe("3D (Tripo)", () => {
+  it("com a chave do Tripo, o processador oferece o 3D pela API", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "motores-3d-"));
+    expect(detectEngines(root, env({ TRIPO_API_KEY: "x" })).model_3d).toMatch(/^Tripo .+ \(API\)$/);
+    expect(detectEngines(root, env({})).model_3d).toBeUndefined();
+  });
+
+  it("gira o modelo para abrir de frente (Tripo exporta com a frente em +X)", async () => {
+    const doc = new Document();
+    doc.createBuffer();
+    const scene = doc.createScene("cena");
+    scene.addChild(doc.createNode("cadeira"));
+    doc.getRoot().setDefaultScene(scene);
+    const bytes = Buffer.from(await new NodeIO().writeBinary(doc));
+
+    const { bytes: out } = await optimizeGlb(bytes, { frontAxis: "+x" });
+    const result = await new NodeIO().readBinary(new Uint8Array(out));
+    const [pivot] = result.getRoot().getDefaultScene()!.listChildren();
+    expect(pivot.getName()).toBe("frente-do-produto");
+    const [x, y, z, w] = pivot.getRotation();
+    expect([x, z]).toEqual([0, 0]);
+    expect(y).toBeCloseTo(-Math.SQRT1_2);
+    expect(w).toBeCloseTo(Math.SQRT1_2);
+    expect(pivot.listChildren().map((n) => n.getName())).toEqual(["cadeira"]);
   });
 });
