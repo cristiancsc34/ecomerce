@@ -529,7 +529,7 @@ export function ProductForm({
 
       <div
         hidden={!showBar}
-        className="fixed inset-x-0 bottom-16 z-30 border-t border-line bg-white/95 px-4 py-3 shadow-[0_-6px_20px_rgb(19_41_64/0.08)] backdrop-blur lg:bottom-0 lg:left-60 lg:px-10"
+        className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-line bg-white/95 px-4 py-3 shadow-[0_-6px_20px_rgb(19_41_64/0.08)] backdrop-blur lg:bottom-0 lg:left-60 lg:px-10"
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <div role="status" aria-live="polite" className="min-h-6 min-w-0 whitespace-nowrap text-sm">

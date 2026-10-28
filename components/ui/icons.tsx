@@ -182,7 +182,9 @@ export const MoonIcon = (p: IconProps) => (
 
 export const SparkIcon = (p: IconProps) => (
   <Icon {...p}>
-    <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" />
+    {/* Estrelinhas de "IA" (o desenho antigo, de raios, parecia um carregamento travado). */}
+    <path d="M10 3.5 11.6 8.4 16.5 10l-4.9 1.6L10 16.5l-1.6-4.9L3.5 10l4.9-1.6Z" />
+    <path d="M18 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z" />
   </Icon>
 );
 

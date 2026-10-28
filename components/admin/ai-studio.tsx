@@ -16,11 +16,11 @@ import {
 } from "@/lib/admin/actions/ai";
 import type { CopySuggestion } from "@/lib/ai/copy";
 import { deleteMediaAction } from "@/lib/admin/actions/media";
-import { isPending, type AiJobView, type AiStudioSnapshot } from "@/lib/admin/ai-types";
+import { isPending, type AiJobKind, type AiJobView, type AiStudioSnapshot } from "@/lib/admin/ai-types";
 import type { ProductMedia } from "@/lib/catalog/types";
 import { useHydrated } from "@/lib/use-hydrated";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, Spinner } from "@/components/ui/button";
 import { CheckIcon, CubeIcon, ImageIcon, SparkIcon } from "@/components/ui/icons";
 import { controlClasses, Label } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
@@ -54,21 +54,114 @@ function elapsed(job: AiJobView, now: number) {
   return Math.max(0, Math.round((end - new Date(start).getTime()) / 1000));
 }
 
-function StatusBadge({ job, now }: { job: AiJobView; now: number }) {
+/** Tempos medidos (docs/ESTUDIO-IA.md): limpeza 35–45 s por foto, 4 fotos de catálogo ~1,5 min, 3D ~2 min 15 s. */
+const TYPICAL_SECONDS: Record<AiJobKind, number> = { background_removal: 40, catalog_photos: 90, model_3d: 135 };
+const WORKING_LABEL: Record<AiJobKind, string> = {
+  background_removal: "Limpando o fundo",
+  catalog_photos: "Criando as fotos de catálogo",
+  model_3d: "Gerando o modelo 3D",
+};
+
+function duration(seconds: number) {
+  if (seconds < 60) return `${seconds} s`;
+  const s = seconds % 60;
+  return s ? `${Math.floor(seconds / 60)} min ${s} s` : `${seconds / 60} min`;
+}
+
+function StatusBadge({ job }: { job: AiJobView }) {
   if (job.status === "queued") return <Badge tone="neutral">Na fila</Badge>;
   if (job.status === "running") {
     return (
       <Badge tone="info">
-        {{ model_3d: "Gerando 3D", catalog_photos: "Criando fotos de catálogo", background_removal: "Limpando o fundo" }[job.kind]}…{" "}
-        {elapsed(job, now)} s
+        <Spinner className="h-3.5 w-3.5" /> Gerando
       </Badge>
     );
   }
   if (job.status === "failed") return <Badge tone="danger">Falhou</Badge>;
+  // Início e fim já vêm do banco: o mesmo texto no servidor e no navegador.
   return (
     <Badge tone="success">
-      <CheckIcon className="h-3.5 w-3.5" /> Pronto em {elapsed(job, now)} s
+      <CheckIcon className="h-3.5 w-3.5" /> Pronto em {duration(elapsed(job, 0))}
     </Badge>
+  );
+}
+
+/** Barra de progresso: com `value`, enche; sem, vai e volta (esperando a vez). */
+function ProgressTrack({ value, label }: { value?: number; label: string }) {
+  return (
+    <div
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={value}
+      className="relative mt-1.5 h-2 overflow-hidden rounded-full bg-sky-mist/60"
+    >
+      {value === undefined ? (
+        <div className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-air-blue/70 motion-safe:animate-vai-e-volta" />
+      ) : (
+        <div
+          className="h-full rounded-full bg-[linear-gradient(110deg,var(--color-air-blue)_40%,var(--color-sky-mist)_50%,var(--color-air-blue)_60%)] bg-[length:200%_100%] transition-[width] duration-[2000ms] ease-linear motion-safe:animate-brilho"
+          style={{ width: `${value}%` }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * O que está acontecendo com uma tarefa da IA, com tempo decorrido e o tempo
+ * que costuma levar. A barra anda pelo relógio (o processador não informa a
+ * porcentagem) e para em 95% até a tarefa terminar de verdade.
+ */
+function JobProgress({ job, now, hydrated, workerOnline }: { job: AiJobView; now: number; hydrated: boolean; workerOnline: boolean }) {
+  if (!isPending(job)) return null;
+  const typical = TYPICAL_SECONDS[job.kind];
+  if (job.status === "queued") {
+    return (
+      <div className="mt-3">
+        <p className="text-xs font-semibold text-muted">
+          {workerOnline ? "Na fila: começa assim que a tarefa anterior terminar." : "Na fila, esperando o processador de IA ser ligado."}
+        </p>
+        {workerOnline ? <ProgressTrack label="Na fila" /> : null}
+      </div>
+    );
+  }
+  // O relógio só entra depois da hidratação: servidor e navegador desenham o mesmo texto.
+  const seconds = hydrated ? elapsed(job, now) : 0;
+  return (
+    <div className="mt-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs font-semibold">
+        <span className="flex items-center gap-1.5 text-air-blue-ink">
+          <Spinner className="h-3.5 w-3.5" /> {WORKING_LABEL[job.kind]}…
+        </span>
+        <span className="tabular-nums text-muted">
+          {hydrated ? `${duration(seconds)} · costuma levar ~${duration(typical)}` : `costuma levar ~${duration(typical)}`}
+        </span>
+      </div>
+      <ProgressTrack value={Math.min(95, Math.round((seconds / typical) * 100))} label={WORKING_LABEL[job.kind]} />
+      {!workerOnline ? (
+        <p className="mt-1.5 text-xs text-danger">O processador de IA parou de responder.</p>
+      ) : seconds > typical * 1.5 ? (
+        <p className="mt-1.5 text-xs text-muted">Está levando mais que o normal; a IA continua trabalhando.</p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Espaço da imagem que ainda vai chegar: brilho correndo enquanto a IA trabalha. */
+function WorkingTile({ label, active }: { label: string; active: boolean }) {
+  return (
+    <div
+      className={`flex h-full flex-col items-center justify-center gap-2 p-3 text-center text-xs font-semibold ${
+        active
+          ? "bg-[linear-gradient(110deg,var(--color-pale-blue)_35%,var(--color-white)_50%,var(--color-pale-blue)_65%)] bg-[length:200%_100%] text-air-blue-ink motion-safe:animate-brilho"
+          : "text-muted"
+      }`}
+    >
+      {active ? <Spinner className="h-6 w-6" /> : null}
+      {label}
+    </div>
   );
 }
 
@@ -225,8 +318,19 @@ export function AiStudio({
         )}
       </p>
 
+      {!snapshot.worker.online && anyPending ? (
+        <Notice tone="warning" className="mt-3" title="Processador de IA desligado: nada está sendo gerado agora">
+          As fotos ficam guardadas na fila e começam sozinhas quando o processador for ligado no computador do estúdio. Pode
+          sair desta página: nada se perde.
+        </Notice>
+      ) : null}
+
       <div role="status" aria-live="polite" className="mt-2 min-h-6 text-sm font-medium">
-        {uploading ? <span className="text-air-blue-ink">{uploading}</span> : null}
+        {uploading ? (
+          <span className="flex items-center gap-2 text-air-blue-ink">
+            <Spinner /> {uploading}
+          </span>
+        ) : null}
         {!uploading && message ? <span className={message.tone === "success" ? "text-success" : "text-danger"}>{message.text}</span> : null}
       </div>
 
@@ -264,7 +368,7 @@ export function AiStudio({
             <li key={job.id} className="rounded-2xl border border-line bg-cloud p-3" data-testid="foto-estudio" data-status={job.status}>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold">Foto {i + 1}</span>
-                <StatusBadge job={job} now={now} />
+                <StatusBadge job={job} />
               </div>
               {/* Antes (retrato, como o celular tira) e depois (4:3, como a galeria) com a mesma altura. */}
               <div className="mt-2 grid grid-cols-[9fr_16fr] gap-2">
@@ -278,10 +382,15 @@ export function AiStudio({
                   <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-pale-blue">
                     {job.outputUrl ? (
                       <Image src={job.outputUrl} alt={`Foto ${i + 1} de ${productName} com fundo limpo`} fill sizes="320px" className="object-cover" />
-                    ) : (
+                    ) : job.status === "failed" ? (
                       <div className="flex h-full items-center justify-center p-3 text-center text-xs text-muted">
-                        {job.status === "failed" ? "Não foi possível limpar esta foto." : "A foto limpa aparece aqui."}
+                        Não foi possível limpar esta foto.
                       </div>
+                    ) : (
+                      <WorkingTile
+                        active={job.status === "running"}
+                        label={job.status === "running" ? "Limpando o fundo…" : snapshot.worker.online ? "Na fila" : "Esperando o processador"}
+                      />
                     )}
                   </div>
                   <figcaption className="mt-1 text-xs text-muted">
@@ -290,6 +399,7 @@ export function AiStudio({
                   </figcaption>
                 </figure>
               </div>
+              <JobProgress job={job} now={now} hydrated={hydrated} workerOnline={snapshot.worker.online} />
               {job.error ? <p className="mt-2 text-sm text-danger">{job.error}</p> : null}
               {canEdit ? (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -355,7 +465,19 @@ export function AiStudio({
           >
             <SparkIcon className="h-5 w-5" /> {aiMedia.length ? "Gerar fotos de catálogo de novo" : "Gerar fotos de catálogo"}
           </Button>
-          {catalogJob ? <StatusBadge job={catalogJob} now={now} /> : null}
+          {catalogJob && !isPending(catalogJob) ? <StatusBadge job={catalogJob} /> : null}
+        </div>
+      ) : null}
+      {catalogJob && isPending(catalogJob) ? (
+        <div className="mt-4 rounded-2xl border border-line bg-cloud p-3" data-testid="fotos-catalogo-gerando">
+          <ol className="grid grid-cols-2 gap-2" aria-label="Fotos de catálogo sendo criadas">
+            {["Frente", "Três-quartos", "Lateral", "Traseira"].map((view) => (
+              <li key={view} className="aspect-[4/3] overflow-hidden rounded-xl bg-pale-blue">
+                <WorkingTile active={catalogJob.status === "running"} label={view} />
+              </li>
+            ))}
+          </ol>
+          <JobProgress job={catalogJob} now={now} hydrated={hydrated} workerOnline={snapshot.worker.online} />
         </div>
       ) : null}
       {catalogJob?.error ? <p className="mt-2 text-sm text-danger">{catalogJob.error}</p> : null}
@@ -409,8 +531,23 @@ export function AiStudio({
         <div className="mt-4 rounded-2xl border border-line bg-cloud p-3" data-testid="modelo-3d" data-status={latestModel.status}>
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-semibold">Modelo 3D</span>
-            <StatusBadge job={latestModel} now={now} />
+            <StatusBadge job={latestModel} />
           </div>
+          {isPending(latestModel) ? (
+            <div className="mt-2 aspect-[4/3] overflow-hidden rounded-xl bg-pale-blue">
+              <div
+                className={`flex h-full flex-col items-center justify-center gap-3 text-sm font-semibold ${
+                  latestModel.status === "running"
+                    ? "bg-[linear-gradient(110deg,var(--color-pale-blue)_35%,var(--color-white)_50%,var(--color-pale-blue)_65%)] bg-[length:200%_100%] text-air-blue-ink motion-safe:animate-brilho"
+                    : "text-muted"
+                }`}
+              >
+                <CubeIcon className={`h-12 w-12 ${latestModel.status === "running" ? "motion-safe:animate-girar-devagar" : ""}`} />
+                {latestModel.status === "running" ? "Montando o 3D a partir das fotos…" : "Na fila"}
+              </div>
+            </div>
+          ) : null}
+          <JobProgress job={latestModel} now={now} hydrated={hydrated} workerOnline={snapshot.worker.online} />
           {latestModel.error ? <p className="mt-2 text-sm text-danger">{latestModel.error}</p> : null}
           {latestModel.status === "succeeded" && latestModel.outputUrl ? (
             <ModelPreview src={latestModel.outputUrl} alt={`Modelo 3D de ${productName}`} />
@@ -508,6 +645,19 @@ function CopyAssistant({
         </Button>
       </div>
       {error ? <p className="mt-2 text-sm text-danger" role="alert">{error}</p> : null}
+      {busy && !draft ? (
+        <div className="mt-4 space-y-2.5 rounded-2xl border border-line bg-cloud p-4" data-testid="textos-escrevendo">
+          <p className="flex items-center gap-2 text-xs font-semibold text-air-blue-ink">
+            <Spinner className="h-3.5 w-3.5" /> O ChatGPT está olhando as fotos e escrevendo… costuma levar ~8 s
+          </p>
+          {["w-2/3", "w-full", "w-11/12", "w-1/2"].map((width) => (
+            <div
+              key={width}
+              className={`h-3 ${width} rounded-full bg-[linear-gradient(110deg,var(--color-pale-blue)_35%,var(--color-white)_50%,var(--color-pale-blue)_65%)] bg-[length:200%_100%] motion-safe:animate-brilho`}
+            />
+          ))}
+        </div>
+      ) : null}
       {draft ? (
         <div className="mt-4 space-y-4 rounded-2xl border border-line bg-cloud p-4" data-testid="sugestao-textos">
           <fieldset>

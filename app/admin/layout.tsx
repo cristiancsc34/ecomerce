@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 export const instant = false;
 
 export default function AdminRootLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-dvh bg-cloud">{children}</div>;
+  return <div className="min-h-svh bg-cloud">{children}</div>;
 }

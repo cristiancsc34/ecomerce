@@ -27,6 +27,29 @@
 
   --shadow-soft: 0 1px 2px rgb(19 41 64 / 0.06), 0 4px 16px rgb(19 41 64 / 0.06);
   --shadow-lift: 0 2px 4px rgb(19 41 64 / 0.06), 0 12px 32px rgb(19 41 64 / 0.1);
+
+  /* Tarefas da IA em andamento: barra que vai e volta (na fila) e brilho que corre (gerando). */
+  --animate-vai-e-volta: vai-e-volta 1.4s ease-in-out infinite;
+  --animate-brilho: brilho 1.6s linear infinite;
+  --animate-girar-devagar: spin 3s linear infinite;
+
+  @keyframes vai-e-volta {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(300%);
+    }
+  }
+
+  @keyframes brilho {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
+    }
+  }
 }
 
 @layer base {
@@ -44,6 +67,9 @@
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* viewport-fit=cover: com o iPhone deitado, nada fica embaixo do recorte da câmera. */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   h1,
@@ -152,6 +178,13 @@
 }
 
 /* Animações sutis; desligadas para quem prefere menos movimento. */
+/* Celular: com a barra fixa de compra na tela, o fim da página (rodapé) não fica escondido atrás dela. */
+@media (width < 64rem) {
+  body:has([data-barra-fixa]) {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

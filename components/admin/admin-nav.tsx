@@ -68,7 +68,7 @@ export function AdminBottomNav() {
   return (
     <nav
       aria-label="Painel"
-      className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-line bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-stretch border-t border-line bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       {tab(home)}
       {tab(products)}

@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Entrar" };
 export default function LoginPage({ searchParams }: PageProps<"/admin/login">) {
   if (!isSupabaseConfigured()) return <SetupRequired />;
   return (
-    <main id="conteudo" className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-pale-blue to-cloud px-4 py-12">
+    <main id="conteudo" className="flex min-h-svh items-center justify-center bg-gradient-to-b from-pale-blue to-cloud px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center justify-center gap-2 text-deep-fjord">
           <LogoMark className="h-10 w-10" />

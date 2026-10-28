@@ -200,7 +200,10 @@ export function PurchasePanel({
 
       {/* Barra fixa no celular: compra; sem preço, o destaque vai para o 3D (ou não há barra). */}
       {blockedLabel && !has3d ? null : (
-        <div className="fixed inset-x-0 bottom-0 z-30 flex h-14 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_rgb(19_41_64/0.08)] lg:hidden">
+        <div
+          data-barra-fixa
+          className="fixed inset-x-0 bottom-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-bottom))] border-t border-line bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_rgb(19_41_64/0.08)] lg:hidden"
+        >
           {blockedLabel ? (
             <>
               <p className="flex flex-1 items-center justify-center px-2 text-sm font-semibold text-muted">{blockedLabel}</p>

@@ -14,7 +14,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const roleLabel = staff.role === "admin" ? "Administrador" : "Editor";
 
   return (
-    <div className="min-h-dvh bg-cloud">
+    <div className="min-h-svh bg-cloud">
       <SkipLink />
 
       {/* Computador: menu lateral fixo, da altura da tela. */}
@@ -67,7 +67,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         </form>
       </header>
 
-      <main id="conteudo" tabIndex={-1} className="px-4 pb-24 pt-5 outline-none sm:px-6 lg:ml-60 lg:px-10 lg:pb-12 lg:pt-8">
+      <main id="conteudo" tabIndex={-1} className="px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 outline-none sm:px-6 lg:ml-60 lg:px-10 lg:pb-12 lg:pt-8">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
 

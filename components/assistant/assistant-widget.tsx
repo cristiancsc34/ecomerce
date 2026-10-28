@@ -131,7 +131,7 @@ export function AssistantWidget() {
             setOpen(true);
           }}
           // No celular fica acima da barra de compra da página de produto.
-          className="fixed bottom-[4.5rem] right-3 z-40 inline-flex h-12 items-center gap-2 rounded-full bg-deep-fjord pl-4 pr-5 font-semibold text-white shadow-[var(--shadow-lift)] hover:bg-[#1d3a58] lg:bottom-6 lg:right-6"
+          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-3 z-40 inline-flex h-12 items-center gap-2 rounded-full bg-deep-fjord pl-4 pr-5 font-semibold text-white shadow-[var(--shadow-lift)] hover:bg-[#1d3a58] lg:bottom-6 lg:right-6"
         >
           <ChatIcon className="h-5 w-5" /> Ajuda
         </button>
@@ -141,7 +141,7 @@ export function AssistantWidget() {
         <section
           role="dialog"
           aria-labelledby={titleId}
-          className="fixed inset-x-0 bottom-0 z-50 flex h-[85dvh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-[0_-8px_32px_rgb(19_41_64/0.25)] lg:inset-x-auto lg:bottom-6 lg:right-6 lg:h-[600px] lg:max-h-[calc(100dvh-3rem)] lg:w-[400px] lg:rounded-2xl"
+          className="fixed inset-x-0 bottom-0 z-50 flex h-[85dvh] flex-col overflow-hidden rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] lg:pb-0 shadow-[0_-8px_32px_rgb(19_41_64/0.25)] lg:inset-x-auto lg:bottom-6 lg:right-6 lg:h-[600px] lg:max-h-[calc(100dvh-3rem)] lg:w-[400px] lg:rounded-2xl"
         >
           <header className="flex items-center gap-3 bg-air-blue-ink px-4 py-3 text-white">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15">

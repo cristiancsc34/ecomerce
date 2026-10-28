@@ -116,6 +116,16 @@ test.describe("vitrine em modo demonstração", () => {
     await expect(page.locator("model-viewer")).toBeVisible();
   });
 
+  test("celular: a barra fixa não esconde o fim da página e a tela usa a área segura do iPhone", async ({ page }) => {
+    test.skip(!isMobile(page), "a barra fixa só existe no celular");
+    await page.goto("/produtos/poltrona-azul");
+    await expect(page.locator('meta[name="viewport"]')).toHaveAttribute("content", /viewport-fit=cover/);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const bar = await page.locator("[data-barra-fixa]").boundingBox();
+    const last = await page.locator("footer").getByText(/© \d{4}/).boundingBox();
+    expect(last!.y + last!.height).toBeLessThanOrEqual(bar!.y);
+  });
+
   test("realidade aumentada: no celular abre a câmera, no computador orienta a usar o celular", async ({ page }) => {
     await page.goto("/produtos/poltrona-azul");
     const region = page.getByRole("region", { name: "Ver em 3D" });
