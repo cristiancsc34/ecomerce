@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ModelViewerElement } from "@google/model-viewer";
 import type { ProductMedia } from "@/lib/catalog/types";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { CameraIcon, CubeIcon } from "@/components/ui/icons";
+import { CameraIcon, CopyIcon, CubeIcon } from "@/components/ui/icons";
 import { Notice } from "@/components/ui/notice";
 import { ProductImage } from "./product-image";
 
@@ -34,15 +34,55 @@ declare module "react" {
 
 type State = "idle" | "loading" | "ready" | "error";
 
+/** camera: abre a câmera · outro-iphone / outro-android: celular, mas este navegador não abre · computador. */
+type ArSupport = "camera" | "outro-iphone" | "outro-android" | "computador";
+
 /**
- * Palpite barato (sem baixar nada) de que o aparelho abre realidade aumentada:
- * iPhone/iPad (AR Quick Look) ou Android (WebXR / Scene Viewer). A confirmação
- * vem do próprio <model-viewer> depois de carregado (`canActivateAR`).
+ * Palpite barato (sem baixar nada), com as mesmas regras do <model-viewer>
+ * (lib/constants.js): no iPhone/iPad o AR Quick Look abre no Safari e no Chrome,
+ * Edge, Firefox e DuckDuckGo; o app do Google e os navegadores de dentro de apps
+ * (WhatsApp, Instagram…) não abrem. No Android abre no Chrome (Scene Viewer/WebXR).
+ * A confirmação vem do próprio <model-viewer> depois de carregado (`canActivateAR`).
  */
-function detectArCandidate() {
-  const quickLook = document.createElement("a").relList.supports("ar");
-  const android = /android/i.test(navigator.userAgent) && !/firefox|oculus/i.test(navigator.userAgent);
-  return quickLook || android;
+function detectArSupport(): ArSupport {
+  const ua = navigator.userAgent;
+  const ios = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  if (ios) {
+    if (/GSA\//.test(ua)) return "outro-iphone";
+    if (/CriOS\/|EdgiOS\/|FxiOS\/|DuckDuckGo\//.test(ua)) return "camera";
+    return document.createElement("a").relList.supports("ar") ? "camera" : "outro-iphone";
+  }
+  if (/android/i.test(ua)) return /firefox|oculus/i.test(ua) ? "outro-android" : "camera";
+  return "computador";
+}
+
+/** Celular com navegador que não abre a câmera: explica e facilita abrir no navegador certo. */
+function OpenInBrowserNotice({ browser, productName }: { browser: "Safari" | "Chrome"; productName: string }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(`Link copiado. Abra o ${browser} e cole na barra de endereço.`);
+    } catch {
+      setCopied(`Copie este endereço e abra no ${browser}: ${window.location.href}`);
+    }
+  }
+  return (
+    <Notice tone="info" className="mt-3" title={`Para ver no seu ambiente, abra no ${browser}`}>
+      <p>
+        Este navegador não abre a câmera com o 3D. No {browser}, o botão “Ver no seu ambiente” mostra {productName} no seu
+        espaço pela câmera do celular.
+      </p>
+      <Button type="button" variant="secondary" size="sm" className="mt-2" onClick={copy}>
+        <CopyIcon className="h-4 w-4" /> Copiar link
+      </Button>
+      {copied ? (
+        <p role="status" className="mt-2 break-all text-sm font-medium">
+          {copied}
+        </p>
+      ) : null}
+    </Notice>
+  );
 }
 
 const subscribeNever = () => () => {};
@@ -60,7 +100,8 @@ export function Viewer3D({ model, poster, productName }: { model: ProductMedia; 
   const [arProblem, setArProblem] = useState<string | null>(null);
   const viewerRef = useRef<HTMLElement>(null);
   const wantsAr = useRef(false);
-  const arCandidate = useSyncExternalStore(subscribeNever, detectArCandidate, () => false);
+  const arSupport = useSyncExternalStore(subscribeNever, detectArSupport, (): ArSupport => "computador");
+  const arCandidate = arSupport === "camera";
 
   async function load(mode: "3d" | "ar") {
     wantsAr.current = mode === "ar";
@@ -195,7 +236,9 @@ export function Viewer3D({ model, poster, productName }: { model: ProductMedia; 
           Arraste para girar e use pinça ou a roda do mouse para aproximar. Com o teclado, selecione o modelo e use as setas.
           {arCandidate
             ? " Na câmera, o tamanho é aproximado: use dois dedos para ajustar e arraste para posicionar."
-            : " Para ver no seu ambiente, abra esta página no celular."}
+            : arSupport === "computador"
+              ? " Para ver no seu ambiente, abra esta página no celular."
+              : null}
         </p>
       ) : (
         <p className="mt-3 text-sm text-muted">
@@ -204,6 +247,9 @@ export function Viewer3D({ model, poster, productName }: { model: ProductMedia; 
             : "Toque em “Girar em 3D” para carregar o modelo."}
         </p>
       )}
+      {arSupport === "outro-iphone" || arSupport === "outro-android" ? (
+        <OpenInBrowserNotice browser={arSupport === "outro-iphone" ? "Safari" : "Chrome"} productName={productName} />
+      ) : null}
       {arProblem ? (
         <Notice tone="warning" role="status" className="mt-3" title="Realidade aumentada indisponível">
           {arProblem}
