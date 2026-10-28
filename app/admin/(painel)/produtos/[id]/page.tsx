@@ -98,6 +98,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
                 hasGalleryPhoto={product.media.some((m) => m.type === "image" && !m.pendingReview)}
                 aiMedia={product.media.filter((m) => m.aiGenerated).sort((a, b) => a.sortOrder - b.sortOrder)}
                 copyEnabled={Boolean(process.env.OPENAI_API_KEY)}
+                hasCopy={Boolean(product.shortDescription?.trim() || product.description?.trim())}
                 initial={studio}
               />
               <MediaManager productId={product.id} media={product.media} canEdit={canEdit} />

@@ -120,10 +120,16 @@ test.describe("vitrine em modo demonstração", () => {
     test.skip(!isMobile(page), "a barra fixa só existe no celular");
     await page.goto("/produtos/poltrona-azul");
     await expect(page.locator('meta[name="viewport"]')).toHaveAttribute("content", /viewport-fit=cover/);
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    const bar = await page.locator("[data-barra-fixa]").boundingBox();
-    const last = await page.locator("footer").getByText(/© \d{4}/).boundingBox();
-    expect(last!.y + last!.height).toBeLessThanOrEqual(bar!.y);
+    // A página ainda pode crescer (imagens, fontes): rola de novo até o fim antes de medir.
+    const footerEnd = page.locator("footer").getByText(/© \d{4}/);
+    await expect
+      .poll(async () => {
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        const bar = await page.locator("[data-barra-fixa]").boundingBox();
+        const end = await footerEnd.boundingBox();
+        return Boolean(bar && end && end.y + end.height <= bar.y);
+      })
+      .toBe(true);
   });
 
   test("realidade aumentada: no celular abre a câmera, no computador orienta a usar o celular", async ({ page }) => {
