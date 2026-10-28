@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { confirmedFacts, unconfirmedNumbers } from "@/lib/ai/copy";
-import { Document, NodeIO } from "@gltf-transform/core";
+import { Document, NodeIO, getBounds } from "@gltf-transform/core";
+import { ALL_EXTENSIONS, EXTTextureWebP } from "@gltf-transform/extensions";
+import sharp from "sharp";
 import { CATALOG_STYLES, CATALOG_VIEWS, catalogPrompt, catalogStyle, detectEngines, optimizeGlb, scenePrompt } from "../../scripts/ai-worker.mjs";
 import { makeProduct } from "./factories";
 
@@ -94,5 +96,32 @@ describe("3D (Tripo)", () => {
     expect(y).toBeCloseTo(-Math.SQRT1_2);
     expect(w).toBeCloseTo(Math.SQRT1_2);
     expect(pivot.listChildren().map((n) => n.getName())).toEqual(["cadeira"]);
+  });
+
+  it("deixa o modelo pronto para a realidade aumentada: base no chão e texturas JPEG", async () => {
+    // Cubo de 1 m centrado na origem (como o Tripo entrega), com textura WebP.
+    const doc = new Document();
+    const buffer = doc.createBuffer();
+    const corners = [-0.5, 0.5].flatMap((x) => [-0.5, 0.5].flatMap((y) => [-0.5, 0.5].flatMap((z) => [x + 2, y, z])));
+    const position = doc.createAccessor().setType("VEC3").setArray(new Float32Array(corners)).setBuffer(buffer);
+    const pixels = Buffer.from([46, 110, 158, 255, 255, 255, 255, 255, 255, 46, 110, 158]); // 2×2, duas cores
+    const webp = await sharp(pixels, { raw: { width: 2, height: 2, channels: 3 } }).webp().toBuffer();
+    doc.createExtension(EXTTextureWebP).setRequired(true);
+    const texture = doc.createTexture("cor").setImage(new Uint8Array(webp)).setMimeType("image/webp");
+    const material = doc.createMaterial("tecido").setBaseColorTexture(texture);
+    const mesh = doc.createMesh("poltrona").addPrimitive(doc.createPrimitive().setAttribute("POSITION", position).setMaterial(material));
+    const scene = doc.createScene("cena");
+    scene.addChild(doc.createNode("poltrona").setMesh(mesh));
+    doc.getRoot().setDefaultScene(scene);
+    const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+    const bytes = Buffer.from(await io.writeBinary(doc));
+
+    const { bytes: out } = await optimizeGlb(bytes);
+    const result = await io.readBinary(new Uint8Array(out));
+    const { min, max } = getBounds(result.getRoot().getDefaultScene()!);
+    expect(min.map((v) => +v.toFixed(6))).toEqual([-0.5, 0, -0.5]);
+    expect(max.map((v) => +v.toFixed(6))).toEqual([0.5, 1, 0.5]);
+    expect(result.getRoot().listTextures().map((t) => t.getMimeType())).toEqual(["image/jpeg"]);
+    expect(result.getRoot().listExtensionsUsed().map((e) => e.extensionName)).not.toContain("EXT_texture_webp");
   });
 });

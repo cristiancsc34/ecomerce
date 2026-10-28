@@ -14,7 +14,7 @@ A especificação completa está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md). 
 | Painel administrativo (login, produtos, variações, mídia, status, pré-visualização, categorias, auditoria) | ✅ Pronto (exige Supabase) |
 | Banco (Postgres/Supabase) com RLS, Storage, regras de publicação e auditoria | ✅ Migração versionada e testada |
 | Modo demonstração (sem banco) com 3 produtos ilustrativos | ✅ Identificado em toda a loja, `noindex` |
-| Visualizador 3D sob demanda (GLB) | ✅ Prova de conceito com modelo ilustrativo |
+| Visualizador 3D sob demanda (GLB) e realidade aumentada (“Ver no seu ambiente”, câmera do celular) | ✅ Pronto e testado com a Poltrona Azul ([`docs/IA-E-3D.md`](docs/IA-E-3D.md)) |
 | Assistente de vendas (chat “Ajuda”) | ✅ Claude Haiku, só com dados do catálogo, com trava contra preço/medida/prazo inventados — liga com `ANTHROPIC_API_KEY` ([`docs/ASSISTENTE.md`](docs/ASSISTENTE.md)) |
 | Avisos de pedido (WhatsApp e e-mail) | 🧱 Estrutura pronta e testada (mensagens, fila idempotente, novas tentativas); falta checkout e provedor ([`docs/NOTIFICACOES.md`](docs/NOTIFICACOES.md)) |
 | Checkout, pagamento, frete | ⏳ Não implementado: depende da escolha dos provedores ([decisões pendentes](docs/DECISOES.md)) |

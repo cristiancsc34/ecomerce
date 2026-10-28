@@ -14,7 +14,7 @@
 | **Upload pela Server Action (até 4 MB)** | Permite validar o conteúdo no servidor antes de gravar. Limite da Vercel: 4,5 MB por requisição. Para arquivos maiores (vídeos), usar URL assinada de upload + verificação posterior |
 | **Derivados de imagem pelo otimizador do Next** | O original fica intacto no Storage; AVIF/WebP e tamanhos responsivos são gerados na entrega |
 | **Sacola no `localStorage`** | Sem conta e sem cookies; só ids e quantidades. Preço sempre recalculado no servidor |
-| **3D com `<model-viewer>` sob demanda** | Biblioteca e `.glb` só baixam no clique (testado). Sem realidade aumentada até ser implementada e testada |
+| **3D com `<model-viewer>` sob demanda** | Biblioteca e `.glb` só baixam no clique (testado). Realidade aumentada no celular: Scene Viewer no Android (WebXR de reserva) e AR Quick Look no iPhone |
 | **Ilustrações próprias** | Não há fotos reais ainda; usar fotos de terceiros seria copiar identidade. Todas marcadas como ilustrativas |
 | **Fonte Inter via `next/font`** | Auto-hospedada no build, com métricas de fallback (evita salto de layout) |
 | **`air-blue-ink` (#2E6E9E)** | O `#408AC2` tem contraste 3,7:1 sobre branco (abaixo de AA para texto). Usamos uma variante escura só para texto de links; o azul original fica para ícones e elementos grandes |

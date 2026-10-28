@@ -116,6 +116,41 @@ test.describe("vitrine em modo demonstração", () => {
     await expect(page.locator("model-viewer")).toBeVisible();
   });
 
+  test("realidade aumentada: no celular abre a câmera, no computador orienta a usar o celular", async ({ page }) => {
+    await page.goto("/produtos/poltrona-azul");
+    const region = page.getByRole("region", { name: "Ver em 3D" });
+    const arButton = region.getByRole("button", { name: "Ver no seu ambiente" });
+
+    if (!isMobile(page)) {
+      await expect(arButton).toHaveCount(0);
+      await region.getByRole("button", { name: "Girar em 3D" }).click();
+      await expect(page.locator("model-viewer")).toBeVisible();
+      await expect(region.getByText("Para ver no seu ambiente, abra esta página no celular.")).toBeVisible();
+      return;
+    }
+
+    // Pixel 7 (Android): um toque carrega o modelo e já chama o AR do Android
+    // (Scene Viewer). Aqui não há câmera: guardamos o link em vez de abri-lo.
+    await page.evaluate(() => {
+      const opened: string[] = [];
+      Object.assign(window, { arIntents: opened });
+      const click = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () {
+        if (this.href.startsWith("intent://")) opened.push(this.href);
+        else click.call(this);
+      };
+    });
+    await arButton.click();
+    const intents = () => page.evaluate(() => (window as unknown as { arIntents: string[] }).arIntents);
+    await expect.poll(intents, { timeout: 15_000 }).toHaveLength(1);
+    const [intent] = await intents();
+    expect(intent).toMatch(/^intent:\/\/arvr\.google\.com\/scene-viewer\//);
+    expect(decodeURIComponent(intent)).toContain("/demo/poltrona-azul.glb");
+    expect(intent).toContain("mode=ar_preferred");
+    expect(intent).not.toContain("resizable=false"); // tamanho aproximado: a pessoa pode ajustar
+    await expect(region.getByText("Na câmera, o tamanho é aproximado", { exact: false })).toBeVisible();
+  });
+
   test("galeria: miniaturas, contador e zoom acessível", async ({ page }) => {
     await page.goto("/produtos/cadeira-cinza-trama");
     await page.getByRole("button", { name: "Mostrar mídia 2 de 4" }).click();

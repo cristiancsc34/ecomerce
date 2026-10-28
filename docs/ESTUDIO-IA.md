@@ -57,9 +57,10 @@ pré-pagos a partir de US$ 1). Modelo padrão `v3.1-20260211` (troque com `TRIPO
   fotos do Tripo) — a traseira e o perfil saem fiéis (ex.: as ripas de madeira nas costas da poltrona). Sem fotos de
   catálogo, usa uma foto limpa só (a traseira é estimada).
 - **Pós-processamento:** o modelo é girado para abrir de frente no visualizador (o Tripo exporta com a frente em +X) e
-  as texturas são comprimidas em WebP até caber em 4 MB.
+  o modelo é apoiado no chão (base em y = 0) e as texturas são comprimidas em JPEG até caber em 4 MB. JPEG, e não
+  WebP, porque o AR do Android (Scene Viewer) só abre JPEG/PNG.
 - **Medido com a poltrona azul (28/10/2026):** 30 créditos (**US$ 0,30**) por modelo, ~2 min 15 s, arquivo de 4,6 MB →
-  2,2 MB depois da compressão.
+  2,2 MB depois da compressão em WebP (2,75 MB na versão em JPEG, que abre no AR do Android).
 - O 3D entra marcado como **ilustrativo** até alguém conferir com as fotos reais.
 
 Alternativa local (TripoSR, grátis, qualidade menor): `AI_3D_ENGINE=triposr` com o código em `ai/vendor/TripoSR`

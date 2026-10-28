@@ -24,7 +24,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { NodeIO } from "@gltf-transform/core";
+import { NodeIO, getBounds } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, prune, textureCompress } from "@gltf-transform/functions";
 import { createClient } from "@supabase/supabase-js";
@@ -329,28 +329,46 @@ export function tripoEngine(apiKey = process.env.TRIPO_API_KEY, model = process.
   };
 }
 
+/** Coloca todos os filhos da cena dentro de um nó novo (para girar ou mover o modelo inteiro). */
+function wrapSceneChildren(doc, scene, name) {
+  const pivot = doc.createNode(name);
+  for (const child of scene.listChildren()) {
+    scene.removeChild(child);
+    pivot.addChild(child);
+  }
+  scene.addChild(pivot);
+  return pivot;
+}
+
 /**
- * Prepara o .glb para a loja: gira para a frente do produto ficar virada para a
- * câmera inicial do visualizador (+Z, padrão glTF) e comprime as texturas em
- * WebP até caber no limite de upload — leve para abrir no celular.
- * O Tripo exporta com a frente em +X (padrão "export_orientation": "+x").
+ * Prepara o .glb para a loja e para a realidade aumentada:
+ * - gira para a frente do produto ficar virada para a câmera inicial (+Z, padrão glTF).
+ *   O Tripo exporta com a frente em +X (padrão "export_orientation": "+x");
+ * - apoia a base do modelo no chão (y = 0) e centraliza em x/z: o AR do Android e do
+ *   iPhone põe a origem do arquivo sobre o piso, e o Tripo entrega o modelo centrado
+ *   no meio da altura (metade dele ficaria "dentro" do chão);
+ * - comprime as texturas em JPEG até caber no limite de upload. Não usa WebP: o
+ *   Scene Viewer (AR do Android) só abre JPEG/PNG.
  */
 export async function optimizeGlb(bytes, { frontAxis = "+z", maxBytes = MAX_UPLOAD_BYTES } = {}) {
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
   const ROTATIONS = { "+x": [0, -Math.SQRT1_2, 0, Math.SQRT1_2], "-x": [0, Math.SQRT1_2, 0, Math.SQRT1_2], "+z": null };
   for (const size of [2048, 1536, 1024, 768, 512]) {
     const doc = await io.readBinary(new Uint8Array(bytes));
+    const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
     const rotation = ROTATIONS[frontAxis];
-    if (rotation) {
-      const scene = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
-      const pivot = doc.createNode("frente-do-produto").setRotation(rotation);
-      for (const child of scene.listChildren()) {
-        scene.removeChild(child);
-        pivot.addChild(child);
-      }
-      scene.addChild(pivot);
+    if (rotation) wrapSceneChildren(doc, scene, "frente-do-produto").setRotation(rotation);
+
+    const { min, max } = getBounds(scene);
+    if (min.every(Number.isFinite)) {
+      const offset = [-(min[0] + max[0]) / 2, -min[1], -(min[2] + max[2]) / 2];
+      if (offset.some((v) => Math.abs(v) > 1e-6)) wrapSceneChildren(doc, scene, "base-no-chao").setTranslation(offset);
     }
-    await doc.transform(dedup(), prune({ keepLeaves: true }), textureCompress({ encoder: sharp, targetFormat: "webp", resize: [size, size], quality: 88 }));
+
+    await doc.transform(dedup(), prune({ keepLeaves: true }), textureCompress({ encoder: sharp, targetFormat: "jpeg", resize: [size, size], quality: 88 }));
+    for (const extension of doc.getRoot().listExtensionsUsed()) {
+      if (extension.extensionName === "EXT_texture_webp") extension.dispose();
+    }
     const out = Buffer.from(await io.writeBinary(doc));
     if (out.length <= maxBytes) return { bytes: out, textureSize: size };
   }
