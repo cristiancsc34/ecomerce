@@ -341,6 +341,280 @@
             transform: translateY(0);
         }
 
+        /* 3D / AR */
+        .product-3d-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #1e3a8a;
+            color: #fbbf24;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .view-3d {
+            width: 100%;
+            background: white;
+            color: #1e3a8a;
+            border: 2px solid #1e3a8a;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background 0.3s;
+        }
+
+        .view-3d:hover {
+            background: #e0e7ff;
+        }
+
+        .ar-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .ar-modal[hidden] {
+            display: none;
+        }
+
+        .ar-dialog {
+            position: relative;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            width: 100%;
+            max-width: 1000px;
+            height: min(640px, 100%);
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .ar-stage {
+            position: relative;
+            min-height: 0;
+            background: radial-gradient(circle at 50% 40%, #ffffff, #e0e7ff 70%, #c7d2fe);
+        }
+
+        .ar-stage model-viewer {
+            width: 100%;
+            height: 100%;
+            --poster-color: transparent;
+        }
+
+        model-viewer:not(:defined) > * {
+            display: none;
+        }
+
+        .ar-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            z-index: 1;
+            transition: opacity 0.4s;
+        }
+
+        .ar-progress.done {
+            opacity: 0;
+        }
+
+        .ar-progress-bar {
+            height: 100%;
+            width: 0;
+            background: #fbbf24;
+            transition: width 0.2s;
+        }
+
+        .ar-launch {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fbbf24;
+            color: #1e3a8a;
+            border: none;
+            border-radius: 25px;
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            white-space: nowrap;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(30, 58, 138, 0.3);
+        }
+
+        .ar-prompt {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.75);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 20px;
+            font-size: 14px;
+            text-align: center;
+            width: max-content;
+            max-width: 90%;
+        }
+
+        .ar-session-bar {
+            display: none;
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            bottom: 24px;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 12px 16px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .ar-session-bar .add-to-cart {
+            width: auto;
+            white-space: nowrap;
+        }
+
+        .ar-session-title {
+            font-weight: bold;
+            color: #1e3a8a;
+            font-size: 0.95rem;
+        }
+
+        model-viewer[ar-status="session-started"] .ar-session-bar,
+        model-viewer[ar-status="object-placed"] .ar-session-bar {
+            display: flex;
+        }
+
+        model-viewer[ar-status="session-started"] .ar-launch,
+        model-viewer[ar-status="object-placed"] .ar-launch {
+            display: none;
+        }
+
+        .ar-panel {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+        }
+
+        .ar-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 2;
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: #1e3a8a;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .ar-eyebrow {
+            color: #3b82f6;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding-right: 40px;
+        }
+
+        .ar-title {
+            color: #1e3a8a;
+            font-size: 1.4rem;
+            line-height: 1.3;
+        }
+
+        .ar-label {
+            display: block;
+            color: #6b7280;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .ar-colors {
+            display: flex;
+            gap: 10px;
+        }
+
+        .ar-swatch {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px #c7d2fe;
+            cursor: pointer;
+        }
+
+        .ar-swatch[aria-pressed="true"] {
+            box-shadow: 0 0 0 3px #1e3a8a;
+        }
+
+        .ar-dims {
+            color: #374151;
+            font-size: 0.95rem;
+        }
+
+        .ar-message {
+            background: #fef3c7;
+            color: #92400e;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+        }
+
+        .ar-qr {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 0.9rem;
+            color: #374151;
+        }
+
+        .ar-qr[hidden],
+        .ar-message[hidden] {
+            display: none;
+        }
+
+        .ar-qr-code {
+            flex-shrink: 0;
+            width: 112px;
+            height: 112px;
+            background: white;
+            padding: 6px;
+            border-radius: 8px;
+        }
+
+        .ar-qr-code img,
+        .ar-qr-code canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .ar-panel .add-to-cart {
+            margin-top: auto;
+        }
+
         /* Footer */
         .footer {
             background: #1e3a8a;
@@ -417,6 +691,29 @@
             .products-grid {
                 grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             }
+
+            .ar-modal {
+                padding: 0;
+            }
+
+            .ar-dialog {
+                max-width: none;
+                height: 100%;
+                height: 100dvh;
+                border-radius: 0;
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+
+            .ar-panel {
+                padding: 16px;
+                gap: 10px;
+                max-height: 45dvh;
+            }
+
+            .ar-title {
+                font-size: 1.15rem;
+            }
         }
 
         /* Loading Animation */
@@ -456,6 +753,7 @@
     <nav class="nav">
         <div class="nav-container">
             <a href="#" class="nav-link" onclick="filterByCategory('all')">Todos os Produtos</a>
+            <a href="#" class="nav-link" onclick="filterByCategory('ar')">✨ Ver no seu ambiente (3D/AR)</a>
             <a href="#" class="nav-link" onclick="filterByCategory('electronics')">Eletrônicos</a>
             <a href="#" class="nav-link" onclick="filterByCategory('fashion')">Moda</a>
             <a href="#" class="nav-link" onclick="filterByCategory('home')">Casa e Jardim</a>
@@ -565,9 +863,80 @@
         </div>
     </footer>
 
+    <!-- Visualizador 3D / Realidade Aumentada -->
+    <div class="ar-modal" id="arModal" hidden>
+        <div class="ar-dialog" role="dialog" aria-modal="true" aria-labelledby="arTitle">
+            <button class="ar-close" id="arClose" aria-label="Fechar visualização 3D">✕</button>
+            <div class="ar-stage">
+                <div class="ar-progress" id="arProgress"><div class="ar-progress-bar" id="arProgressBar"></div></div>
+                <model-viewer id="arViewer"
+                    camera-controls
+                    touch-action="pan-y"
+                    auto-rotate
+                    auto-rotate-delay="2000"
+                    rotation-per-second="20deg"
+                    shadow-intensity="1"
+                    shadow-softness="0.9"
+                    environment-image="neutral"
+                    ar
+                    ar-modes="webxr scene-viewer quick-look"
+                    ar-placement="floor"
+                    ar-scale="fixed"
+                    xr-environment
+                    quick-look-browsers="safari chrome">
+                    <div slot="progress-bar"></div>
+                    <button slot="ar-button" class="ar-launch">📱 Ver no meu ambiente</button>
+                    <div slot="ar-prompt" class="ar-prompt">Aponte a câmera para o chão e mova o celular devagar</div>
+                    <div class="ar-session-bar">
+                        <span class="ar-session-title" id="arSessionTitle"></span>
+                        <button class="add-to-cart" onclick="addViewerProductToCart(this)">Adicionar ao Carrinho</button>
+                    </div>
+                </model-viewer>
+            </div>
+            <div class="ar-panel">
+                <span class="ar-eyebrow">Visualização 3D · Realidade aumentada</span>
+                <h2 class="ar-title" id="arTitle"></h2>
+                <div class="product-price" id="arPrice"></div>
+                <div id="arColorsBlock">
+                    <span class="ar-label">Cor: <strong id="arColorName"></strong></span>
+                    <div class="ar-colors" id="arColors"></div>
+                </div>
+                <p class="ar-dims" id="arDims"></p>
+                <p class="ar-message" id="arMessage" hidden></p>
+                <div class="ar-qr" id="arQrBlock" hidden>
+                    <div class="ar-qr-code" id="arQr"></div>
+                    <p>Escaneie com a câmera do celular para ver este produto <strong>no seu ambiente</strong>, em tamanho real.</p>
+                </div>
+                <button class="add-to-cart" onclick="addViewerProductToCart(this)">Adicionar ao Carrinho</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Sample products data
+        // Produtos com `model3d` ganham o modo "Ver no seu ambiente" (3D + AR pela câmera).
+        // Cada cor aponta para um GLB próprio, em escala real (metros), para que o AR
+        // nativo do Android/iPhone mostre exatamente a cor escolhida.
         const products = [
+            {
+                id: 9,
+                title: "Poltrona Sheen em Veludo",
+                price: 1899.99,
+                oldPrice: 2399.99,
+                category: "home",
+                icon: "🪑",
+                rating: 4.9,
+                reviews: 128,
+                badge: "NOVIDADE",
+                model3d: {
+                    placement: "floor",
+                    dimensions: { width: 83, height: 69, depth: 57 },
+                    variants: [
+                        { name: "Azul Pavão", swatch: "#16697a", src: "models/poltrona-sheen-azul.glb" },
+                        { name: "Mostarda", swatch: "#d39b1f", src: "models/poltrona-sheen-mostarda.glb" }
+                    ]
+                }
+            },
             {
                 id: 1,
                 title: "Smartphone Samsung Galaxy S24",
@@ -666,12 +1035,14 @@
             grid.innerHTML = '';
 
             productsToRender.forEach(product => {
+                const has3d = Boolean(product.model3d);
                 const productCard = document.createElement('div');
                 productCard.className = 'product-card';
                 productCard.innerHTML = `
-                    <div class="product-image">
+                    <div class="product-image" ${has3d ? `onclick="openViewer(${product.id})" title="Ver em 3D"` : ''}>
                         ${product.icon}
                         <div class="product-badge">${product.badge}</div>
+                        ${has3d ? '<div class="product-3d-badge">3D · AR</div>' : ''}
                     </div>
                     <div class="product-info">
                         <h3 class="product-title">${product.title}</h3>
@@ -683,6 +1054,7 @@
                             <span class="stars">${'⭐'.repeat(Math.floor(product.rating))}</span>
                             <span class="rating-text">${product.rating} (${product.reviews} avaliações)</span>
                         </div>
+                        ${has3d ? `<button class="view-3d" onclick="openViewer(${product.id})">📱 Ver no seu ambiente</button>` : ''}
                         <button class="add-to-cart" onclick="addToCart(${product.id})">
                             Adicionar ao Carrinho
                         </button>
@@ -690,13 +1062,19 @@
                 `;
                 grid.appendChild(productCard);
             });
+
+            if (viewerPreloadObserver) {
+                grid.querySelectorAll('.view-3d').forEach(button => viewerPreloadObserver.observe(button));
+            }
         }
 
         function filterByCategory(category) {
             currentFilter = category;
-            const filteredProducts = category === 'all' 
-                ? products 
-                : products.filter(product => product.category === category);
+            const filteredProducts = category === 'all'
+                ? products
+                : category === 'ar'
+                    ? products.filter(product => product.model3d)
+                    : products.filter(product => product.category === category);
             
             // Add loading effect
             const grid = document.getElementById('productsGrid');
@@ -713,18 +1091,19 @@
             if (product) {
                 cart.push(product);
                 updateCartBadge();
-                
-                // Visual feedback
-                const button = event.target;
-                const originalText = button.textContent;
-                button.textContent = 'Adicionado!';
-                button.style.background = '#059669';
-                
-                setTimeout(() => {
-                    button.textContent = originalText;
-                    button.style.background = '#1e3a8a';
-                }, 1000);
+                showAddedFeedback(event.target);
             }
+        }
+
+        function showAddedFeedback(button) {
+            const originalText = button.textContent;
+            button.textContent = 'Adicionado!';
+            button.style.background = '#059669';
+
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.style.background = '#1e3a8a';
+            }, 1000);
         }
 
         function updateCartBadge() {
@@ -766,6 +1145,253 @@
             }
         }
 
+        // ===== Visualizador 3D / AR =====
+        // <model-viewer> abre a câmera com o melhor modo de cada aparelho:
+        // WebXR (Chrome Android), Scene Viewer (Android) ou AR Quick Look (iPhone/iPad).
+        // A biblioteca só é baixada quando um produto 3D aparece na tela ou é aberto.
+        const MODEL_VIEWER_URL = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js';
+        const QR_LIB_URL = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+
+        const arModal = document.getElementById('arModal');
+        const arViewer = document.getElementById('arViewer');
+        let modelViewerLoading = null;
+        let qrLibLoading = null;
+        let viewerProduct = null;
+        let viewerVariantIndex = 0;
+        let viewerTrigger = null;
+        let lastLoadedModel = null;
+        const prefetchedModels = new Set();
+
+        const viewerPreloadObserver = 'IntersectionObserver' in window
+            ? new IntersectionObserver(entries => {
+                if (entries.some(entry => entry.isIntersecting)) {
+                    loadModelViewer().catch(() => {});
+                    viewerPreloadObserver.disconnect();
+                }
+            })
+            : null;
+
+        function loadModelViewer() {
+            if (!modelViewerLoading) {
+                modelViewerLoading = import(MODEL_VIEWER_URL)
+                    .then(() => customElements.whenDefined('model-viewer'))
+                    .catch(error => {
+                        modelViewerLoading = null;
+                        throw error;
+                    });
+            }
+            return modelViewerLoading;
+        }
+
+        function loadQrLib() {
+            if (!qrLibLoading) {
+                qrLibLoading = new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = QR_LIB_URL;
+                    script.onload = resolve;
+                    script.onerror = () => {
+                        qrLibLoading = null;
+                        reject();
+                    };
+                    document.head.appendChild(script);
+                });
+            }
+            return qrLibLoading;
+        }
+
+        function formatPrice(value) {
+            return `R$ ${value.toFixed(2).replace('.', ',')}`;
+        }
+
+        function viewerShareUrl() {
+            return `${location.origin}${location.pathname}?ver3d=${viewerProduct.id}&cor=${viewerVariantIndex}`;
+        }
+
+        function openViewer(productId, { colorIndex = 0, pushHistory = true } = {}) {
+            const product = products.find(p => p.id === productId);
+            if (!product || !product.model3d) return;
+
+            if (arModal.hidden) viewerTrigger = document.activeElement;
+            viewerProduct = product;
+
+            const { width, height, depth } = product.model3d.dimensions;
+            document.getElementById('arTitle').textContent = product.title;
+            document.getElementById('arSessionTitle').textContent = `${product.title} · ${formatPrice(product.price)}`;
+            document.getElementById('arPrice').innerHTML = `
+                ${formatPrice(product.price)}
+                <span class="product-old-price">${formatPrice(product.oldPrice)}</span>
+            `;
+            document.getElementById('arDims').textContent =
+                `📏 ${width} × ${height} × ${depth} cm (L × A × P). No seu ambiente ela aparece em tamanho real.`;
+            document.getElementById('arQrBlock').hidden = true;
+            hideViewerMessage();
+
+            arViewer.setAttribute('alt', `Modelo 3D: ${product.title}`);
+            arViewer.setAttribute('ar-placement', product.model3d.placement || 'floor');
+            renderColorOptions();
+            selectColor(Math.min(Math.max(colorIndex, 0), product.model3d.variants.length - 1));
+            if (lastLoadedModel === arViewer.getAttribute('src')) updateArAvailability();
+
+            arModal.hidden = false;
+            document.body.style.overflow = 'hidden';
+            document.getElementById('arClose').focus();
+
+            if (pushHistory) {
+                history.pushState({ ver3d: product.id }, '', `?ver3d=${product.id}`);
+            }
+
+            loadModelViewer().catch(() => {
+                showViewerMessage('Não foi possível carregar o visualizador 3D. Verifique sua conexão e tente novamente.');
+            });
+        }
+
+        function renderColorOptions() {
+            const variants = viewerProduct.model3d.variants;
+            document.getElementById('arColorsBlock').hidden = variants.length < 2;
+            document.getElementById('arColors').innerHTML = variants.map((variant, index) => `
+                <button class="ar-swatch" style="background: ${variant.swatch}" aria-pressed="false"
+                    aria-label="Cor ${variant.name}" title="${variant.name}" onclick="selectColor(${index})"></button>
+            `).join('');
+        }
+
+        function selectColor(index) {
+            const variant = viewerProduct.model3d.variants[index];
+            viewerVariantIndex = index;
+            document.getElementById('arColorName').textContent = variant.name;
+            document.querySelectorAll('#arColors .ar-swatch').forEach((swatch, i) => {
+                swatch.setAttribute('aria-pressed', String(i === index));
+            });
+
+            // setAttribute (e não .src) porque o elemento pode ainda não ter sido definido.
+            if (arViewer.getAttribute('src') !== variant.src) {
+                setViewerProgress(0);
+                arViewer.setAttribute('src', variant.src);
+            }
+            if (!document.getElementById('arQrBlock').hidden) updateQrCode();
+        }
+
+        function setViewerProgress(value) {
+            document.getElementById('arProgressBar').style.width = `${Math.round(value * 100)}%`;
+            document.getElementById('arProgress').classList.toggle('done', value >= 1);
+        }
+
+        function showViewerMessage(text) {
+            const message = document.getElementById('arMessage');
+            message.textContent = text;
+            message.hidden = false;
+        }
+
+        function hideViewerMessage() {
+            document.getElementById('arMessage').hidden = true;
+        }
+
+        function updateArAvailability() {
+            if (!viewerProduct || arViewer.canActivateAR) return;
+
+            if (window.matchMedia('(pointer: coarse)').matches) {
+                showViewerMessage('Este aparelho não suporta realidade aumentada, mas você pode girar e dar zoom no produto em 3D.');
+            } else {
+                document.getElementById('arQrBlock').hidden = false;
+                updateQrCode();
+            }
+        }
+
+        function updateQrCode() {
+            const container = document.getElementById('arQr');
+            loadQrLib().then(() => {
+                container.innerHTML = '';
+                new QRCode(container, {
+                    text: viewerShareUrl(),
+                    width: 200,
+                    height: 200,
+                    colorDark: '#1e3a8a',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            }).catch(() => {
+                document.getElementById('arQrBlock').hidden = true;
+            });
+        }
+
+        function prefetchOtherColors() {
+            viewerProduct.model3d.variants.forEach(variant => {
+                if (prefetchedModels.has(variant.src)) return;
+                prefetchedModels.add(variant.src);
+                const link = document.createElement('link');
+                link.rel = 'prefetch';
+                link.href = variant.src;
+                document.head.appendChild(link);
+            });
+        }
+
+        function addViewerProductToCart(button) {
+            if (!viewerProduct) return;
+            const variants = viewerProduct.model3d.variants;
+            const colorSuffix = variants.length > 1 ? ` (${variants[viewerVariantIndex].name})` : '';
+            cart.push({ ...viewerProduct, title: viewerProduct.title + colorSuffix });
+            updateCartBadge();
+            showAddedFeedback(button);
+        }
+
+        function closeViewer() {
+            if (history.state && history.state.ver3d) {
+                history.back(); // o popstate esconde o modal
+                return;
+            }
+            hideViewer();
+            if (location.search.includes('ver3d')) {
+                history.replaceState(null, '', location.pathname + location.hash);
+            }
+        }
+
+        function hideViewer() {
+            arModal.hidden = true;
+            document.body.style.overflow = '';
+            viewerProduct = null;
+            if (viewerTrigger && document.contains(viewerTrigger)) viewerTrigger.focus();
+        }
+
+        arViewer.addEventListener('progress', event => setViewerProgress(event.detail.totalProgress));
+
+        arViewer.addEventListener('load', () => {
+            setViewerProgress(1);
+            lastLoadedModel = arViewer.getAttribute('src');
+            if (!viewerProduct) return;
+            updateArAvailability();
+            prefetchOtherColors();
+        });
+
+        arViewer.addEventListener('error', () => {
+            setViewerProgress(1);
+            showViewerMessage('Não foi possível carregar o modelo 3D. Verifique sua conexão e tente novamente.');
+        });
+
+        arViewer.addEventListener('ar-status', event => {
+            if (event.detail.status === 'failed') {
+                showViewerMessage('Não foi possível abrir a realidade aumentada neste aparelho. Você ainda pode girar e dar zoom no produto em 3D.');
+            }
+        });
+
+        document.getElementById('arClose').addEventListener('click', closeViewer);
+
+        arModal.addEventListener('click', event => {
+            if (event.target === arModal) closeViewer();
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && !arModal.hidden) closeViewer();
+        });
+
+        // O botão "voltar" do celular fecha o visualizador em vez de sair da loja.
+        window.addEventListener('popstate', () => {
+            const productId = history.state && history.state.ver3d;
+            if (productId) {
+                openViewer(productId, { pushHistory: false });
+            } else if (!arModal.hidden) {
+                hideViewer();
+            }
+        });
+
         // Search on Enter key
         document.getElementById('searchInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -783,6 +1409,13 @@
 
         // Initialize
         renderProducts();
+
+        // Link direto (ex.: QR code): ?ver3d=9&cor=0 abre o produto já no modo 3D/AR.
+        const initialParams = new URLSearchParams(location.search);
+        const deepLinkId = Number(initialParams.get('ver3d'));
+        if (deepLinkId) {
+            openViewer(deepLinkId, { colorIndex: Number(initialParams.get('cor')) || 0, pushHistory: false });
+        }
     </script>
 <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96ea4b6960873183',t:'MTc1NTEwOTk0MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
