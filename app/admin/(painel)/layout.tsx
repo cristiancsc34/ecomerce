@@ -3,61 +3,75 @@ import { brand } from "@/config/brand";
 import { isSupabaseConfigured } from "@/config/site";
 import { signOutAction } from "@/lib/admin/actions/auth";
 import { requireStaffPage } from "@/lib/auth/staff";
-import { AdminNav } from "@/components/admin/admin-nav";
+import { AdminBottomNav, AdminSidebarNav } from "@/components/admin/admin-nav";
 import { SetupRequired } from "@/components/admin/setup-required";
 import { SkipLink } from "@/components/layout/banners";
-import { LogoMark } from "@/components/ui/icons";
+import { ExternalIcon, LogoMark, LogoutIcon } from "@/components/ui/icons";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   if (!isSupabaseConfigured()) return <SetupRequired />;
   const staff = await requireStaffPage();
+  const roleLabel = staff.role === "admin" ? "Administrador" : "Editor";
 
   return (
-    <div className="lg:grid lg:min-h-dvh lg:grid-cols-[15rem_minmax(0,1fr)]">
+    <div className="min-h-dvh bg-cloud">
       <SkipLink />
-      <aside className="bg-deep-fjord text-white lg:sticky lg:top-0 lg:h-dvh">
-        <div className="flex flex-col gap-4 p-4 lg:h-full lg:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <Link href="/admin" className="flex items-center gap-2">
-              <LogoMark className="h-8 w-8" />
-              <span className="font-bold">{brand.name}</span>
-              <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">Painel</span>
-            </Link>
-          </div>
-          <AdminNav />
-          <div className="mt-auto hidden space-y-3 border-t border-white/15 pt-4 text-sm lg:block">
-            <p className="truncate text-white/85" title={staff.email ?? undefined}>
-              {staff.email}
-            </p>
-            <p className="text-white/70">{staff.role === "admin" ? "Administrador" : "Editor"}</p>
-            <div className="flex flex-wrap gap-2">
-              <Link href="/" className="inline-flex min-h-10 items-center rounded-lg px-2 text-white/85 underline-offset-2 hover:underline">
-                Ver loja
-              </Link>
-              <form action={signOutAction}>
-                <button type="submit" className="inline-flex min-h-10 items-center rounded-lg px-2 text-white/85 underline-offset-2 hover:underline">
-                  Sair
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </aside>
-      <div className="min-w-0">
-        <div className="flex items-center justify-between gap-3 border-b border-line bg-white px-4 py-2 text-sm lg:hidden">
-          <span className="truncate text-muted">
-            {staff.email} · {staff.role === "admin" ? "Administrador" : "Editor"}
-          </span>
+
+      {/* Computador: menu lateral fixo, da altura da tela. */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col bg-deep-fjord p-4 text-white lg:flex">
+        <Link href="/admin" className="mb-6 flex items-center gap-2 px-1">
+          <LogoMark className="h-8 w-8" />
+          <span className="font-bold">{brand.name}</span>
+          <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">Painel</span>
+        </Link>
+        <AdminSidebarNav />
+        <div className="mt-auto space-y-1 border-t border-white/15 pt-4 text-sm">
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener"
+            className="flex min-h-10 items-center gap-3 rounded-xl px-3 text-white/80 hover:bg-white/10 hover:text-white"
+          >
+            <ExternalIcon className="h-5 w-5" /> Ver loja
+          </a>
           <form action={signOutAction}>
-            <button type="submit" className="inline-flex min-h-10 items-center font-medium text-deep-fjord underline-offset-2 hover:underline">
-              Sair
+            <button
+              type="submit"
+              className="flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              <LogoutIcon className="h-5 w-5" /> Sair
             </button>
           </form>
+          <p className="truncate px-3 pt-2 text-xs text-white/60" title={staff.email ?? undefined}>
+            {staff.email} · {roleLabel}
+          </p>
         </div>
-        <main id="conteudo" tabIndex={-1} className="px-4 py-6 outline-none sm:px-6 lg:px-10 lg:py-10">
-          {children}
-        </main>
-      </div>
+      </aside>
+
+      {/* Celular: barra de cima simples + abas embaixo. */}
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-deep-fjord px-4 text-white lg:hidden">
+        <Link href="/admin" className="flex items-center gap-2">
+          <LogoMark className="h-7 w-7" />
+          <span className="font-bold">{brand.name}</span>
+          <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">Painel</span>
+        </Link>
+        <a href="/" target="_blank" rel="noopener" className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10">
+          <ExternalIcon className="h-5 w-5" />
+          <span className="sr-only">Ver loja</span>
+        </a>
+        <form action={signOutAction}>
+          <button type="submit" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10">
+            <LogoutIcon className="h-5 w-5" />
+            <span className="sr-only">Sair</span>
+          </button>
+        </form>
+      </header>
+
+      <main id="conteudo" tabIndex={-1} className="px-4 pb-24 pt-5 outline-none sm:px-6 lg:ml-60 lg:px-10 lg:pb-12 lg:pt-8">
+        <div className="mx-auto max-w-6xl">{children}</div>
+      </main>
+
+      <AdminBottomNav />
     </div>
   );
 }

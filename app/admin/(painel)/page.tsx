@@ -1,34 +1,69 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getDashboardStats, listAdminProducts, listAuditEvents } from "@/lib/admin/data";
+import { getAiWorkerOnline } from "@/lib/admin/ai";
+import { listAdminProducts, listAuditEvents } from "@/lib/admin/data";
+import { missingLabel, pendingAiPhotos, readinessSummary } from "@/lib/admin/readiness";
 import { requireStaffPage } from "@/lib/auth/staff";
-import { STATUS_LABELS, type ProductStatus } from "@/lib/catalog/types";
+import { STATUS_LABELS, type Product, type ProductStatus } from "@/lib/catalog/types";
 import { AuditList } from "@/components/admin/audit-list";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { ButtonLink } from "@/components/ui/button";
+import { Card, PageHeader, ProductThumb } from "@/components/admin/ui";
+import { buttonClasses, ButtonLink } from "@/components/ui/button";
+import { CameraIcon, CheckIcon, ChevronRightIcon, ExternalIcon } from "@/components/ui/icons";
 import { Notice } from "@/components/ui/notice";
 
-export const metadata: Metadata = { title: "Visão geral" };
+export const metadata: Metadata = { title: "Início" };
+
+type Todo = { product: Product; text: string; href: string; tone: "action" | "ready" | "review" };
+
+/** "O que fazer agora": o próximo passo de cada produto, do mais urgente ao mais simples. */
+function todos(products: Product[]): Todo[] {
+  const list: Todo[] = [];
+  for (const p of products) {
+    if (p.isDemo || p.status === "archived") continue;
+    const base = `/admin/produtos/${p.id}`;
+    const pending = pendingAiPhotos(p);
+    if (pending) {
+      list.push({ product: p, tone: "review", text: `${pending} foto(s) de catálogo esperando a sua conferência`, href: `${base}?aba=fotos` });
+    }
+    if (p.status === "published") continue;
+    const r = readinessSummary(p);
+    if (r.next) {
+      list.push({ product: p, tone: "action", text: r.next.hint ?? missingLabel(r.next), href: `${base}?aba=${r.next.tab}` });
+    } else {
+      list.push({ product: p, tone: "ready", text: "Tudo pronto: já pode publicar", href: base });
+    }
+  }
+  const order = { review: 0, ready: 1, action: 2 };
+  return list.sort((a, b) => order[a.tone] - order[b.tone]);
+}
 
 export default async function DashboardPage({ searchParams }: PageProps<"/admin">) {
-  const staff = await requireStaffPage();
-  const [stats, recent, events, params] = await Promise.all([
-    getDashboardStats(),
+  await requireStaffPage();
+  const [products, events, workerOnline, params] = await Promise.all([
     listAdminProducts(),
-    listAuditEvents({ limit: 8 }),
+    listAuditEvents({ limit: 6 }),
+    getAiWorkerOnline(),
     searchParams,
   ]);
-  const order: ProductStatus[] = ["published", "review", "draft", "archived"];
+  const count = (s: ProductStatus) => products.filter((p) => p.status === s && !p.isDemo).length;
+  const tasks = todos(products);
+  const order: ProductStatus[] = ["published", "draft", "review", "archived"];
 
   return (
-    <div className="space-y-10">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Visão geral</h1>
-          <p className="mt-1 text-muted">Catálogo e últimas alterações.</p>
-        </div>
-        <ButtonLink href="/admin/produtos/novo">Novo produto</ButtonLink>
-      </header>
+    <div className="space-y-6">
+      <PageHeader
+        title="Início"
+        subtitle="O que precisa da sua atenção na loja."
+        actions={
+          <>
+            <a href="/" target="_blank" rel="noopener" className={buttonClasses({ variant: "secondary" })}>
+              <ExternalIcon className="h-4 w-4" /> Ver loja
+            </a>
+            <ButtonLink href="/admin/produtos/novo">Novo produto</ButtonLink>
+          </>
+        }
+      />
 
       {params.motivo === "sem-permissao" ? (
         <Notice tone="warning" role="alert" title="Sem permissão">
@@ -36,79 +71,105 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
         </Notice>
       ) : null}
 
-      {stats.demo > 0 ? (
-        <Notice tone="demo" title={`${stats.demo} produto(s) de demonstração`}>
-          Eles servem para testar o painel e não podem ser publicados. Cadastre os produtos reais com fotos, preços e
-          especificações verificados.
-        </Notice>
-      ) : null}
-
-      <section aria-labelledby="resumo-titulo">
-        <h2 id="resumo-titulo" className="sr-only">
-          Resumo por status
-        </h2>
-        <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {order.map((s) => (
-            <li key={s}>
-              <Link
-                href={`/admin/produtos?status=${s}`}
-                className="block rounded-[1.25rem] border border-line bg-white p-5 hover:border-deep-fjord"
-              >
-                <span className="text-sm font-medium text-muted">{STATUS_LABELS[s]}</span>
-                <span className="mt-1 block text-3xl font-bold text-deep-fjord">{stats.byStatus[s]}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <div className="grid gap-10 xl:grid-cols-2">
-        <section aria-labelledby="recentes-titulo" className="min-w-0">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 id="recentes-titulo" className="text-xl font-bold">
-              Editados recentemente
-            </h2>
-            <Link href="/admin/produtos" className="link text-sm">
-              Ver todos
+      <ul aria-label="Produtos por status" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {order.map((s) => (
+          <li key={s}>
+            <Link
+              href={`/admin/produtos?status=${s}`}
+              className="flex items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 hover:border-deep-fjord"
+            >
+              <span className="text-sm font-medium text-muted">{STATUS_LABELS[s]}</span>
+              <span className="text-2xl font-bold text-deep-fjord">{count(s)}</span>
             </Link>
-          </div>
-          {recent.length ? (
-            <ul className="divide-y divide-line overflow-hidden rounded-[1.25rem] border border-line bg-white">
-              {recent.slice(0, 6).map((p) => (
-                <li key={p.id}>
-                  <Link href={`/admin/produtos/${p.id}`} className="flex min-h-14 items-center justify-between gap-3 px-4 py-3 hover:bg-cloud">
-                    <span className="min-w-0 truncate font-medium text-deep-fjord">{p.name}</span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      {p.isDemo ? <span className="text-xs font-semibold text-muted">DEMO</span> : null}
-                      <StatusBadge status={p.status} />
+          </li>
+        ))}
+      </ul>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <Card id="afazer" title="O que fazer agora" description="O próximo passo de cada produto. Toque para resolver.">
+          {tasks.length ? (
+            <ul className="-mx-2 divide-y divide-line">
+              {tasks.map((t, i) => (
+                <li key={`${t.product.id}-${i}`}>
+                  <Link href={t.href} className="flex items-center gap-3 rounded-xl px-2 py-3 hover:bg-cloud">
+                    <ProductThumb product={t.product} size="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-deep-fjord">{t.product.name}</span>
+                      <span
+                        className={`block text-sm ${t.tone === "ready" ? "font-semibold text-success" : t.tone === "review" ? "font-semibold text-[#8a4b0f]" : "text-muted"}`}
+                      >
+                        {t.tone === "ready" ? <CheckIcon className="mr-1 inline h-4 w-4 align-[-3px]" /> : null}
+                        {t.text}
+                      </span>
                     </span>
+                    <ChevronRightIcon className="h-5 w-5 shrink-0 text-muted" />
                   </Link>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-muted">Nenhum produto ainda.</p>
+            <p className="flex items-center gap-2 font-medium text-success">
+              <CheckIcon className="h-5 w-5" /> Tudo em dia.
+            </p>
           )}
-        </section>
+        </Card>
 
-        <section aria-labelledby="atividade-titulo" className="min-w-0">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 id="atividade-titulo" className="text-xl font-bold">
-              Atividade
-            </h2>
-            <Link href="/admin/atividade" className="link text-sm">
-              Ver histórico
+        <div className="space-y-6">
+          <Card title="Cadastrar com o celular">
+            <Link href="/admin/produtos/novo" className="flex items-center gap-4 rounded-xl bg-pale-blue p-4 hover:bg-sky-mist">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-deep-fjord text-white">
+                <CameraIcon className="h-6 w-6" />
+              </span>
+              <span className="text-sm text-ink">
+                <strong className="block text-base text-deep-fjord">Novo produto</strong>
+                Envie as fotos tiradas no celular: o fundo é limpo, as fotos de catálogo e o 3D são feitos pela IA.
+              </span>
             </Link>
-          </div>
-          <AuditList events={events} />
-        </section>
+            <p className="mt-3 flex items-center gap-2 text-sm">
+              <span className={`h-2.5 w-2.5 rounded-full ${workerOnline ? "bg-success" : "bg-line"}`} aria-hidden="true" />
+              {workerOnline ? "Processador de fotos e 3D ligado." : "Processador de fotos e 3D desligado (as fotos ficam na fila)."}
+            </p>
+          </Card>
+
+          <Card
+            title="Atividade recente"
+            actions={
+              <Link href="/admin/atividade" className="link text-sm">
+                Ver tudo
+              </Link>
+            }
+          >
+            <AuditList events={events} />
+          </Card>
+        </div>
       </div>
 
-      {staff.role !== "admin" ? (
-        <p className="text-sm text-muted">
-          Você é editor: pode criar e editar rascunhos e enviá-los para revisão. Publicar e arquivar é com os
-          administradores.
-        </p>
+      {products.length ? (
+        <Card
+          title="Produtos"
+          actions={
+            <Link href="/admin/produtos" className="link text-sm">
+              Ver todos
+            </Link>
+          }
+        >
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {products
+              .filter((p) => !p.isDemo)
+              .slice(0, 8)
+              .map((p) => (
+                <li key={p.id}>
+                  <Link href={`/admin/produtos/${p.id}`} className="block rounded-xl border border-line p-2 hover:border-deep-fjord">
+                    <ProductThumb product={p} size="md" />
+                    <span className="mt-2 block truncate text-sm font-semibold text-deep-fjord">{p.name}</span>
+                    <span className="mt-1 block">
+                      <StatusBadge status={p.status} />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+          </ul>
+        </Card>
       ) : null}
     </div>
   );

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { brand } from "@/config/brand";
 import { primaryImage } from "@/lib/catalog/product-helpers";
@@ -14,6 +15,9 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: PageProps<"/produtos/[slug]">): Promise<Metadata> {
+  // Lido a cada visita: o "shell" pré-renderizado guardaria o catálogo do momento
+  // do build, e algo publicado depois abriria como "não encontrado".
+  await connection();
   const { slug } = await params;
   const product = await getVisibleProductBySlug(slug);
   if (!product) return { title: "Produto não encontrado", robots: { index: false } };
@@ -39,10 +43,10 @@ export async function generateMetadata({ params }: PageProps<"/produtos/[slug]">
 }
 
 /**
- * Produtos conhecidos são pré-renderizados; os novos são renderizados na
- * primeira visita e guardados (ISR). Com Partial Prerendering o "shell" é
- * enviado antes, então um produto inexistente responde com a página de "não
- * encontrado" e `noindex` (status 200 do streaming), o que evita indexação.
+ * O "shell" (cabeçalho, rodapé) é pré-renderizado; o produto é montado a cada
+ * visita a partir do catálogo em cache. Assim, publicar ou despublicar no painel
+ * aparece na hora (uma página de "não encontrado" guardada antes da publicação
+ * não fica presa). Produto inexistente responde com "não encontrado" e `noindex`.
  */
 export default function ProductPage({ params }: PageProps<"/produtos/[slug]">) {
   return (
@@ -53,6 +57,7 @@ export default function ProductPage({ params }: PageProps<"/produtos/[slug]">) {
 }
 
 async function ProductContent({ params }: Pick<PageProps<"/produtos/[slug]">, "params">) {
+  await connection();
   const { slug } = await params;
   const product = await getVisibleProductBySlug(slug);
   if (!product) notFound();

@@ -15,6 +15,9 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: PageProps<"/categorias/[slug]">): Promise<Metadata> {
+  // Lido a cada visita: o "shell" pré-renderizado guardaria o catálogo do momento
+  // do build, e algo publicado depois abriria como "não encontrado".
+  await connection();
   const { slug } = await params;
   const category = await getCategoryBySlug(slug);
   if (!category) return { title: "Categoria não encontrada" };

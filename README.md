@@ -57,6 +57,7 @@ Copie [`.env.example`](.env.example) para `.env.local`.
 | `NEXT_PUBLIC_SUPABASE_URL` | sim | URL do projeto Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sim | Chave pública (anon/publishable). Segura por causa do RLS |
 | `SUPABASE_SERVICE_ROLE_KEY` | **não** | Só para `npm run admin:create` na sua máquina. **Nunca** na Vercel |
+| `ADMIN_PIN`, `ADMIN_PIN_EMAIL`, `ADMIN_PIN_PASSWORD` | **não** | Entrada no painel por PIN (veja [`docs/PAINEL.md`](docs/PAINEL.md)). Vazio = só e-mail e senha |
 | `IMAGE_AI_*`, `THREE_D_MODEL_*`, `PAYMENT_*`, `EMAIL_*` | não | Reservadas para integrações futuras. Não configure ainda |
 
 `NEXT_PUBLIC_*` vai para o navegador: nunca coloque segredos com esse prefixo. Se um segredo vazar para o Git,
@@ -101,12 +102,13 @@ revisão. As regras valem no banco (RLS + triggers), não só na interface.
 
 ## Cadastrando os produtos reais
 
-1. Painel → **Novo produto**: nome, descrição revisada, categoria, tamanhos (preço por tamanho) e as especificações
-   **confirmadas** com o fabricante. Campo vazio = não aparece na loja.
-2. Envie as fotos (frontal/¾, lateral com altura, detalhe do tecido, ambientada), cada uma com texto alternativo.
-   Marque “ilustrativa” quando não for foto real.
-3. Confira o checklist “Antes de publicar” e a **pré-visualização**.
-4. Um administrador publica (o banco exige preço, foto principal real e textos alternativos).
+1. Painel (`/admin`) → **Novo produto**: só nome e categoria. O rascunho abre na aba **Fotos e 3D**.
+2. Envie as fotos do celular no estúdio (fundo limpo, fotos de catálogo e 3D) ou fotos prontas, cada uma com
+   descrição. Marque “ilustrativa” quando não for foto real.
+3. Preencha as abas **Informações**, **Preço** e **Detalhes** só com dados **confirmados** com o fabricante. Campo
+   vazio = não aparece na loja.
+4. Siga o painel **Pronto para vender** (as mesmas regras que o banco usa) e confira a **pré-visualização**.
+5. Um administrador publica. Guia completo: [`docs/PAINEL.md`](docs/PAINEL.md).
 
 ## Comandos
 
@@ -162,6 +164,7 @@ docs/                 segurança, decisões, referências de UX, IA e 3D
 
 ## Documentação
 
+- [Painel da loja: acesso por PIN, telas e cadastro](docs/PAINEL.md)
 - [Checklist de segurança](docs/SEGURANCA.md)
 - [Decisões, integrações pendentes e limitações conhecidas](docs/DECISOES.md)
 - [Referências de UX pesquisadas](docs/REFERENCIAS-UX.md)

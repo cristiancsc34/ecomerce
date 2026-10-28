@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -12,14 +11,12 @@ import {
 import type { ProductStatus } from "@/lib/catalog/types";
 import type { StaffRole } from "@/lib/auth/staff";
 import { Button } from "@/components/ui/button";
-import { CheckIcon, CopyIcon, EyeIcon } from "@/components/ui/icons";
+import { CopyIcon } from "@/components/ui/icons";
 import { Notice } from "@/components/ui/notice";
 import { ConfirmButton } from "./confirm-dialog";
-import { StatusBadge } from "./status-badge";
 
 export function StatusActions({
   productId,
-  slug,
   status,
   isDemo,
   role,
@@ -27,7 +24,6 @@ export function StatusActions({
   isDirtyHint,
 }: {
   productId: string;
-  slug: string;
   status: ProductStatus;
   isDemo: boolean;
   role: StaffRole;
@@ -54,17 +50,11 @@ export function StatusActions({
     });
   }
 
-  const canPublish = isAdmin && publishIssues.length === 0 && (status === "draft" || status === "review");
+  // A lista do que falta fica no painel "Pronto para vender"; aqui só as ações.
+  const canPublish = isAdmin && publishIssues.length === 0 && !isDirtyHint && (status === "draft" || status === "review");
 
   return (
-    <section aria-labelledby="status-titulo" className="space-y-4 rounded-[1.25rem] border border-line bg-white p-5">
-      <div className="flex items-center justify-between gap-3">
-        <h2 id="status-titulo" className="text-lg font-bold">
-          Status
-        </h2>
-        <StatusBadge status={status} />
-      </div>
-
+    <div className="space-y-4">
       {error ? (
         <Notice tone="danger" role="alert" title={error}>
           {issues.length ? (
@@ -76,28 +66,8 @@ export function StatusActions({
           ) : null}
         </Notice>
       ) : null}
-
-      {status !== "published" && status !== "archived" ? (
-        <div>
-          <p className="mb-2 text-sm font-semibold text-deep-fjord">Antes de publicar</p>
-          {publishIssues.length ? (
-            <ul className="space-y-1.5 text-sm">
-              {publishIssues.map((i) => (
-                <li key={i} className="flex gap-2 text-ink">
-                  <span aria-hidden="true" className="text-danger">
-                    ●
-                  </span>
-                  {i}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="flex items-center gap-2 text-sm font-medium text-success">
-              <CheckIcon className="h-4 w-4" /> Tudo pronto para publicar.
-            </p>
-          )}
-          {isDirtyHint ? <p className="mt-2 text-xs text-muted">Salve as alterações do formulário antes de publicar.</p> : null}
-        </div>
+      {isDirtyHint && (status === "draft" || status === "review") ? (
+        <p className="text-sm font-medium text-[#8a4b0f]">Salve as alterações antes de publicar.</p>
       ) : null}
 
       <div className="flex flex-col gap-2">
@@ -158,21 +128,6 @@ export function StatusActions({
       </div>
 
       <div className="flex flex-wrap gap-2 border-t border-line pt-4">
-        <Link
-          href={`/admin/produtos/${productId}/preview`}
-          className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-deep-fjord hover:bg-pale-blue"
-        >
-          <EyeIcon className="h-4 w-4" /> Pré-visualizar
-        </Link>
-        {status === "published" ? (
-          <Link
-            href={`/produtos/${slug}`}
-            target="_blank"
-            className="inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-deep-fjord hover:bg-pale-blue"
-          >
-            Ver na loja <span className="sr-only">(abre em nova aba)</span>
-          </Link>
-        ) : null}
         <Button
           variant="ghost"
           size="sm"
@@ -228,6 +183,6 @@ export function StatusActions({
           />
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }

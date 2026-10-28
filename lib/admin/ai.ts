@@ -76,3 +76,12 @@ export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSn
     },
   };
 }
+
+/** O processador de fotos/3D deu sinal de vida há pouco? (para o aviso no Início). */
+export async function getAiWorkerOnline(): Promise<boolean> {
+  await requireStaffAction();
+  const supabase = await createSessionClient();
+  const { data } = await supabase.from("ai_workers").select("last_seen_at");
+  const now = Date.now();
+  return ((data ?? []) as { last_seen_at: string }[]).some((w) => now - new Date(w.last_seen_at).getTime() < WORKER_ONLINE_MS);
+}

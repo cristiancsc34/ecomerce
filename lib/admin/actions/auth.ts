@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { isSupabaseConfigured } from "@/config/site";
+import { pinAccount, pinLoginEnabled, pinMatches } from "@/lib/admin/pin";
 import { rateLimit, resetRateLimit } from "@/lib/auth/rate-limit";
 import { createSessionClient } from "@/lib/supabase/server";
 
@@ -55,6 +56,39 @@ export async function signInAction(_prev: LoginState, formData: FormData): Promi
   }
 
   resetRateLimit(`login:email:${email}`);
+  redirect(safeNext(formData.get("next")));
+}
+
+export type PinState = { error: string | null };
+
+/** Entrada por PIN (ver lib/admin/pin.ts). Poucas tentativas por IP: um PIN curto é fácil de adivinhar. */
+export async function pinSignInAction(_prev: PinState, formData: FormData): Promise<PinState> {
+  if (!isSupabaseConfigured() || !pinLoginEnabled()) {
+    return { error: "O acesso por PIN não está ativado. Entre com e-mail e senha." };
+  }
+  const pin = String(formData.get("pin") ?? "").replace(/\D/g, "");
+
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "desconhecido";
+  const limited = rateLimit(`login:pin:${ip}`, { limit: 5, windowMs: 10 * 60_000 });
+  if (!limited.allowed) {
+    return { error: `Muitas tentativas. Aguarde ${Math.ceil(limited.retryAfterSeconds / 60)} min e tente de novo.` };
+  }
+  if (!pinMatches(pin)) return { error: "PIN incorreto." };
+
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.auth.signInWithPassword(pinAccount());
+  if (error || !data.user) {
+    console.error("painel: a conta do PIN não conseguiu entrar (confira ADMIN_PIN_EMAIL/ADMIN_PIN_PASSWORD)");
+    return { error: "Não foi possível entrar agora. Use e-mail e senha." };
+  }
+  const { data: staff } = await supabase.from("admin_users").select("role").eq("user_id", data.user.id).maybeSingle();
+  if (!staff) {
+    await supabase.auth.signOut();
+    return { error: "A conta do PIN não faz parte da equipe. Use e-mail e senha." };
+  }
+
+  resetRateLimit(`login:pin:${ip}`);
   redirect(safeNext(formData.get("next")));
 }
 

@@ -5,16 +5,32 @@ import { ACCOUNTS } from "./accounts";
 const unique = Date.now().toString(36);
 const productName = `Colchão E2E ${unique}`;
 const productSlug = `colchao-e2e-${unique}`;
+const demoSlug = `demo-e2e-${unique}`;
+
+const service = () =>
+  createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
 async function login(page: Page, who: keyof typeof ACCOUNTS) {
-  await page.goto("/admin/login");
+  await page.goto("/admin/login?modo=email");
   // O botão só habilita depois da hidratação.
   await expect(page.getByRole("button", { name: "Entrar" })).toBeEnabled();
   await page.getByLabel("E-mail").fill(ACCOUNTS[who].email);
   await page.getByLabel("Senha").fill(ACCOUNTS[who].password);
   await page.getByRole("button", { name: "Entrar" }).click();
-  if (who !== "outsider") await expect(page.getByRole("heading", { name: "Visão geral" })).toBeVisible();
+  if (who !== "outsider") await expect(page.getByRole("heading", { level: 1, name: "Início" })).toBeVisible();
 }
+
+async function openTestProduct(page: Page) {
+  await page.goto(`/admin/produtos?q=${encodeURIComponent(unique)}`);
+  await page.getByRole("link", { name: new RegExp(productName) }).first().click();
+  await expect(page.getByRole("heading", { level: 1, name: productName })).toBeVisible();
+}
+
+/** Painel "Pronto para vender" (status, checklist e ações). */
+const panel = (page: Page) => page.locator("section[aria-labelledby=pronto-titulo]");
+const tab = (page: Page, name: string) => page.getByRole("tab", { name: new RegExp(`^${name}`) });
 
 /**
  * Gera uma foto PNG real (1200×900) desenhando numa página. Arquivos vão como
@@ -31,6 +47,26 @@ async function photo(page: Page): Promise<Buffer> {
 
 test.describe.configure({ mode: "serial" });
 
+/** Lista os arquivos de uma pasta do Storage, entrando nas subpastas. */
+async function filesIn(folder: string): Promise<string[]> {
+  const { data } = await service().storage.from("product-media").list(folder, { limit: 1000 });
+  const nested = await Promise.all(
+    (data ?? []).map((f) => (f.id ? Promise.resolve([`${folder}/${f.name}`]) : filesIn(`${folder}/${f.name}`))),
+  );
+  return nested.flat();
+}
+
+// Os testes não deixam rastro no banco local: apagam os produtos e arquivos que criaram.
+test.afterAll(async () => {
+  const db = service();
+  const { data } = await db.from("products").select("id").in("slug", [productSlug, demoSlug]);
+  for (const { id } of data ?? []) {
+    const paths = await filesIn(`products/${id}`);
+    if (paths.length) await db.storage.from("product-media").remove(paths);
+    await db.from("products").delete().eq("id", id);
+  }
+});
+
 test("rotas do painel exigem login", async ({ page }) => {
   for (const path of ["/admin", "/admin/produtos", "/admin/produtos/novo", "/admin/categorias"]) {
     await page.goto(path);
@@ -38,8 +74,24 @@ test("rotas do painel exigem login", async ({ page }) => {
   }
 });
 
+test("PIN: errado mostra erro; 1234 entra no painel", async ({ page }) => {
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/admin\/login/);
+  const pin = page.getByLabel("PIN de acesso");
+  const enter = page.getByRole("button", { name: "Entrar" });
+  await pin.fill("12");
+  await expect(enter).toBeDisabled();
+  await pin.fill("9999");
+  await enter.click();
+  await expect(page.getByText("PIN incorreto.")).toBeVisible();
+  await pin.fill("1234");
+  await enter.click();
+  await expect(page.getByRole("heading", { level: 1, name: "Início" })).toBeVisible();
+  await expect(page).toHaveURL(/\/admin$/);
+});
+
 test("senha errada mostra erro genérico", async ({ page }) => {
-  await page.goto("/admin/login");
+  await page.goto("/admin/login?modo=email");
   await expect(page.getByRole("button", { name: "Entrar" })).toBeEnabled();
   await page.getByLabel("E-mail").fill(ACCOUNTS.admin.email);
   await page.getByLabel("Senha").fill("senha-errada");
@@ -54,29 +106,27 @@ test("usuário fora da equipe não entra no painel", async ({ page }) => {
   await expect(page).toHaveURL(/\/admin\/login/);
 });
 
-test("editor cria rascunho com foto e envia para revisão, mas não publica", async ({ page }) => {
+test("editor cria rascunho em um passo, preenche pelas abas e envia para revisão, mas não publica", async ({ page }) => {
   await login(page, "editor");
 
   await page.goto("/admin/produtos/novo");
-  await expect(page.getByRole("button", { name: "Criar rascunho" })).toBeEnabled();
+  const create = page.getByRole("button", { name: "Criar e enviar fotos" });
+  await expect(create).toBeDisabled();
   await page.getByLabel("Nome do produto").fill(productName);
-  await expect(page.getByLabel("Endereço na loja (slug)")).toHaveValue(productSlug);
   await page.getByLabel(/^Categoria/).selectOption({ label: "Colchões" });
-  await page.getByLabel("Descrição completa").fill("Descrição revisada.\n\nSegundo parágrafo.");
-  await page.getByRole("button", { name: "Adicionar tamanho" }).click();
-  await page.getByLabel(/Tamanho-padrão/).selectOption("casal");
-  await expect(page.getByLabel("Nome exibido")).toHaveValue("Casal (138 × 188 cm)");
-  await page.getByLabel(/^Preço$/).last().fill("1.799,00");
-  await page.getByLabel(/^Firmeza/).selectOption("medio-firme");
-  await page.getByRole("button", { name: "Criar rascunho" }).click();
-  await expect(page.getByText("Rascunho criado")).toBeVisible();
-  // Espera o formulário de mídia ficar interativo (hidratado).
-  await expect(page.locator("form[data-ready=true]")).toBeAttached();
+  await create.click();
+  await expect(page.getByText("Produto criado como rascunho")).toBeVisible();
+  await expect(tab(page, "Fotos e 3D")).toHaveAttribute("aria-selected", "true");
+  // O que falta aparece no painel e marca as abas.
+  await expect(panel(page).getByRole("button", { name: /Descrição \(falta\)/ })).toBeVisible();
+  await expect(tab(page, "Informações")).toHaveAccessibleName(/falta algo/);
 
   // Rascunho não aparece na loja.
   const res = await page.request.get(`/produtos/${productSlug}`);
   expect(await res.text()).toContain("Página não encontrada");
 
+  // Espera o formulário de mídia ficar interativo (hidratado).
+  await expect(page.locator("form[data-ready=true]")).toBeAttached();
   // Upload inválido é recusado com mensagem clara.
   await page.locator("#upload-file").setInputFiles({
     name: "falsa.png",
@@ -94,6 +144,7 @@ test("editor cria rascunho com foto e envia para revisão, mas não publica", as
   await page.getByRole("button", { name: "Enviar", exact: true }).click();
   await expect(page.getByText("Arquivo enviado.")).toBeVisible();
   await expect(page.getByText("Principal", { exact: true })).toBeVisible();
+  await expect(panel(page).getByRole("button", { name: /Fotos \(pronto\)/ })).toBeVisible();
 
   // Estúdio de IA: a foto do celular entra na fila de limpeza; sem processador ligado, espera.
   await page.locator("#estudio-fotos").setInputFiles({ name: "celular.png", mimeType: "image/png", buffer: await photo(page) });
@@ -106,24 +157,46 @@ test("editor cria rascunho com foto e envia para revisão, mas não publica", as
   await page.getByRole("dialog").getByRole("button", { name: "Descartar" }).click();
   await expect(page.getByTestId("foto-estudio")).toHaveCount(0);
 
+  // Clicar no que falta leva à aba certa.
+  await panel(page).getByRole("button", { name: /Descrição \(falta\)/ }).click();
+  await expect(tab(page, "Informações")).toHaveAttribute("aria-selected", "true");
+  await expect(page).toHaveURL(/aba=informacoes/);
+  await page.getByLabel("Descrição completa").fill("Descrição revisada.\n\nSegundo parágrafo.");
+  await expect(page.getByText("Alterações não salvas")).toBeVisible();
+  // Trocar de aba não perde o que foi digitado.
+  await tab(page, "Preço").click();
+  await page.getByRole("button", { name: "Adicionar tamanho" }).click();
+  await page.getByLabel(/Tamanho-padrão/).selectOption("casal");
+  await expect(page.getByLabel("Nome exibido")).toHaveValue("Casal (138 × 188 cm)");
+  await page.getByLabel(/^Preço$/).last().fill("1.799,00");
+  await tab(page, "Detalhes").click();
+  await page.getByLabel(/^Firmeza/).selectOption("medio-firme");
+  await tab(page, "Link e Google").click();
+  await expect(page.locator("#f-slug")).toHaveValue(productSlug);
+  await page.getByRole("button", { name: "Salvar alterações" }).click();
+  await expect(page.getByText(/Salvo às/)).toBeVisible();
+  await tab(page, "Informações").click();
+  await expect(page.getByLabel("Descrição completa")).toHaveValue("Descrição revisada.\n\nSegundo parágrafo.");
+
+  await expect(panel(page).getByRole("button", { name: /\(falta\)/ })).toHaveCount(0);
   await expect(page.getByText("Somente administradores publicam.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Publicar" })).toHaveCount(0);
   await page.getByRole("button", { name: "Enviar para revisão" }).click();
-  await expect(page.getByRole("region", { name: "Status" }).getByText("Em revisão")).toBeVisible();
+  await expect(panel(page).getByText("Em revisão", { exact: true })).toBeVisible();
 });
 
 test("admin publica; o produto aparece na loja; despublicar remove", async ({ page }) => {
   await login(page, "admin");
-  await page.goto(`/admin/produtos?q=${encodeURIComponent(unique)}`);
-  await page.getByRole("link", { name: productName }).click();
-  await expect(page.getByText("Tudo pronto para publicar.")).toBeVisible();
+  await openTestProduct(page);
+  await expect(panel(page).getByRole("button", { name: /\(falta\)/ })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Publicar" }).click();
   const dialog = page.getByRole("dialog", { name: "Publicar na loja?" });
   await expect(dialog.getByRole("button", { name: "Publicar agora" })).toBeDisabled();
   await dialog.getByRole("checkbox").check();
   await dialog.getByRole("button", { name: "Publicar agora" }).click();
-  await expect(page.getByRole("region", { name: "Status" }).getByText("Publicado")).toBeVisible();
+  await expect(panel(page).getByText("Publicado", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Ver na loja/ })).toBeVisible();
 
   const store = await page.context().newPage();
   await store.goto("/produtos");
@@ -142,7 +215,7 @@ test("admin publica; o produto aparece na loja; despublicar remove", async ({ pa
 
   await page.getByRole("button", { name: "Despublicar (voltar para rascunho)" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Despublicar" }).click();
-  await expect(page.getByRole("region", { name: "Status" }).getByText("Rascunho")).toBeVisible();
+  await expect(panel(page).getByText("Rascunho", { exact: true })).toBeVisible();
 
   await store.goto("/produtos");
   await expect(store.getByRole("link", { name: productName })).toHaveCount(0);
@@ -151,50 +224,58 @@ test("admin publica; o produto aparece na loja; despublicar remove", async ({ pa
 test("editor não altera produto publicado", async ({ page }) => {
   // Publica de novo como admin…
   await login(page, "admin");
-  await page.goto(`/admin/produtos?q=${encodeURIComponent(unique)}`);
-  await page.getByRole("link", { name: productName }).click();
+  await openTestProduct(page);
   await page.getByRole("button", { name: "Publicar" }).click();
   await page.getByRole("dialog").getByRole("checkbox").check();
   await page.getByRole("dialog").getByRole("button", { name: "Publicar agora" }).click();
-  await expect(page.getByRole("region", { name: "Status" }).getByText("Publicado")).toBeVisible();
+  await expect(panel(page).getByText("Publicado", { exact: true })).toBeVisible();
   const url = page.url();
   await page.getByRole("button", { name: "Sair" }).first().click();
   await expect(page).toHaveURL(/\/admin\/login/);
 
-  // …e o editor vê em modo somente leitura.
+  // …e o editor vê em modo somente leitura, em qualquer aba.
   await login(page, "editor");
   await page.goto(url);
   await expect(page.getByText("Somente leitura")).toBeVisible();
+  await expect(page.locator("#upload-file")).toHaveCount(0);
+  await tab(page, "Informações").click();
+  await expect(page.getByLabel("Nome do produto")).toBeDisabled();
   await expect(page.getByRole("button", { name: "Salvar alterações" })).toBeDisabled();
 });
 
 test("produto de demonstração não pode ser publicado", async ({ page }) => {
+  const db = service();
+  const { data: category } = await db.from("categories").select("id").eq("slug", "colchoes").single();
+  const { error } = await db.from("products").insert({
+    name: `Demonstração E2E ${unique}`,
+    slug: demoSlug,
+    status: "draft",
+    is_demo: true,
+    category_id: category!.id,
+    description: "Texto ilustrativo.",
+    price_cents: 100000,
+  });
+  expect(error).toBeNull();
+
   await login(page, "admin");
-  await page.goto("/admin/produtos?q=nuvem");
-  await page.getByRole("link", { name: "Nuvem Essencial" }).click();
-  await expect(page.getByText("Produto de demonstração não pode ser publicado")).toBeVisible();
+  await page.goto(`/admin/produtos?q=${encodeURIComponent(demoSlug)}`);
+  await page.getByRole("link", { name: /Demonstração E2E/ }).first().click();
+  await expect(page.getByText("Produto de demonstração", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Publicar" })).toBeDisabled();
 });
 
 test("salvar de novo não recria os tamanhos (sacolas continuam válidas)", async ({ page }) => {
-  const service = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const db = service();
   const variants = async () => {
-    const { data: product } = await service.from("products").select("id").eq("slug", productSlug).single();
-    const { data } = await service
-      .from("product_variants")
-      .select("id, price_cents")
-      .eq("product_id", product!.id)
-      .order("sort_order");
+    const { data: product } = await db.from("products").select("id").eq("slug", productSlug).single();
+    const { data } = await db.from("product_variants").select("id, price_cents").eq("product_id", product!.id).order("sort_order");
     return data ?? [];
   };
 
   await login(page, "admin");
-  await page.goto(`/admin/produtos?q=${encodeURIComponent(unique)}`);
-  await page.getByRole("link", { name: productName }).click();
+  await openTestProduct(page);
+  await tab(page, "Preço").click();
   const save = page.getByRole("button", { name: "Salvar alterações" });
-  await expect(save).toBeEnabled();
 
   await page.getByRole("button", { name: "Adicionar tamanho" }).click();
   await page.getByLabel(/Tamanho-padrão/).last().selectOption("queen");

@@ -77,7 +77,6 @@ export function AiStudio({
   productName,
   canEdit,
   requires3d,
-  hasVideo,
   hasGalleryPhoto,
   aiMedia,
   copyEnabled,
@@ -87,7 +86,6 @@ export function AiStudio({
   productName: string;
   canEdit: boolean;
   requires3d: boolean;
-  hasVideo: boolean;
   /** O produto já tem foto na galeria da loja (aprovada ou enviada à mão). */
   hasGalleryPhoto: boolean;
   /** Imagens de catálogo geradas por IA (aprovadas ou aguardando). */
@@ -190,7 +188,7 @@ export function AiStudio({
   }
 
   return (
-    <section aria-labelledby="estudio-titulo" className="rounded-[1.25rem] border border-line bg-white p-5 sm:p-6">
+    <section aria-labelledby="estudio-titulo" className="rounded-2xl border border-line bg-white p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="estudio-titulo" className="flex items-center gap-2 text-lg font-bold">
@@ -210,11 +208,6 @@ export function AiStudio({
           <li>
             <Badge tone={has3d ? "success" : "neutral"}>
               {has3d ? <CheckIcon className="h-3.5 w-3.5" /> : null} 3D · {requires3d ? "obrigatório" : "recomendado"}
-            </Badge>
-          </li>
-          <li>
-            <Badge tone={hasVideo ? "success" : "neutral"}>
-              {hasVideo ? <CheckIcon className="h-3.5 w-3.5" /> : null} Vídeo · opcional
             </Badge>
           </li>
         </ul>
@@ -431,15 +424,9 @@ export function AiStudio({
         </div>
       ) : null}
 
-      {/* 4. Vídeo */}
-      <h3 className="mt-6 font-bold">4. Vídeo (opcional)</h3>
-      <p className="mt-1 text-sm text-muted">
-        {hasVideo ? "Vídeo enviado. " : ""}Envie um vídeo curto do produto (MP4 ou WebM, até 4 MB) na seção “Fotos, vídeos e 3D”.
-      </p>
-
-      {/* 5. Textos */}
+      {/* 4. Textos */}
       <h3 className="mt-6 flex items-center gap-2 font-bold">
-        <SparkIcon className="h-5 w-5 text-air-blue-ink" /> 5. Nome e textos da loja (IA)
+        <SparkIcon className="h-5 w-5 text-air-blue-ink" /> 4. Nome e textos da loja (IA)
       </h3>
       <CopyAssistant
         productId={productId}

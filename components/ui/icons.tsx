@@ -200,6 +200,63 @@ export const CopyIcon = (p: IconProps) => (
   </Icon>
 );
 
+export const HomeIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 11.5 12 5l8 6.5" />
+    <path d="M6 10v9a1 1 0 0 0 1 1h3.5v-5h3v5H17a1 1 0 0 0 1-1v-9" />
+  </Icon>
+);
+
+export const BoxIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 8 12 4l8 4v8l-8 4-8-4V8Z" />
+    <path d="m4 8 8 4 8-4M12 12v8" />
+  </Icon>
+);
+
+export const TagIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3.5 12.6V5a1.5 1.5 0 0 1 1.5-1.5h7.6L20.5 11.4a1.5 1.5 0 0 1 0 2.1l-7 7a1.5 1.5 0 0 1-2.1 0L3.5 12.6Z" />
+    <circle cx="8" cy="8" r="1.4" />
+  </Icon>
+);
+
+export const ClockIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </Icon>
+);
+
+export const ExternalIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M14 4h6v6M20 4l-9 9" />
+    <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+  </Icon>
+);
+
+export const LogoutIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+    <path d="M10 8l-4 4 4 4M6 12h10" />
+  </Icon>
+);
+
+export const CameraIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.3l1.4-2h5.6l1.4 2h2.3A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5v-9Z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </Icon>
+);
+
+export const DotsIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="5" cy="12" r="1.2" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+    <circle cx="19" cy="12" r="1.2" fill="currentColor" />
+  </Icon>
+);
+
 export const LogoMark = (p: IconProps) => (
   <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" focusable="false" {...p}>
     <rect width="32" height="32" rx="9" fill="#132940" />

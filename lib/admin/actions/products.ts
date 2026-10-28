@@ -1,9 +1,10 @@
 "use server";
 
 import { updateTag } from "next/cache";
+import { z } from "zod";
 import { AuthorizationError, requireStaffAction } from "@/lib/auth/staff";
 import { CATALOG_TAG } from "@/lib/catalog/queries";
-import { isUuid } from "@/lib/catalog/slug";
+import { isUuid, slugify } from "@/lib/catalog/slug";
 import type { ProductStatus } from "@/lib/catalog/types";
 import { createSessionClient } from "@/lib/supabase/server";
 import { productSaveSchema, publishIssues, statusSchema } from "@/lib/validation/product";
@@ -24,6 +25,8 @@ function toFormField(path: PropertyKey[]): string {
     priceCents: "price",
     compareAtPriceCents: "compareAtPrice",
     "dimensions.heightCm": "heightCm",
+    "dimensions.widthCm": "widthCm",
+    "dimensions.lengthCm": "lengthCm",
     "dimensions.weightKg": "weightKg",
     "attributes.firmness": "firmness",
     "attributes.materials": "materialsText",
@@ -156,4 +159,60 @@ export async function deleteProductAction(productId: string): Promise<ActionResu
   await removeOrphanFiles((media ?? []).map((m) => m.storage_path as string));
   updateTag(CATALOG_TAG);
   return { ok: true };
+}
+
+const draftSchema = z.object({
+  name: z.string().trim().min(2, "Escreva o nome do produto.").max(120, "Use no máximo 120 caracteres."),
+  categoryId: z.union([z.uuid(), z.literal("")]),
+});
+
+/**
+ * Cadastro em um passo: só nome e categoria. O resto (fotos, preço, detalhes)
+ * é preenchido depois, na página do produto. Se o endereço já existir, tenta
+ * "-2", "-3"… para a pessoa não precisar pensar em slug.
+ */
+export async function createProductDraftAction(input: unknown): Promise<ActionResult<{ id: string }>> {
+  try {
+    await requireStaffAction();
+  } catch (e) {
+    return fail(e);
+  }
+  const parsed = draftSchema.safeParse(input);
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) fieldErrors[String(issue.path[0])] ??= issue.message;
+    return { ok: false, error: "Revise os campos destacados.", fieldErrors };
+  }
+  // Nome só com símbolos ("!!") ainda ganha um endereço válido.
+  const base = slugify(parsed.data.name) || "produto";
+
+  const supabase = await createSessionClient();
+  for (let attempt = 1; attempt <= 20; attempt++) {
+    const slug = attempt === 1 ? base : `${base.slice(0, 76)}-${attempt}`;
+    const data = productSaveSchema.parse({
+      name: parsed.data.name,
+      slug,
+      shortDescription: null,
+      description: null,
+      categoryId: parsed.data.categoryId || null,
+      priceCents: null,
+      compareAtPriceCents: null,
+      sku: null,
+      stockQuantity: null,
+      dimensions: {},
+      attributes: {},
+      faq: [],
+      seoTitle: null,
+      seoDescription: null,
+      variants: [],
+    });
+    const { data: id, error } = await supabase.rpc("save_product", { p_product_id: null, p_data: data });
+    if (!error && typeof id === "string") {
+      updateTag(CATALOG_TAG);
+      return { ok: true, data: { id } };
+    }
+    const text = `${error?.message ?? ""} ${error?.details ?? ""}`;
+    if (!text.includes("products_slug_key")) return { ok: false, error: friendlyDbError(error) };
+  }
+  return { ok: false, error: "Não foi possível criar um endereço único. Tente outro nome." };
 }

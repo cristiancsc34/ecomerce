@@ -13,6 +13,7 @@ Legenda: ✅ feito e testado · 🔶 feito, com ressalva · ⏳ pendente (depend
 | Papel nunca vem do navegador | ✅ | Lido de `admin_users` com a sessão; `admin_users` não tem política de escrita |
 | Sessão validada no servidor | ✅ | `auth.getUser()` (consulta o Auth, detecta sessão revogada) |
 | Redirecionamento pós-login sem open redirect | ✅ | `safeNext()` só aceita `/admin/...` |
+| Entrada por PIN (MVP) | 🔶 | O PIN só destrava o login numa conta real da equipe (senha longa no servidor), então RLS e auditoria continuam valendo; comparação em tempo constante e 5 tentativas/10 min por IP. **`1234` é fraco**: trocar por PIN longo ou desligar (`ADMIN_PIN` vazio) antes de vender. Testado: `tests/unit/admin-panel.test.ts`, `tests/e2e-supabase` |
 
 ## Dados (RLS e privilégios)
 

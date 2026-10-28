@@ -92,6 +92,7 @@ describe("sem sessão ou fora da equipe", () => {
 
     const results = [
       await products.saveProductAction(null, {}),
+      await products.createProductDraftAction({ name: "Produto novo", categoryId: "" }),
       await products.changeStatusAction(PRODUCT, "published"),
       await products.duplicateProductAction(PRODUCT),
       await products.deleteProductAction(PRODUCT),
@@ -140,6 +141,24 @@ describe("editor", () => {
     });
     expect(r.ok).toBe(true);
     expect(calls).toContain("rpc.save_product");
+  });
+});
+
+describe("cadastro em um passo", () => {
+  beforeEach(() => as("editor"));
+
+  it("cria o rascunho só com nome (o endereço sai do nome)", async () => {
+    const r = await products.createProductDraftAction({ name: "Poltrona Azul", categoryId: "" });
+    expect(r.ok).toBe(true);
+    expect(calls).toContain("rpc.save_product");
+  });
+
+  it("nome vazio ou categoria inválida não chegam ao banco", async () => {
+    const empty = await products.createProductDraftAction({ name: " ", categoryId: "" });
+    expect(empty.ok ? {} : empty.fieldErrors).toHaveProperty("name");
+    const badCategory = await products.createProductDraftAction({ name: "Poltrona", categoryId: "x' or 1=1" });
+    expect(badCategory.ok).toBe(false);
+    expect(writes()).toEqual([]);
   });
 });
 

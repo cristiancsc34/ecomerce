@@ -38,7 +38,8 @@ export const attributesSchema = z
 
 export const dimensionsSchema = z
   .object({
-    heightCm: z.number().positive().max(100).optional(),
+    // Móveis (poltrona de encosto alto, estante…) passam de 1 m: limite de 3 m.
+    heightCm: z.number().positive().max(300).optional(),
     widthCm: z.number().positive().max(400).optional(),
     lengthCm: z.number().positive().max(400).optional(),
     weightKg: z.number().positive().max(500).optional(),
@@ -187,7 +188,9 @@ export const productFormSchema = z.object({
   compareAtPrice: optionalPriceText,
   sku: optionalText.pipe(z.string().max(64).nullable()),
   stockQuantity: optionalInt("Estoque"),
-  heightCm: optionalNumber("Altura", 100),
+  heightCm: optionalNumber("Altura", 300),
+  widthCm: optionalNumber("Largura", 400),
+  lengthCm: optionalNumber("Profundidade", 400),
   weightKg: optionalNumber("Peso", 500),
   firmness: z
     .string()
@@ -237,6 +240,8 @@ export function formOutputToSaveInput(out: ProductFormOutput): ProductSaveInput 
 
   const dimensions: ProductSaveInput["dimensions"] = {};
   if (out.heightCm !== undefined) dimensions.heightCm = out.heightCm;
+  if (out.widthCm !== undefined) dimensions.widthCm = out.widthCm;
+  if (out.lengthCm !== undefined) dimensions.lengthCm = out.lengthCm;
   if (out.weightKg !== undefined) dimensions.weightKg = out.weightKg;
 
   return {

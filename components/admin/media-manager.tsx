@@ -12,7 +12,7 @@ import {
 } from "@/lib/admin/actions/media";
 import type { ActionResult } from "@/lib/admin/types";
 import type { ProductMedia } from "@/lib/catalog/types";
-import { ACCEPT_ATTRIBUTE, MAX_UPLOAD_BYTES } from "@/lib/media/validate";
+import { MAX_UPLOAD_BYTES } from "@/lib/media/validate";
 import { useHydrated } from "@/lib/use-hydrated";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,9 @@ import { Notice } from "@/components/ui/notice";
 import { ConfirmButton } from "./confirm-dialog";
 
 const TYPE_LABEL = { image: "Imagem", video: "Vídeo", model_3d: "Modelo 3D" } as const;
+
+/** Por enquanto o painel envia só fotos e 3D (vídeo fica para uma próxima etapa). */
+const UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,image/avif,model/gltf-binary,.glb";
 
 export function MediaManager({ productId, media, canEdit }: { productId: string; media: ProductMedia[]; canEdit: boolean }) {
   const router = useRouter();
@@ -38,12 +41,13 @@ export function MediaManager({ productId, media, canEdit }: { productId: string;
   }
 
   return (
-    <section aria-labelledby="midia-titulo" className="rounded-[1.25rem] border border-line bg-white p-5 sm:p-6">
+    <section aria-labelledby="midia-titulo" className="rounded-2xl border border-line bg-white p-4 sm:p-6">
       <h2 id="midia-titulo" className="text-lg font-bold">
-        Fotos, vídeos e 3D
+        Fotos na loja
       </h2>
       <p className="mt-1 text-sm text-muted">
-        Ideal: foto frontal/¾, lateral (altura), detalhe do tecido e foto ambientada. O original é guardado como enviado.
+        O que o cliente vê, nesta ordem. A primeira marcada como principal é a capa. Ideal: frente/¾, lateral, detalhe do
+        tecido e uma foto ambientada.
       </p>
 
       <div role="status" aria-live="polite" className="mt-4 min-h-6">
@@ -249,7 +253,7 @@ function UploadForm({ productId, onDone }: { productId: string; onDone: (text: s
       data-ready={hydrated ? "true" : undefined}
       className="mt-6 space-y-4 rounded-2xl border border-dashed border-line p-4"
     >
-      <h3 className="font-semibold">Enviar arquivo</h3>
+      <h3 className="font-semibold">Enviar foto pronta ou arquivo 3D</h3>
       {error ? (
         <Notice tone="danger" role="alert" title="Não foi possível enviar">
           {error}
@@ -261,14 +265,14 @@ function UploadForm({ productId, onDone }: { productId: string; onDone: (text: s
           id="upload-file"
           name="file"
           type="file"
-          accept={ACCEPT_ATTRIBUTE}
+          accept={UPLOAD_ACCEPT}
           required
           aria-describedby={`upload-file-help${fieldErrors.file ? " upload-file-error" : ""}`}
           aria-invalid={fieldErrors.file ? true : undefined}
           className="block w-full text-sm text-ink file:mr-3 file:min-h-11 file:rounded-full file:border-0 file:bg-pale-blue file:px-4 file:font-semibold file:text-deep-fjord hover:file:bg-sky-mist"
         />
         <HelpText id="upload-file-help">
-          JPG, PNG, WebP ou AVIF (mín. 400 px), MP4/WebM ou modelo 3D GLB. Até 4 MB.
+          Foto JPG, PNG, WebP ou AVIF (mín. 400 px) ou modelo 3D GLB. Até 4 MB.
         </HelpText>
         <FieldError id="upload-file-error">{fieldErrors.file}</FieldError>
       </div>
