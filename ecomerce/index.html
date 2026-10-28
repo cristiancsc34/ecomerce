@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RoyalMarket - E-commerce</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <style>
         * {
             margin: 0;
@@ -38,10 +39,43 @@
         }
 
         .logo {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #fbbf24;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.9rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: white;
             text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            flex-shrink: 0;
+            border-radius: 12px;
+            box-shadow: 0 0 0 2px #fbbf24, 0 6px 16px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .logo:hover .logo-icon {
+            transform: translateY(-2px) rotate(-4deg);
+            box-shadow: 0 0 0 2px #fde68a, 0 10px 22px rgba(0, 0, 0, 0.35);
+        }
+
+        .logo-text span {
+            color: #fbbf24;
+        }
+
+        .logo-tagline {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 500;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #c7d2fe;
+            margin-top: -4px;
         }
 
         .search-container {
@@ -354,7 +388,7 @@
             margin: 0 auto;
             padding: 0 20px;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 40px;
         }
 
@@ -362,6 +396,22 @@
             color: #fbbf24;
             margin-bottom: 20px;
             font-size: 1.3rem;
+        }
+
+        .footer-brand .logo {
+            font-size: 1.6rem;
+            margin-bottom: 14px;
+        }
+
+        .footer-brand .logo-icon {
+            width: 42px;
+            height: 42px;
+        }
+
+        .footer-brand p {
+            color: #c7d2fe;
+            font-size: 0.95rem;
+            max-width: 280px;
         }
 
         .footer-section ul {
@@ -395,6 +445,15 @@
             .header-top {
                 flex-direction: column;
                 gap: 15px;
+            }
+
+            .logo {
+                font-size: 1.6rem;
+            }
+
+            .logo-icon {
+                width: 42px;
+                height: 42px;
             }
 
             .search-container {
@@ -434,7 +493,30 @@
     <!-- Header -->
     <header class="header">
         <div class="header-top">
-            <a href="#" class="logo">RoyalMarket</a>
+            <a href="#" class="logo" aria-label="RoyalMarket - Página inicial">
+                <svg class="logo-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+                    <defs>
+                        <linearGradient id="logo-bg" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0" stop-color="#1e3a8a"/>
+                            <stop offset="1" stop-color="#3b82f6"/>
+                        </linearGradient>
+                        <linearGradient id="logo-gold" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stop-color="#fde68a"/>
+                            <stop offset="0.45" stop-color="#fbbf24"/>
+                            <stop offset="1" stop-color="#d97706"/>
+                        </linearGradient>
+                    </defs>
+                    <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#logo-bg)"/>
+                    <path d="M23 24v-4.5a9 9 0 0 1 18 0V24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+                    <rect x="13" y="23" width="38" height="32" rx="7" fill="#fff"/>
+                    <path d="M20.5 48 L22.5 33.5 L28.5 39.5 L32 29.5 L35.5 39.5 L41.5 33.5 L43.5 48 Z" fill="url(#logo-gold)"/>
+                    <rect x="21" y="44.5" width="22" height="1.6" fill="#1e3a8a" opacity="0.28"/>
+                    <circle cx="22.5" cy="33" r="2" fill="#fde68a"/>
+                    <circle cx="32" cy="29" r="2.2" fill="#fde68a"/>
+                    <circle cx="41.5" cy="33" r="2" fill="#fde68a"/>
+                </svg>
+                <span class="logo-text">Royal<span>Market</span><small class="logo-tagline">compras com tratamento real</small></span>
+            </a>
             
             <div class="search-container">
                 <input type="text" class="search-box" placeholder="Buscar produtos, marcas e muito mais..." id="searchInput">
@@ -523,6 +605,33 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="footer-content">
+            <div class="footer-section footer-brand">
+                <a href="#" class="logo" aria-label="RoyalMarket - Página inicial">
+                    <svg class="logo-icon" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+                        <defs>
+                            <linearGradient id="footer-logo-bg" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0" stop-color="#1e3a8a"/>
+                                <stop offset="1" stop-color="#3b82f6"/>
+                            </linearGradient>
+                            <linearGradient id="footer-logo-gold" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0" stop-color="#fde68a"/>
+                                <stop offset="0.45" stop-color="#fbbf24"/>
+                                <stop offset="1" stop-color="#d97706"/>
+                            </linearGradient>
+                        </defs>
+                        <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#footer-logo-bg)"/>
+                        <path d="M23 24v-4.5a9 9 0 0 1 18 0V24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+                        <rect x="13" y="23" width="38" height="32" rx="7" fill="#fff"/>
+                        <path d="M20.5 48 L22.5 33.5 L28.5 39.5 L32 29.5 L35.5 39.5 L41.5 33.5 L43.5 48 Z" fill="url(#footer-logo-gold)"/>
+                        <rect x="21" y="44.5" width="22" height="1.6" fill="#1e3a8a" opacity="0.28"/>
+                        <circle cx="22.5" cy="33" r="2" fill="#fde68a"/>
+                        <circle cx="32" cy="29" r="2.2" fill="#fde68a"/>
+                        <circle cx="41.5" cy="33" r="2" fill="#fde68a"/>
+                    </svg>
+                    <span class="logo-text">Royal<span>Market</span></span>
+                </a>
+                <p>Tudo o que você procura, com atendimento de rei. Compre com segurança e receba em casa.</p>
+            </div>
             <div class="footer-section">
                 <h3>Sobre o RoyalMarket</h3>
                 <ul>
