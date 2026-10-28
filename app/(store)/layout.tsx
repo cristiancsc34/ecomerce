@@ -6,7 +6,7 @@ import { assistantEnabled } from "@/lib/assistant/config";
 
 export default function StoreLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-svh flex-col">
       <SkipLink />
       <AnnouncementBar />
       <Header />

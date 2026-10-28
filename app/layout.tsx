@@ -36,12 +36,14 @@ export const viewport: Viewport = {
   themeColor: colors.white,
   width: "device-width",
   initialScale: 1,
+  // Ocupa a tela inteira do iPhone; as barras fixas somam a área segura (env(safe-area-inset-*)).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR" className={inter.variable}>
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-svh">{children}</body>
     </html>
   );
 }
