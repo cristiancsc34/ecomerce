@@ -133,7 +133,12 @@ Na primeira vez em uma máquina nova, rode `npx playwright install chromium` ant
 **No ar (modo demonstração):** https://cuxoes.vercel.app — projeto `cuxoes` na Vercel, ligado a este repositório;
 cada push na branch de produção (`claude/quirky-maxwell-xkyvq6`) publica sozinho. Sem Supabase, mostra só os dois
 produtos reais cadastrados pelo estúdio (Poltrona Azul com 3D e Cadeira Cinza Trama), com fotos de catálogo aprovadas e
-"Preço em breve" até o preço ser confirmado. O painel online depende do Supabase na nuvem.
+"Preço em breve" até o preço ser confirmado.
+
+**Painel online:** https://cuxoes.vercel.app/admin (PIN), ligado ao projeto Supabase `cuxoes` (`pcrxojzztizrpjwxwvhz`)
+da conta do Cristian, com as migrações aplicadas, cadastro público desligado e os dois produtos copiados como rascunho.
+A vitrine continua com `CATALOG_SOURCE=demo` até os produtos terem preço e serem publicados; depois, troque para
+`supabase` na Vercel e faça um novo deploy.
 
 1. Importe o repositório na Vercel (framework Next.js detectado automaticamente).
 2. Variáveis: `NEXT_PUBLIC_SITE_URL` (URL final), `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
