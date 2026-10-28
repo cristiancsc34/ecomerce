@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { devices, expect, test, type Page } from "@playwright/test";
 
 const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1280) < 1024;
 
@@ -130,6 +130,28 @@ test.describe("vitrine em modo demonstração", () => {
         return Boolean(bar && end && end.y + end.height <= bar.y);
       })
       .toBe(true);
+  });
+
+  test("realidade aumentada no iPhone: Chrome mostra a câmera; app do Google orienta abrir no Safari", async ({ browser }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "basta rodar uma vez");
+    const iphone = (app: string) =>
+      `Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) ${app} Mobile/15E148 Safari/604.1`;
+    const open = async (userAgent: string) => {
+      const context = await browser.newContext({ ...devices["iPhone 13"], userAgent, baseURL: testInfo.project.use.baseURL });
+      const page = await context.newPage();
+      await page.goto("/produtos/poltrona-azul");
+      return { context, region: page.getByRole("region", { name: "Ver em 3D" }) };
+    };
+
+    const chrome = await open(iphone("CriOS/138.0.7204.156"));
+    await expect(chrome.region.getByRole("button", { name: "Ver no seu ambiente" })).toBeVisible();
+    await chrome.context.close();
+
+    const googleApp = await open(iphone("GSA/380.0.785098425"));
+    await expect(googleApp.region.getByText("Para ver no seu ambiente, abra no Safari")).toBeVisible();
+    await expect(googleApp.region.getByRole("button", { name: "Copiar link" })).toBeVisible();
+    await expect(googleApp.region.getByRole("button", { name: "Ver no seu ambiente" })).toHaveCount(0);
+    await googleApp.context.close();
   });
 
   test("realidade aumentada: no celular abre a câmera, no computador orienta a usar o celular", async ({ page }) => {
