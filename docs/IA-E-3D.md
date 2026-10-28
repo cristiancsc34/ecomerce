@@ -15,9 +15,17 @@ encaixar quando o provedor for escolhido.
 - A página do produto mostra a foto principal com o botão **“Carregar visualização 3D”**. Só então são baixados o
   `<model-viewer>` (three.js) e o arquivo (teste E2E garante isso).
 - Marque “ilustrativa” se o modelo não for fiel ao produto; a página avisa.
-- Sem realidade aumentada até ser implementada e testada.
+- **Realidade aumentada (“Ver no seu ambiente”)**: no celular, um toque abre a câmera com o produto no chão do
+  cliente. Android usa o **Scene Viewer** (app de AR do Google; WebXR como reserva) e iPhone/iPad usa o **AR Quick
+  Look** (o `.usdz` é gerado na hora a partir do `.glb`). No computador, a página orienta a abrir no celular. Só
+  funciona em HTTPS (Vercel).
+- **Tamanho no AR é aproximado**: o Tripo entrega o modelo com 1 m de altura e nenhum produto tem medidas
+  confirmadas, então o cliente pode ajustar o tamanho com dois dedos (a página avisa). Para mostrar em tamanho real é
+  preciso escalar o `.glb` pelas medidas confirmadas do fabricante.
 - Checklist de revisão de um modelo: proporções conferidas com as medidas reais, cor e textura comparadas com a foto,
-  costuras/faixas presentes, arquivo < 4 MB (comprimir texturas), orientação e escala (metros).
+  costuras/faixas presentes, arquivo < 4 MB (comprimir texturas), orientação e escala (metros). Para o AR do Android:
+  texturas JPEG/PNG (nada de WebP), até 2048 px, até 100 mil triângulos e a base do modelo apoiada em y = 0 — o
+  processador já entrega assim.
 
 ## Pipeline de imagens com IA (a implementar)
 
