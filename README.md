@@ -138,8 +138,11 @@ produtos reais cadastrados pelo estúdio (Poltrona Azul com 3D e Cadeira Cinza T
 1. Importe o repositório na Vercel (framework Next.js detectado automaticamente).
 2. Variáveis: `NEXT_PUBLIC_SITE_URL` (URL final), `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
    Sem as do Supabase, o deploy sobe em modo demonstração.
-3. Cada pull request gera um *preview deploy*; promova a produção só depois de revisar.
-4. Depois de trocar dados direto no banco (fora do painel), a vitrine atualiza em até 1 hora; pelo painel é na hora.
+3. Assistente de vendas (botão "Ajuda"): Settings → Environment Variables → `ANTHROPIC_API_KEY`, marcada como
+   **Sensitive** (não aparece mais nem no painel da Vercel), em Production. Variável nova só vale a partir do
+   **próximo deploy** (Redeploy ou um push). Nunca com prefixo `NEXT_PUBLIC_`. Ver [`docs/ASSISTENTE.md`](docs/ASSISTENTE.md).
+4. Cada pull request gera um *preview deploy*; promova a produção só depois de revisar.
+5. Depois de trocar dados direto no banco (fora do painel), a vitrine atualiza em até 1 hora; pelo painel é na hora.
 
 ## Estrutura
 
