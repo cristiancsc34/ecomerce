@@ -17,11 +17,21 @@ import {
 import type { CopySuggestion } from "@/lib/ai/copy";
 import { deleteMediaAction } from "@/lib/admin/actions/media";
 import { isPending, type AiJobKind, type AiJobView, type AiStudioSnapshot } from "@/lib/admin/ai-types";
+import {
+  duration,
+  elapsedSeconds as elapsed,
+  MIN_PHOTOS_AUTO,
+  studioPipeline,
+  TYPICAL_SECONDS,
+  type Pipeline,
+  type StepState,
+} from "@/lib/admin/pipeline";
 import type { ProductMedia } from "@/lib/catalog/types";
 import { useHydrated } from "@/lib/use-hydrated";
+import { useStoredFlag } from "@/lib/use-stored-flag";
 import { Badge } from "@/components/ui/badge";
 import { Button, Spinner } from "@/components/ui/button";
-import { CheckIcon, CubeIcon, ImageIcon, SparkIcon } from "@/components/ui/icons";
+import { AlertIcon, CheckIcon, ClockIcon, CubeIcon, ImageIcon, SparkIcon } from "@/components/ui/icons";
 import { controlClasses, Label } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { ConfirmButton } from "./confirm-dialog";
@@ -48,25 +58,11 @@ async function shrinkPhoto(file: File): Promise<File> {
   return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "foto"}.jpg`, { type: "image/jpeg" });
 }
 
-function elapsed(job: AiJobView, now: number) {
-  const start = job.startedAt ?? job.createdAt;
-  const end = job.finishedAt ? new Date(job.finishedAt).getTime() : now;
-  return Math.max(0, Math.round((end - new Date(start).getTime()) / 1000));
-}
-
-/** Tempos medidos (docs/ESTUDIO-IA.md): limpeza 35–45 s por foto, 4 fotos de catálogo ~1,5 min, 3D ~2 min 15 s. */
-const TYPICAL_SECONDS: Record<AiJobKind, number> = { background_removal: 40, catalog_photos: 90, model_3d: 135 };
 const WORKING_LABEL: Record<AiJobKind, string> = {
   background_removal: "Limpando o fundo",
   catalog_photos: "Criando as fotos de catálogo",
   model_3d: "Gerando o modelo 3D",
 };
-
-function duration(seconds: number) {
-  if (seconds < 60) return `${seconds} s`;
-  const s = seconds % 60;
-  return s ? `${Math.floor(seconds / 60)} min ${s} s` : `${seconds / 60} min`;
-}
 
 function StatusBadge({ job }: { job: AiJobView }) {
   if (job.status === "queued") return <Badge tone="neutral">Na fila</Badge>;
@@ -165,6 +161,164 @@ function WorkingTile({ label, active }: { label: string; active: boolean }) {
   );
 }
 
+const STEP_ANCHOR: Record<string, string> = {
+  fotos: "#estudio-fotos",
+  limpeza: "#estudio-fotos",
+  catalogo: "#estudio-catalogo",
+  textos: "#estudio-textos",
+  modelo3d: "#estudio-3d",
+  conferir: "#estudio-catalogo",
+};
+
+const STATE_TEXT: Record<StepState, string> = {
+  done: "feito",
+  working: "gerando agora",
+  queued: "na fila",
+  waiting: "esperando o processador",
+  todo: "ainda não começou",
+  review: "precisa de você",
+  failed: "deu erro",
+  off: "indisponível",
+};
+
+function StepIcon({ state, index }: { state: StepState; index: number }) {
+  const box = "flex h-7 w-7 shrink-0 items-center justify-center rounded-full";
+  if (state === "done") {
+    return (
+      <span className={`${box} bg-success text-white`}>
+        <CheckIcon className="h-4 w-4" />
+      </span>
+    );
+  }
+  if (state === "working") {
+    return (
+      <span className={`${box} bg-pale-blue text-air-blue-ink ring-2 ring-air-blue`}>
+        <Spinner className="h-4 w-4" />
+      </span>
+    );
+  }
+  if (state === "queued" || state === "waiting") {
+    return (
+      <span className={`${box} bg-pale-blue text-muted`}>
+        <ClockIcon className="h-4 w-4" />
+      </span>
+    );
+  }
+  if (state === "review") {
+    return (
+      <span className={`${box} bg-warm-coral text-ink`}>
+        <AlertIcon className="h-4 w-4" />
+      </span>
+    );
+  }
+  if (state === "failed") {
+    return (
+      <span className={`${box} bg-[#FDECEA] text-danger`}>
+        <AlertIcon className="h-4 w-4" />
+      </span>
+    );
+  }
+  return <span className={`${box} border-2 border-line text-xs font-bold text-muted`}>{state === "off" ? "–" : index}</span>;
+}
+
+/**
+ * "Em que etapa está?": lista com ✓ no que terminou, a etapa atual em destaque,
+ * quanto cada uma costuma levar e quanto falta para ficar pronto para conferir.
+ */
+function StudioSteps({
+  pipeline,
+  canEdit,
+  auto,
+  onAutoChange,
+  auto3d,
+  onAuto3dChange,
+}: {
+  pipeline: Pipeline;
+  canEdit: boolean;
+  auto: boolean;
+  onAutoChange: (value: boolean) => void;
+  auto3d: boolean;
+  onAuto3dChange: (value: boolean) => void;
+}) {
+  const { steps, current, remainingSeconds } = pipeline;
+  const headline = current
+    ? `Agora: ${current.label}${current.detail ? ` · ${current.detail}` : ""}`
+    : "Tudo pronto: fotos, textos e conferência feitos.";
+  return (
+    <section aria-labelledby="etapas-titulo" className="mt-4 rounded-2xl border border-line bg-cloud p-4" data-testid="etapas-estudio">
+      <h3 id="etapas-titulo" className="font-bold">
+        Etapas deste produto
+      </h3>
+      <p className="mt-1 text-sm font-semibold text-air-blue-ink">{headline}</p>
+      {remainingSeconds > 0 ? (
+        <p className="mt-0.5 text-sm text-muted">
+          Pronto para você conferir em <strong className="tabular-nums text-ink">~{duration(remainingSeconds)}</strong>
+        </p>
+      ) : null}
+
+      <ol className="mt-3 space-y-1.5">
+        {steps.map((step, i) => {
+          const isCurrent = step === current;
+          return (
+            <li
+              key={step.id}
+              aria-current={isCurrent ? "step" : undefined}
+              data-step={step.id}
+              data-state={step.state}
+              className={`flex items-start gap-3 rounded-xl px-2.5 py-2 ${isCurrent ? "bg-white shadow-[var(--shadow-soft)] ring-1 ring-air-blue/40" : ""}`}
+            >
+              <StepIcon state={step.state} index={i + 1} />
+              <div className="min-w-0 flex-1">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold">
+                  <a href={STEP_ANCHOR[step.id]} className={step.state === "done" ? "text-muted" : "text-ink"}>
+                    {step.label}
+                  </a>
+                  <span className="sr-only">({STATE_TEXT[step.state]})</span>
+                  {step.optional ? <Badge tone="neutral">opcional</Badge> : null}
+                </p>
+                {step.detail ? <p className={`text-xs ${step.state === "failed" ? "text-danger" : "text-muted"}`}>{step.detail}</p> : null}
+              </div>
+              {step.etaSeconds && step.state !== "done" ? (
+                <span className="shrink-0 pt-0.5 text-xs tabular-nums text-muted">~{duration(step.etaSeconds)}</span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+
+      {canEdit ? (
+        <div className="mt-3 space-y-2 border-t border-line pt-3 text-sm">
+          <label className="flex items-start gap-2">
+            <input type="checkbox" className="mt-1 h-4 w-4" checked={auto} onChange={(e) => onAutoChange(e.target.checked)} />
+            <span>
+              <span className="font-semibold">Seguir as etapas sozinho</span>
+              <span className="block text-xs text-muted">
+                Com {MIN_PHOTOS_AUTO} fotos limpas, pede as fotos de catálogo e o nome e a descrição. Você só confere e aprova.
+              </span>
+            </span>
+          </label>
+          <label className={`flex items-start gap-2 ${auto ? "" : "opacity-55"}`}>
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4"
+              checked={auto3d}
+              disabled={!auto}
+              onChange={(e) => onAuto3dChange(e.target.checked)}
+            />
+            <span>
+              <span className="font-semibold">Incluir o 3D no automático</span>
+              <span className="block text-xs text-muted">Usa créditos do Tripo (~US$ 0,30 por modelo). Deixe desmarcado enquanto não tiver créditos.</span>
+            </span>
+          </label>
+          <p className="text-xs text-muted">
+            Pode sair da página: o que já está na fila continua sendo gerado. As próximas etapas são pedidas quando você voltar aqui.
+          </p>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function AiStudio({
   productId,
   productName,
@@ -173,6 +327,7 @@ export function AiStudio({
   hasGalleryPhoto,
   aiMedia,
   copyEnabled,
+  hasCopy,
   initial,
 }: {
   productId: string;
@@ -185,6 +340,8 @@ export function AiStudio({
   aiMedia: ProductMedia[];
   /** A chave da OpenAI está configurada no servidor (textos com IA). */
   copyEnabled: boolean;
+  /** O produto já tem descrição (textos aplicados ou escritos à mão). */
+  hasCopy: boolean;
   initial: AiStudioSnapshot;
 }) {
   const router = useRouter();
@@ -197,6 +354,11 @@ export function AiStudio({
   const [requesting3d, setRequesting3d] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const finished = useRef(new Set(initial.jobs.filter((j) => !isPending(j)).map((j) => j.id)));
+  const [copyStatus, setCopyStatus] = useState<"idle" | "writing" | "draft">("idle");
+  const [auto, setAuto] = useStoredFlag("cuxoes:estudio-automatico", true);
+  const [auto3d, setAuto3d] = useStoredFlag("cuxoes:estudio-3d-automatico", false);
+  /** Etapas que este navegador já pediu sozinho (não pede duas vezes). */
+  const autoRequested = useRef(new Set<string>());
 
   const cleanJobs = snapshot.jobs.filter((j) => j.kind === "background_removal");
   const modelJobs = snapshot.jobs.filter((j) => j.kind === "model_3d");
@@ -280,6 +442,43 @@ export function AiStudio({
     await refresh();
   }
 
+  const cleanOk = cleanJobs.filter((j) => j.status === "succeeded");
+  const cleanDone = cleanOk.length > 0 && !cleanJobs.some(isPending);
+  const pipeline = studioPipeline({
+    jobs: snapshot.jobs,
+    // O relógio só entra depois da hidratação: servidor e navegador desenham o mesmo texto.
+    now: hydrated ? now : null,
+    workerOnline: snapshot.worker.online,
+    capabilities: snapshot.worker.capabilities,
+    uploading: Boolean(uploading),
+    catalogMedia: aiMedia,
+    copy: { enabled: copyEnabled, hasCopy, writing: copyStatus === "writing", draftReady: copyStatus === "draft" },
+    model3d: { required: requires3d, auto: auto && auto3d },
+  });
+
+  // Seguir as etapas sozinho: limpeza pronta → fotos de catálogo (e, se marcado, o 3D depois delas).
+  // Só com o processador ligado e capaz da etapa, e uma vez só por etapa nesta tela.
+  const autoReady = hydrated && auto && canEdit && !uploading && snapshot.worker.online;
+  const wantsCatalog =
+    autoReady && canCatalog && cleanDone && cleanOk.length >= MIN_PHOTOS_AUTO && !catalogJob && !aiMedia.length;
+  const wants3d = autoReady && auto3d && can3d && catalogReady && !latestModel && !has3d;
+  useEffect(() => {
+    const next = wantsCatalog ? "catalogo" : wants3d ? "3d" : null;
+    if (!next || autoRequested.current.has(next)) return;
+    autoRequested.current.add(next);
+    void (async () => {
+      const result = next === "catalogo" ? await requestCatalogPhotosAction(productId) : await requestModel3dAction(productId, null);
+      setMessage(
+        result.ok
+          ? { tone: "success", text: next === "catalogo" ? "Seguindo sozinho: fotos de catálogo pedidas." : "Seguindo sozinho: modelo 3D pedido." }
+          : { tone: "danger", text: result.error },
+      );
+      await refresh();
+    })();
+    // refresh só depende do productId, estável durante a vida do componente
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantsCatalog, wants3d, productId]);
+
   return (
     <section aria-labelledby="estudio-titulo" className="rounded-2xl border border-line bg-white p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -300,7 +499,7 @@ export function AiStudio({
           </li>
           <li>
             <Badge tone={has3d ? "success" : "neutral"}>
-              {has3d ? <CheckIcon className="h-3.5 w-3.5" /> : null} 3D · {requires3d ? "obrigatório" : "recomendado"}
+              {has3d ? <CheckIcon className="h-3.5 w-3.5" /> : null} 3D · {requires3d ? "obrigatório" : "opcional"}
             </Badge>
           </li>
         </ul>
@@ -325,6 +524,15 @@ export function AiStudio({
         </Notice>
       ) : null}
 
+      <StudioSteps
+        pipeline={pipeline}
+        canEdit={canEdit}
+        auto={auto}
+        onAutoChange={setAuto}
+        auto3d={auto3d}
+        onAuto3dChange={setAuto3d}
+      />
+
       <div role="status" aria-live="polite" className="mt-2 min-h-6 text-sm font-medium">
         {uploading ? (
           <span className="flex items-center gap-2 text-air-blue-ink">
@@ -335,7 +543,9 @@ export function AiStudio({
       </div>
 
       {/* 1. Fotos */}
-      <h3 className="mt-4 font-bold">1. Fotos do produto</h3>
+      <h3 id="estudio-fotos" className="mt-4 scroll-mt-32 font-bold">
+        1. Fotos do produto
+      </h3>
       {canEdit ? (
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <input
@@ -440,7 +650,7 @@ export function AiStudio({
       ) : null}
 
       {/* 2. Fotos de catálogo */}
-      <h3 className="mt-6 flex items-center gap-2 font-bold">
+      <h3 id="estudio-catalogo" className="mt-6 flex scroll-mt-32 items-center gap-2 font-bold">
         <SparkIcon className="h-5 w-5 text-air-blue-ink" /> 2. Fotos de catálogo (padrão da loja)
       </h3>
       <p className="mt-1 max-w-prose text-sm text-muted">
@@ -494,8 +704,8 @@ export function AiStudio({
       ) : null}
 
       {/* 3. 3D */}
-      <h3 className="mt-6 flex items-center gap-2 font-bold">
-        <CubeIcon className="h-5 w-5 text-air-blue-ink" /> 3. Modelo 3D
+      <h3 id="estudio-3d" className="mt-6 flex scroll-mt-32 items-center gap-2 font-bold">
+        <CubeIcon className="h-5 w-5 text-air-blue-ink" /> 3. Modelo 3D {requires3d ? null : <Badge tone="neutral">opcional</Badge>}
       </h3>
       {!can3d && snapshot.worker.online ? (
         <div className="mt-2">
@@ -562,13 +772,15 @@ export function AiStudio({
       ) : null}
 
       {/* 4. Textos */}
-      <h3 className="mt-6 flex items-center gap-2 font-bold">
+      <h3 id="estudio-textos" className="mt-6 flex scroll-mt-32 items-center gap-2 font-bold">
         <SparkIcon className="h-5 w-5 text-air-blue-ink" /> 4. Nome e textos da loja (IA)
       </h3>
       <CopyAssistant
         productId={productId}
         enabled={copyEnabled && canEdit && hydrated}
         hasPhotos={readyPhotos.length > 0 || aiMedia.some((m) => !m.pendingReview)}
+        autoStart={hydrated && auto && canEdit && cleanDone && !hasCopy}
+        onStatus={setCopyStatus}
         onApplied={(text) => {
           setMessage({ tone: "success", text });
           router.refresh();
@@ -582,25 +794,46 @@ function CopyAssistant({
   productId,
   enabled,
   hasPhotos,
+  autoStart,
+  onStatus,
   onApplied,
 }: {
   productId: string;
   enabled: boolean;
   hasPhotos: boolean;
+  /** Seguir as etapas sozinho: pede a sugestão assim que as fotos estiverem limpas. */
+  autoStart: boolean;
+  onStatus: (status: "idle" | "writing" | "draft") => void;
   onApplied: (message: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<(CopySuggestion & { name: string | null }) | null>(null);
+  const autoTried = useRef(false);
 
   async function suggest() {
     setBusy(true);
     setError(null);
+    onStatus("writing");
     const r = await suggestCopyAction(productId);
     setBusy(false);
-    if (!r.ok) return setError(r.error);
+    if (!r.ok) {
+      onStatus("idle");
+      return setError(r.error);
+    }
     setDraft({ ...r.data, name: null });
+    onStatus("draft");
   }
+
+  // Uma tentativa automática por tela; se falhar, o botão continua para tentar de novo.
+  useEffect(() => {
+    if (!autoStart || autoTried.current || draft || busy || !enabled || !hasPhotos) return;
+    const timer = setTimeout(() => {
+      autoTried.current = true;
+      void suggest();
+    }, 0);
+    return () => clearTimeout(timer);
+  });
 
   async function apply() {
     if (!draft) return;
@@ -615,6 +848,7 @@ function CopyAssistant({
     setBusy(false);
     if (!r.ok) return setError(r.error);
     setDraft(null);
+    onStatus("idle");
     onApplied("Textos aplicados ao produto. Revise no formulário abaixo antes de publicar.");
   }
 
@@ -686,7 +920,14 @@ function CopyAssistant({
             <Button type="button" onClick={apply} loading={busy} loadingLabel="Aplicando…">
               Aplicar ao produto
             </Button>
-            <Button type="button" variant="ghost" onClick={() => setDraft(null)}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setDraft(null);
+                onStatus("idle");
+              }}
+            >
               Descartar sugestão
             </Button>
           </div>

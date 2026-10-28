@@ -29,6 +29,23 @@ Painel (Next.js)  ──cria job──▶  ai_jobs (Supabase)  ◀──pega 1 p
 - Arquivos: `products/<id>/originais/` (foto enviada), `products/<id>/recortes/` (recorte com transparência, base do
   3D) e `products/<id>/<uuid>.jpg|.glb` (resultado).
 
+### Etapas e modo automático (no painel)
+
+No topo do estúdio, **“Etapas deste produto”** mostra cada etapa com ✓ quando termina, a etapa atual em destaque, quanto
+cada uma costuma levar (tempos medidos abaixo) e quanto falta para o produto ficar pronto para conferir:
+
+1. Fotos do celular → 2. Limpeza do fundo (~40 s por foto) → 3. Fotos de catálogo (~1 min 30 s) e 4. Nome e descrição
+   (~8 s), ao mesmo tempo → 5. Modelo 3D (~2 min 15 s, **opcional**) → 6. Conferir e aprovar (a pessoa).
+
+Com **“Seguir as etapas sozinho”** marcado (padrão), quando as fotos terminam de limpar, com pelo menos 3 fotos (frente,
+lateral, traseira), o painel pede sozinho as fotos de catálogo e a sugestão de nome e descrição. O 3D só entra no
+automático se **“Incluir o 3D no automático”** estiver marcado (padrão desmarcado: gasta créditos do Tripo). Nada vai para
+a loja sem a pessoa aprovar as fotos e aplicar os textos. As escolhas ficam salvas no navegador. O processador continua o
+que já está na fila com a página fechada; as próximas etapas são pedidas quando alguém abre o produto no painel.
+
+O 3D obrigatório é uma opção da categoria (**Categorias → “Exige modelo 3D para publicar”**): desmarcada, o produto
+publica sem 3D.
+
 ## Instalar e rodar
 
 ```bash
