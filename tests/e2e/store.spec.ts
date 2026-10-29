@@ -125,33 +125,60 @@ test.describe("vitrine em modo demonstração", () => {
     await expect
       .poll(async () => {
         await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-        const bar = await page.locator("[data-barra-fixa]").boundingBox();
+        // Enquanto a página termina de chegar, o Next mantém uma cópia escondida da barra: mede só a visível.
+        const bar = await page.locator("[data-barra-fixa]").filter({ visible: true }).boundingBox();
         const end = await footerEnd.boundingBox();
         return Boolean(bar && end && end.y + end.height <= bar.y);
       })
       .toBe(true);
   });
 
-  test("realidade aumentada no iPhone: Chrome mostra a câmera; app do Google orienta abrir no Safari", async ({ browser }, testInfo) => {
+  test("realidade aumentada em todo celular: app do Google abre o Safari, Firefox abre o Chrome", async ({ browser }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "basta rodar uma vez");
     const iphone = (app: string) =>
       `Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) ${app} Mobile/15E148 Safari/604.1`;
-    const open = async (userAgent: string) => {
-      const context = await browser.newContext({ ...devices["iPhone 13"], userAgent, baseURL: testInfo.project.use.baseURL });
+    const open = async (device: (typeof devices)[string], userAgent: string, path = "/produtos/poltrona-azul") => {
+      const context = await browser.newContext({ ...device, userAgent, baseURL: testInfo.project.use.baseURL });
       const page = await context.newPage();
-      await page.goto("/produtos/poltrona-azul");
-      return { context, region: page.getByRole("region", { name: "Ver em 3D" }) };
+      // Sem Safari/Chrome de verdade aqui: guarda o link de abertura em vez de segui-lo.
+      await page.addInitScript(() => {
+        const opened: string[] = [];
+        Object.assign(window, { appLinks: opened });
+        const click = HTMLAnchorElement.prototype.click;
+        HTMLAnchorElement.prototype.click = function () {
+          if (/^(x-safari-|intent:)/.test(this.href)) opened.push(this.href);
+          else click.call(this);
+        };
+      });
+      await page.goto(path);
+      const links = () => page.evaluate(() => (window as unknown as { appLinks: string[] }).appLinks);
+      return { context, page, links, region: page.getByRole("region", { name: "Ver em 3D" }) };
     };
 
-    const chrome = await open(iphone("CriOS/138.0.7204.156"));
-    await expect(chrome.region.getByRole("button", { name: "Ver no seu ambiente" })).toBeVisible();
-    await chrome.context.close();
+    // App do Google no iPhone: o botão aparece; o toque abre a mesma página no Safari, já no 3D.
+    const google = await open(devices["iPhone 13"], iphone("GSA/380.0.785098425"));
+    await expect(google.region.getByRole("button", { name: "Copiar link" })).toHaveCount(0);
+    await google.region.getByRole("button", { name: "Ver no seu ambiente" }).click();
+    await expect.poll(google.links).toEqual([
+      expect.stringMatching(/^x-safari-http:\/\/localhost:\d+\/produtos\/poltrona-azul\?ver-no-ambiente=1#visualizador-3d$/),
+    ]);
+    // Se o app não deixar sair, aparece a reserva de copiar o link.
+    await expect(google.region.getByRole("button", { name: "Copiar link" })).toBeVisible({ timeout: 5000 });
+    await google.context.close();
 
-    const googleApp = await open(iphone("GSA/380.0.785098425"));
-    await expect(googleApp.region.getByText("Para ver no seu ambiente, abra no Safari")).toBeVisible();
-    await expect(googleApp.region.getByRole("button", { name: "Copiar link" })).toBeVisible();
-    await expect(googleApp.region.getByRole("button", { name: "Ver no seu ambiente" })).toHaveCount(0);
-    await googleApp.context.close();
+    // Firefox no Android: abre a página no Chrome.
+    const firefox = await open(devices["Pixel 7"], "Mozilla/5.0 (Android 15; Mobile; rv:144.0) Gecko/144.0 Firefox/144.0");
+    await firefox.region.getByRole("button", { name: "Ver no seu ambiente" }).click();
+    await expect.poll(firefox.links).toEqual([expect.stringContaining("package=com.android.chrome")]);
+    expect((await firefox.links())[0]).toContain("/produtos/poltrona-azul?ver-no-ambiente=1");
+    await firefox.context.close();
+
+    // Chegando no Chrome/Safari do iPhone pelo link: o 3D já carrega e pede um toque para a câmera.
+    const chrome = await open(devices["iPhone 13"], iphone("CriOS/138.0.7204.156"), "/produtos/poltrona-azul?ver-no-ambiente=1");
+    await expect(chrome.page.locator("model-viewer")).toBeVisible();
+    await expect(chrome.region.getByText("Pronto para ver no seu ambiente")).toBeVisible();
+    await expect(chrome.page).toHaveURL(/\/produtos\/poltrona-azul$/);
+    await chrome.context.close();
   });
 
   test("realidade aumentada: no celular abre a câmera, no computador orienta a usar o celular", async ({ page }) => {
