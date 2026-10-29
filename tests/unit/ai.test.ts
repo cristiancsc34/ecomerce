@@ -1,12 +1,21 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { confirmedFacts, unconfirmedNumbers } from "@/lib/ai/copy";
 import { Document, NodeIO, getBounds } from "@gltf-transform/core";
 import { ALL_EXTENSIONS, EXTTextureWebP } from "@gltf-transform/extensions";
 import sharp from "sharp";
-import { CATALOG_STYLES, CATALOG_VIEWS, catalogPrompt, catalogStyle, detectEngines, optimizeGlb, scenePrompt } from "../../scripts/ai-worker.mjs";
+import {
+  CATALOG_STYLES,
+  CATALOG_VIEWS,
+  catalogPrompt,
+  catalogStyle,
+  detectEngines,
+  openaiCatalogEngine,
+  optimizeGlb,
+  scenePrompt,
+} from "../../scripts/ai-worker.mjs";
 import { makeProduct } from "./factories";
 
 const env = (vars: Record<string, string>) => vars as unknown as NodeJS.ProcessEnv;
@@ -49,6 +58,45 @@ describe("fotos de catálogo: instrução para a IA", () => {
     // Sem o Python do estúdio nesta máquina de teste, nada é habilitado — e nunca sem a chave.
     expect(withoutKey.catalog_photos).toBeUndefined();
     if (withKey.background_removal) expect(withKey.catalog_photos).toMatch(/OpenAI/);
+  });
+});
+
+describe("fotos de catálogo: chamada à OpenAI", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const image = { data: [{ b64_json: Buffer.from("png").toString("base64") }], usage: { input_tokens: 1, output_tokens: 1 } };
+
+  it("pede os 4 ângulos ao mesmo tempo, não de 2 em 2", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "catalogo-"));
+    const ref = path.join(dir, "ref.jpg");
+    writeFileSync(ref, "jpg");
+    let inFlight = 0;
+    let peak = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        peak = Math.max(peak, ++inFlight);
+        await new Promise((r) => setTimeout(r, 20));
+        inFlight--;
+        return Response.json(image);
+      }),
+    );
+    const shots = await openaiCatalogEngine("k", "m").catalogPhotos([ref], dir, null, Object.keys(CATALOG_VIEWS));
+    expect(shots.map((s: { view: string }) => s.view)).toEqual(Object.keys(CATALOG_VIEWS));
+    expect(peak).toBe(4);
+  });
+
+  it("limite de pedidos da OpenAI (429): espera e tenta de novo uma vez", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "catalogo-"));
+    const ref = path.join(dir, "ref.jpg");
+    writeFileSync(ref, "jpg");
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ error: { message: "Rate limit reached" } }, { status: 429 }))
+      .mockResolvedValue(Response.json(image));
+    vi.stubGlobal("fetch", fetch);
+    const shots = await openaiCatalogEngine("k", "m", { retryWaitMs: 1 }).catalogPhotos([ref], dir, null, ["frente"]);
+    expect(shots).toHaveLength(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
 

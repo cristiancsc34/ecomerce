@@ -263,6 +263,7 @@ export function falBackgroundEngine(apiKey = process.env.FAL_KEY, { fetchImpl = 
       const started = Date.now();
       const original = await readRgba(input);
       const alreadyCut = isCutout(original);
+      if (!alreadyCut && !apiKey) throw new Error("Falta a chave da fal.ai (FAL_KEY) para limpar o fundo desta imagem.");
       // Imagem já recortada: só aplica o enquadramento padrão da loja (não gasta a API).
       const rgba = alreadyCut ? original : await readRgba(await falRemoveBackground(apiKey, input, fetchImpl));
       const result = await composeStudio(rgba, { fundo, cleanMask: !alreadyCut });

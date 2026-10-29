@@ -114,27 +114,44 @@ async function openaiImageEdit({ apiKey, model, references, prompt, output, size
     signal: AbortSignal.timeout(4 * 60_000),
   });
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(`OpenAI: ${body?.error?.message ?? `erro ${res.status}`}`.slice(0, 300));
+  if (!res.ok) {
+    const error = new Error(`OpenAI: ${body?.error?.message ?? `erro ${res.status}`}`.slice(0, 300));
+    error.status = res.status;
+    throw error;
+  }
   const b64 = body?.data?.[0]?.b64_json;
   if (!b64) throw new Error("A OpenAI não devolveu a imagem.");
   await writeFile(output, Buffer.from(b64, "base64"));
   return body.usage ?? null;
 }
 
-/** Motor de fotos de catálogo (gera os ângulos de 2 em 2). */
-export function openaiCatalogEngine(apiKey = process.env.OPENAI_API_KEY, model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL) {
+/** Limite de pedidos por minuto da OpenAI (429): espera um pouco e tenta de novo, uma vez. */
+async function retryRateLimit(run, waitMs = 20_000) {
+  try {
+    return await run();
+  } catch (e) {
+    if (e?.status !== 429) throw e;
+    await new Promise((r) => setTimeout(r, waitMs));
+    return run();
+  }
+}
+
+/** Motor de fotos de catálogo: os ângulos saem todos ao mesmo tempo (~40 s cada, em vez de 2 em 2). */
+export function openaiCatalogEngine(
+  apiKey = process.env.OPENAI_API_KEY,
+  model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL,
+  { retryWaitMs = 20_000 } = {},
+) {
   return {
     async catalogPhotos(references, dir, _product, views) {
-      const shots = [];
-      for (let i = 0; i < views.length; i += 2) {
-        const batch = views.slice(i, i + 2).map(async (view) => {
+      return Promise.all(
+        views.map(async (view) => {
           const file = path.join(dir, `catalogo-${view}.png`);
-          const usage = await openaiImageEdit({ apiKey, model, references, prompt: catalogPrompt(view, references.length), output: file });
+          const prompt = catalogPrompt(view, references.length);
+          const usage = await retryRateLimit(() => openaiImageEdit({ apiKey, model, references, prompt, output: file }), retryWaitMs);
           return { file, view, usage };
-        });
-        shots.push(...(await Promise.all(batch)));
-      }
-      return shots;
+        }),
+      );
     },
     /** Põe a foto de estúdio no cômodo vazio padrão (estilo "ambiente-vazio"). */
     async placeInScene(studioFile, dir) {
@@ -417,15 +434,16 @@ async function model3d(supabase, job, product, inputFile, dir, engines, uploaded
  * aparece na loja depois que alguém conferir com as fotos reais.
  */
 async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, uploaded) {
+  // As referências são as fotos do celular como foram tiradas: não precisa esperar a limpeza.
   const { data: cleaned, error } = await supabase
     .from("ai_jobs")
     .select("input_path")
     .eq("product_id", product.id)
     .eq("kind", "background_removal")
-    .eq("status", "succeeded")
+    .neq("status", "failed")
     .order("created_at");
   if (error) throw new Error(error.message);
-  if (!cleaned?.length) throw new Error("Envie e limpe pelo menos uma foto real antes.");
+  if (!cleaned?.length) throw new Error("Envie pelo menos uma foto do produto antes.");
 
   const references = [];
   for (const [i, row] of cleaned.entries()) {

@@ -107,6 +107,15 @@ describe("limpeza na nuvem: API da fal.ai", () => {
     top.forEach((c, i) => expect(Math.abs(c - BACKGROUNDS.neutro.top[i])).toBeLessThanOrEqual(3));
   });
 
+  it("sem a chave da fal.ai, uma foto comum não é mandada para fora e o erro explica", async () => {
+    const folder = dir();
+    const photo = path.join(folder, "celular.jpg");
+    writeFileSync(photo, await sharp({ create: { width: 50, height: 50, channels: 3, background: "#888" } }).jpeg().toBuffer());
+    const fetchImpl = vi.fn();
+    await expect(falBackgroundEngine("", { fetchImpl }).backgroundRemoval(photo, folder)).rejects.toThrow("Falta a chave da fal.ai");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it("chave errada: o erro diz o que conferir", async () => {
     const folder = dir();
     const photo = path.join(folder, "celular.jpg");

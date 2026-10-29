@@ -57,8 +57,8 @@ describe("etapas do estúdio", () => {
     expect(p.current?.id).toBe("limpeza");
     expect(p.current?.detail).toBe("Foto 1 de 3");
     expect(states(base({ jobs }))).toMatchObject({ fotos: "done", limpeza: "working", catalogo: "todo", modelo3d: "todo" });
-    // 30 s (foto 1) + 40 + 40 (fila) + 90 (fotos de catálogo; os textos, ~8 s, correm junto)
-    expect(p.remainingSeconds).toBe(30 + 40 + 40 + 90);
+    // 30 s (foto 1) + 40 + 40 (fila) + 50 (fotos de catálogo; os textos, ~8 s, correm junto)
+    expect(p.remainingSeconds).toBe(30 + 40 + 40 + 50);
   });
 
   it("3D opcional não entra na conta nem vira a etapa atual", () => {
@@ -83,7 +83,7 @@ describe("etapas do estúdio", () => {
     const step = p.steps.find((s) => s.id === "modelo3d")!;
     expect(step.optional).toBe(false);
     expect(step.detail).toContain("Exige modelo 3D para publicar");
-    expect(p.remainingSeconds).toBe(90 + 135);
+    expect(p.remainingSeconds).toBe(50 + 135);
   });
 
   it("IA não configurada: as etapas esperam e dizem por quê", () => {
@@ -91,6 +91,17 @@ describe("etapas do estúdio", () => {
     const p = studioPipeline(input);
     expect(p.current?.state).toBe("waiting");
     expect(p.current?.detail).toBe("Esperando a IA ser configurada");
+  });
+
+  it("sem a chave da fal.ai: pula a limpeza e as fotos de catálogo saem direto das fotos do celular", () => {
+    const jobs = [0, 1, 2].map(() => job("background_removal", "queued"));
+    const input = base({ jobs, capabilities: ["catalog_photos"] });
+    const p = studioPipeline(input);
+    expect(states(input)).toMatchObject({ fotos: "done", limpeza: "off", catalogo: "todo", textos: "todo" });
+    expect(p.steps.find((s) => s.id === "limpeza")?.detail).toContain("FAL_KEY");
+    expect(p.steps.find((s) => s.id === "catalogo")?.detail).toBe("Começa sozinho.");
+    expect(p.current?.id).toBe("catalogo");
+    expect(p.remainingSeconds).toBe(50);
   });
 
   it("menos de 3 fotos: avisa quantas faltam para seguir sozinho", () => {

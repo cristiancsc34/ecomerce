@@ -22,7 +22,7 @@ painel pelo celular a qualquer hora.
 | Etapa | Serviço | Chave na Vercel |
 | --- | --- | --- |
 | Pegar tarefas da fila e gravar os resultados | Supabase | `SUPABASE_SERVICE_ROLE_KEY` |
-| Limpeza do fundo | fal.ai, BiRefNet ([fal.ai/models/fal-ai/birefnet/v2](https://fal.ai/models/fal-ai/birefnet/v2)) | `FAL_KEY` |
+| Limpeza do fundo (opcional) | fal.ai, BiRefNet ([fal.ai/models/fal-ai/birefnet/v2](https://fal.ai/models/fal-ai/birefnet/v2)) | `FAL_KEY` |
 | Fotos de catálogo e nome/descrição | OpenAI | `OPENAI_API_KEY` |
 | Modelo 3D (opcional) | Tripo | `TRIPO_API_KEY` |
 
@@ -30,6 +30,10 @@ Cadastre em **Vercel → projeto `cuxoes` → Settings → Environment Variables
 **Sensitive**. Nunca use o prefixo `NEXT_PUBLIC_`. Depois, faça um **Redeploy** (as variáveis só valem em deploys novos).
 O painel mostra no topo do estúdio o que está ligado e quais chaves faltam (só os nomes). Cada chave liga a sua etapa:
 sem a do Tripo, por exemplo, todo o resto funciona e o 3D fica como “falta a chave”.
+
+O mínimo para funcionar é `SUPABASE_SERVICE_ROLE_KEY` + `OPENAI_API_KEY`: sem a `FAL_KEY`, a limpeza do fundo é
+**pulada** e as fotos de catálogo saem direto das fotos do celular (que já são a referência delas; a limpeza só gera a
+foto de “antes × depois”).
 
 Como roda:
 
@@ -68,7 +72,7 @@ Painel (Next.js)  ──cria job──▶  ai_jobs (Supabase)  ◀──pega 1 p
 No topo do estúdio, **“Etapas deste produto”** mostra cada etapa com ✓ quando termina, a etapa atual em destaque, quanto
 cada uma costuma levar (tempos medidos abaixo) e quanto falta para o produto ficar pronto para conferir:
 
-1. Fotos do celular → 2. Limpeza do fundo (~40 s por foto) → 3. Fotos de catálogo (~1 min 30 s) e 4. Nome e descrição
+1. Fotos do celular → 2. Limpeza do fundo (~40 s por foto) → 3. Fotos de catálogo (~50 s, estimativa) e 4. Nome e descrição
    (~8 s), ao mesmo tempo → 5. Modelo 3D (~2 min 15 s, **opcional**) → 6. Conferir e aprovar (a pessoa).
 
 Com **“Seguir as etapas sozinho”** marcado (padrão), quando as fotos terminam de limpar, com pelo menos 3 fotos (frente,
@@ -139,8 +143,9 @@ faltando). As **fotos de catálogo** recriam a cena:
 
 **Estado: funcionando** com a API da OpenAI (`OPENAI_API_KEY` no `.env.local` do processador). Modelo padrão
 `gpt-image-2.5-sunburst` (troque com `OPENAI_IMAGE_MODEL`), edição com todas as fotos reais como referência, fundo
-transparente, 1536×1024, qualidade alta. Medido com as duas cadeiras reais (28/10/2026): **~40 s por imagem** (2 em
-paralelo, ~1,5 min para os 4 ângulos) e **~US$ 0,08 por imagem** (~4,7 mil tokens de entrada + ~1,4 mil de saída) →
+transparente, 1536×1024, qualidade alta. Medido com as duas cadeiras reais (28/10/2026): **~40 s por imagem** (na
+época, 2 em paralelo: ~1,5 min para os 4 ângulos; desde 29/10 os 4 saem ao mesmo tempo, com uma nova tentativa se a
+OpenAI pedir para esperar, erro 429) e **~US$ 0,08 por imagem** (~4,7 mil tokens de entrada + ~1,4 mil de saída) →
 **~US$ 0,35 por produto**. Alternativa com a mesma chave da fal.ai do 3D: Nano Banana Pro (~US$ 0,15 por imagem).
 
 Instrução enviada ao modelo (por ângulo; ver `catalogPrompt` em `scripts/ai-worker.mjs`):

@@ -1,7 +1,10 @@
 import { isPending, type AiJobView } from "./ai-types";
 
-/** Tempos medidos (docs/ESTUDIO-IA.md): limpeza 35–45 s por foto, 4 fotos de catálogo ~1,5 min, 3D ~2 min 15 s, textos ~8 s. */
-export const TYPICAL_SECONDS = { background_removal: 40, catalog_photos: 90, model_3d: 135, copy: 8 } as const;
+/**
+ * Tempos (docs/ESTUDIO-IA.md): limpeza 35–45 s por foto (medido no processador local), 3D ~2 min 15 s e textos ~8 s
+ * (medidos). Fotos de catálogo: ~40 s por imagem medidos; as 4 agora saem ao mesmo tempo (estimativa: ~50 s).
+ */
+export const TYPICAL_SECONDS = { background_removal: 40, catalog_photos: 50, model_3d: 135, copy: 8 } as const;
 
 /** Frente, lateral e traseira: com menos fotos o painel não segue sozinho (a IA teria de adivinhar lados). */
 export const MIN_PHOTOS_AUTO = 3;
@@ -59,9 +62,18 @@ function remaining(job: AiJobView, now: number | null) {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/**
+ * A IA está ligada, mas sem a limpeza de fundo (falta a chave da fal.ai): a etapa é pulada e as fotos de catálogo
+ * saem direto das fotos do celular (que já são a referência delas).
+ */
+export function cleanupSkipped(workerOnline: boolean, capabilities: string[]) {
+  return workerOnline && !capabilities.includes("background_removal");
+}
+
 /** Em que etapa o produto está no estúdio, o que falta e quanto tempo deve levar. */
 export function studioPipeline(input: PipelineInput): Pipeline {
   const { jobs, now, workerOnline, capabilities, uploading, catalogMedia, copy, model3d } = input;
+  const skipCleanup = cleanupSkipped(workerOnline, capabilities);
   const pendingState = (job: AiJobView): StepState => (job.status === "running" ? "working" : workerOnline ? "queued" : "waiting");
   const waitingDetail = "Esperando a IA ser configurada";
 
@@ -81,7 +93,13 @@ export function studioPipeline(input: PipelineInput): Pipeline {
   const cleanPending = clean.filter(isPending);
   const cleanOk = clean.filter((j) => j.status === "succeeded");
   const limpeza: PipelineStep = { id: "limpeza", label: "Limpeza do fundo", state: "todo", detail: "Começa sozinha quando as fotos chegam.", etaSeconds: TYPICAL_SECONDS.background_removal, optional: false };
-  if (cleanPending.length) {
+  if (skipCleanup) {
+    Object.assign(limpeza, {
+      state: "off",
+      detail: "Pulada: falta a chave da fal.ai (FAL_KEY). As fotos de catálogo saem direto das fotos do celular.",
+      etaSeconds: null,
+    });
+  } else if (cleanPending.length) {
     const running = cleanPending.find((j) => j.status === "running");
     Object.assign(limpeza, {
       state: pendingState(cleanPending[0]),
@@ -97,11 +115,14 @@ export function studioPipeline(input: PipelineInput): Pipeline {
   } else if (cleanOk.length) {
     Object.assign(limpeza, { state: "done", detail: plural(cleanOk.length, "foto limpa", "fotos limpas"), etaSeconds: null });
   }
-  const cleanDone = clean.length > 0 && !cleanPending.length && cleanOk.length > 0;
+  // Fotos prontas para as próximas etapas: limpas, ou só enviadas quando a limpeza está desligada.
+  const cleanDone = skipCleanup ? clean.length > 0 : clean.length > 0 && !cleanPending.length && cleanOk.length > 0;
+  const readyCount = skipCleanup ? clean.length : cleanOk.length;
+  const afterPhotos = skipCleanup ? "Depois das fotos." : "Depois da limpeza.";
 
   // 3. Fotos de catálogo (padrão da loja)
   const catalogJob = jobs.filter((j) => j.kind === "catalog_photos").at(-1) ?? null;
-  const catalogo: PipelineStep = { id: "catalogo", label: "Fotos de catálogo", state: "todo", detail: "Depois da limpeza.", etaSeconds: TYPICAL_SECONDS.catalog_photos, optional: false };
+  const catalogo: PipelineStep = { id: "catalogo", label: "Fotos de catálogo", state: "todo", detail: afterPhotos, etaSeconds: TYPICAL_SECONDS.catalog_photos, optional: false };
   if (catalogJob && isPending(catalogJob)) {
     Object.assign(catalogo, {
       state: pendingState(catalogJob),
@@ -115,12 +136,12 @@ export function studioPipeline(input: PipelineInput): Pipeline {
   } else if (workerOnline && !capabilities.includes("catalog_photos")) {
     Object.assign(catalogo, { state: "off", detail: "Falta a chave da OpenAI (OPENAI_API_KEY) na Vercel.", etaSeconds: null });
   } else if (cleanDone) {
-    catalogo.detail = cleanOk.length >= MIN_PHOTOS_AUTO ? "Começa sozinho." : "Com poucas fotos, toque em “Gerar fotos de catálogo”.";
+    catalogo.detail = readyCount >= MIN_PHOTOS_AUTO ? "Começa sozinho." : "Com poucas fotos, toque em “Gerar fotos de catálogo”.";
   }
   const catalogDone = catalogo.state === "done";
 
   // 4. Nome e descrição (sugestão do ChatGPT; a pessoa revisa e aplica)
-  const textos: PipelineStep = { id: "textos", label: "Nome e descrição", state: "todo", detail: "Depois da limpeza.", etaSeconds: TYPICAL_SECONDS.copy, optional: false };
+  const textos: PipelineStep = { id: "textos", label: "Nome e descrição", state: "todo", detail: afterPhotos, etaSeconds: TYPICAL_SECONDS.copy, optional: false };
   if (!copy.enabled) Object.assign(textos, { state: "off", detail: "Falta a chave da OpenAI (OPENAI_API_KEY) na Vercel.", etaSeconds: null });
   else if (copy.hasCopy) Object.assign(textos, { state: "done", detail: "Descrição no produto.", etaSeconds: null });
   else if (copy.writing) Object.assign(textos, { state: "working", detail: "O ChatGPT está escrevendo." });

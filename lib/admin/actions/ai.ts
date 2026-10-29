@@ -132,7 +132,7 @@ export async function requestModel3dAction(productId: string, cleanJobId: string
 
 /**
  * Pede as fotos de catálogo: a IA recria a cena nos ângulos padrão usando as
- * fotos reais (já enviadas e limpas) como referência.
+ * fotos reais do celular como referência (não precisa esperar a limpeza).
  */
 export async function requestCatalogPhotosAction(productId: string): Promise<ActionResult> {
   const denied = await guard();
@@ -145,9 +145,9 @@ export async function requestCatalogPhotosAction(productId: string): Promise<Act
     .select("input_path")
     .eq("product_id", productId)
     .eq("kind", "background_removal")
-    .eq("status", "succeeded")
+    .neq("status", "failed")
     .order("created_at");
-  if (!photos?.length) return { ok: false, error: "Envie e limpe pelo menos uma foto real antes." };
+  if (!photos?.length) return { ok: false, error: "Envie pelo menos uma foto do produto antes." };
 
   const { data: pending } = await supabase
     .from("ai_jobs")
@@ -277,20 +277,21 @@ export async function suggestCopyAction(productId: string): Promise<ActionResult
   const supabase = await createSessionClient();
   let paths = photos.map((p) => p.storagePath);
   if (!paths.length) {
-    // Ainda sem fotos aprovadas: usa as fotos do celular já limpas.
-    const { data: cleaned } = await supabase
+    // Ainda sem fotos aprovadas: usa as fotos do celular (a versão limpa, se já existir).
+    const { data: sent } = await supabase
       .from("ai_jobs")
-      .select("details")
+      .select("input_path,details")
       .eq("product_id", productId)
       .eq("kind", "background_removal")
-      .eq("status", "succeeded")
+      .neq("status", "failed")
       .order("created_at")
       .limit(4);
-    paths = (cleaned ?? [])
-      .map((j) => (j.details as { studioPath?: unknown } | null)?.studioPath)
-      .filter((p): p is string => typeof p === "string");
+    paths = (sent ?? []).map((j) => {
+      const studioPath = (j.details as { studioPath?: unknown } | null)?.studioPath;
+      return typeof studioPath === "string" ? studioPath : (j.input_path as string);
+    });
   }
-  if (!paths.length) return { ok: false, error: "Envie e limpe as fotos antes de pedir os textos." };
+  if (!paths.length) return { ok: false, error: "Envie as fotos antes de pedir os textos." };
 
   const images: { mime: string; bytes: Uint8Array }[] = [];
   for (const storagePath of paths) {

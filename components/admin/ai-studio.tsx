@@ -18,6 +18,7 @@ import type { CopySuggestion } from "@/lib/ai/copy";
 import { deleteMediaAction } from "@/lib/admin/actions/media";
 import { isPending, type AiJobKind, type AiJobView, type AiStudioSnapshot } from "@/lib/admin/ai-types";
 import {
+  cleanupSkipped,
   duration,
   elapsedSeconds as elapsed,
   MIN_PHOTOS_AUTO,
@@ -373,7 +374,11 @@ export function AiStudio({
   const readyPhotos = cleanJobs.filter((j) => j.status === "succeeded" && j.hasCutout);
   const chosenBase = readyPhotos.find((j) => j.id === baseJobId) ?? readyPhotos[0] ?? null;
   const has3d = modelJobs.some((j) => j.status === "succeeded" && j.outputUrl);
-  const anyPending = snapshot.jobs.some(isPending);
+  const skipCleanup = cleanupSkipped(snapshot.worker.online, snapshot.worker.capabilities);
+  // Tarefas que ninguém sabe fazer agora (ex.: limpeza sem a chave da fal.ai) não prendem a tela esperando.
+  const anyPending = snapshot.jobs.some(
+    (j) => isPending(j) && (j.status === "running" || !snapshot.worker.online || snapshot.worker.capabilities.includes(j.kind)),
+  );
   const can3d = snapshot.worker.capabilities.includes("model_3d");
   const canCatalog = snapshot.worker.capabilities.includes("catalog_photos");
   const catalogJob = snapshot.jobs.filter((j) => j.kind === "catalog_photos").at(-1) ?? null;
@@ -451,7 +456,9 @@ export function AiStudio({
   }
 
   const cleanOk = cleanJobs.filter((j) => j.status === "succeeded");
-  const cleanDone = cleanOk.length > 0 && !cleanJobs.some(isPending);
+  // Fotos prontas para as próximas etapas: limpas, ou só enviadas quando a limpeza está desligada.
+  const cleanDone = skipCleanup ? cleanJobs.length > 0 : cleanOk.length > 0 && !cleanJobs.some(isPending);
+  const readyCount = skipCleanup ? cleanJobs.length : readyPhotos.length;
   const pipeline = studioPipeline({
     jobs: snapshot.jobs,
     // O relógio só entra depois da hidratação: servidor e navegador desenham o mesmo texto.
@@ -468,7 +475,7 @@ export function AiStudio({
   // Só com a IA pronta para a etapa (nuvem ou processador), e uma vez só por etapa nesta tela.
   const autoReady = hydrated && auto && canEdit && !uploading && snapshot.worker.online;
   const wantsCatalog =
-    autoReady && canCatalog && cleanDone && cleanOk.length >= MIN_PHOTOS_AUTO && !catalogJob && !aiMedia.length;
+    autoReady && canCatalog && cleanDone && readyCount >= MIN_PHOTOS_AUTO && !catalogJob && !aiMedia.length;
   const wants3d = autoReady && auto3d && can3d && catalogReady && !latestModel && !has3d;
   useEffect(() => {
     const next = wantsCatalog ? "catalogo" : wants3d ? "3d" : null;
@@ -598,7 +605,7 @@ export function AiStudio({
             <li key={job.id} className="rounded-2xl border border-line bg-cloud p-3" data-testid="foto-estudio" data-status={job.status}>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold">Foto {i + 1}</span>
-                <StatusBadge job={job} />
+                {skipCleanup && job.status === "queued" ? <Badge tone="neutral">Enviada</Badge> : <StatusBadge job={job} />}
               </div>
               {/* Antes (retrato, como o celular tira) e depois (4:3, como a galeria) com a mesma altura. */}
               <div className="mt-2 grid grid-cols-[9fr_16fr] gap-2">
@@ -616,6 +623,10 @@ export function AiStudio({
                       <div className="flex h-full items-center justify-center p-3 text-center text-xs text-muted">
                         Não foi possível limpar esta foto.
                       </div>
+                    ) : skipCleanup && job.status === "queued" ? (
+                      <div className="flex h-full items-center justify-center p-3 text-center text-xs text-muted">
+                        Limpeza desligada (falta a chave da fal.ai). A foto já serve para as fotos de catálogo.
+                      </div>
                     ) : (
                       <WorkingTile
                         active={job.status === "running"}
@@ -629,7 +640,9 @@ export function AiStudio({
                   </figcaption>
                 </figure>
               </div>
-              <JobProgress job={job} now={now} hydrated={hydrated} workerOnline={snapshot.worker.online} />
+              {skipCleanup && job.status === "queued" ? null : (
+                <JobProgress job={job} now={now} hydrated={hydrated} workerOnline={snapshot.worker.online} />
+              )}
               {job.error ? <p className="mt-2 text-sm text-danger">{job.error}</p> : null}
               {canEdit ? (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -692,7 +705,7 @@ export function AiStudio({
             onClick={generateCatalog}
             loading={requestingCatalog}
             loadingLabel="Pedindo…"
-            disabled={!hydrated || !readyPhotos.length || (snapshot.worker.online && !canCatalog) || Boolean(catalogJob && isPending(catalogJob))}
+            disabled={!hydrated || !readyCount || (snapshot.worker.online && !canCatalog) || Boolean(catalogJob && isPending(catalogJob))}
           >
             <SparkIcon className="h-5 w-5" /> {aiMedia.length ? "Gerar fotos de catálogo de novo" : "Gerar fotos de catálogo"}
           </Button>
@@ -754,7 +767,9 @@ export function AiStudio({
               ? "Base: as fotos de catálogo (frente, lado e costas). Leva de 2 a 3 minutos."
               : chosenBase
                 ? `Base: foto ${cleanJobs.indexOf(chosenBase) + 1}. Leva de 2 a 3 minutos.`
-                : "Primeiro envie e limpe pelo menos uma foto."}
+                : skipCleanup
+                  ? "Primeiro gere as fotos de catálogo."
+                  : "Primeiro envie e limpe pelo menos uma foto."}
           </span>
         </div>
       ) : null}
@@ -799,7 +814,7 @@ export function AiStudio({
       <CopyAssistant
         productId={productId}
         enabled={copyEnabled && canEdit && hydrated}
-        hasPhotos={readyPhotos.length > 0 || aiMedia.some((m) => !m.pendingReview)}
+        hasPhotos={readyCount > 0 || aiMedia.some((m) => !m.pendingReview)}
         autoStart={hydrated && auto && canEdit && cleanDone && !hasCopy}
         onStatus={setCopyStatus}
         onApplied={(text) => {
