@@ -11,7 +11,7 @@ import type { AuditEvent } from "./types";
  * Leituras do painel. Sempre com a sessão do usuário (RLS) e checando a equipe
  * antes, para que um módulo importado por engano não vaze dados.
  */
-const ADMIN_PRODUCT_SELECT =
+export const ADMIN_PRODUCT_SELECT =
   "id,name,slug,short_description,description,status,is_demo,price_cents,compare_at_price_cents,currency,sku,stock_quantity,dimensions,attributes,faq,seo_title,seo_description,created_at,updated_at,published_at," +
   "category:categories(id,slug,name,requires_3d)," +
   "media:product_media(id,storage_path,media_type,alt_text,sort_order,is_primary,is_illustrative,ai_generated,approved_at,width,height)," +

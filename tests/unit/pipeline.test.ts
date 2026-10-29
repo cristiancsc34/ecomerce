@@ -58,7 +58,7 @@ describe("etapas do estúdio", () => {
     expect(p.current?.detail).toBe("Foto 1 de 3");
     expect(states(base({ jobs }))).toMatchObject({ fotos: "done", limpeza: "working", catalogo: "todo", modelo3d: "todo" });
     expect(p.steps.find((s) => s.id === "catalogo")?.detail).toBe("Começa sozinho.");
-    expect(p.steps.find((s) => s.id === "textos")?.detail).toBe("Começa sozinho.");
+    expect(p.steps.find((s) => s.id === "textos")?.detail).toBe("Começa sozinho, junto com as fotos de catálogo.");
     // Fotos limpas ao mesmo tempo (a da fila leva ~25 s), catálogo ~50 s e textos ~8 s juntos: vale o mais demorado.
     expect(p.steps.find((s) => s.id === "limpeza")?.etaSeconds).toBe(25);
     expect(p.remainingSeconds).toBe(50);

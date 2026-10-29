@@ -1,7 +1,8 @@
 "use server";
 
 import { updateTag } from "next/cache";
-import { suggestCopy, type CopySuggestion } from "@/lib/ai/copy";
+import { suggestCopy } from "@/lib/ai/copy";
+import { photosForCopy, readCopyDraft, storeCopyDraft, type CopyDraft } from "@/lib/ai/copy-draft";
 import { cloudAiConfig, needsCloudRun } from "@/lib/ai-cloud/config";
 import { kickCloudQueue } from "@/lib/ai-cloud/runner";
 import { rateLimit } from "@/lib/auth/rate-limit";
@@ -11,6 +12,7 @@ import { CATALOG_TAG } from "@/lib/catalog/queries";
 import { isUuid } from "@/lib/catalog/slug";
 import { validateMediaUpload } from "@/lib/media/validate";
 import { createSessionClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { z } from "zod";
 import { getAiStudioSnapshot } from "../ai";
 import { getAdminProduct } from "../data";
@@ -250,11 +252,15 @@ export async function discardAiJobAction(jobId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+export type CopyDraftResult = { status: "ready"; draft: CopyDraft } | { status: "writing" };
+
 /**
- * Sugere nome, descrições e SEO a partir das fotos e dos dados confirmados.
- * Só sugere: nada é salvo aqui.
+ * Nome, descrições e SEO sugeridos pela IA a partir das fotos e dos dados
+ * confirmados. A IA lê as fotos UMA vez por produto (normalmente junto com as
+ * fotos de catálogo) e o rascunho fica guardado: aqui só se lê. Nada é salvo no
+ * produto: a pessoa revisa e aplica.
  */
-export async function suggestCopyAction(productId: string): Promise<ActionResult<CopySuggestion>> {
+export async function copyDraftAction(productId: string): Promise<ActionResult<CopyDraftResult>> {
   let staffId: string;
   try {
     staffId = (await requireStaffAction()).userId;
@@ -263,10 +269,25 @@ export async function suggestCopyAction(productId: string): Promise<ActionResult
   }
   if (!isUuid(productId)) return { ok: false, error: "Produto inválido." };
   if (!process.env.OPENAI_API_KEY) return { ok: false, error: "A chave da OpenAI não está configurada no servidor." };
+
+  const supabase = await createSessionClient();
+  const stored = await readCopyDraft(supabase, productId);
+  if (stored) return { ok: true, data: { status: "ready", draft: stored } };
+
+  // A IA na nuvem já está lendo as fotos junto com as fotos de catálogo: é só esperar.
+  const { data: catalogPending } = await supabase
+    .from("ai_jobs")
+    .select("id")
+    .eq("product_id", productId)
+    .eq("kind", "catalog_photos")
+    .in("status", ["queued", "running"])
+    .limit(1);
+  if (catalogPending?.length && cloudAiConfig().engines.catalog_photos) return { ok: true, data: { status: "writing" } };
+
+  // Ninguém leu as fotos ainda: lê agora, uma vez, e guarda para as próximas.
   if (!rateLimit(`copy:${staffId}`, { limit: 10, windowMs: 10 * 60_000 }).allowed) {
     return { ok: false, error: "Muitos pedidos seguidos. Aguarde alguns minutos." };
   }
-
   const product = await getAdminProduct(productId);
   if (!product) return { ok: false, error: "Produto não encontrado." };
   // Fotos que representam o produto: aprovadas primeiro, sem as que aguardam conferência.
@@ -274,7 +295,6 @@ export async function suggestCopyAction(productId: string): Promise<ActionResult
     .filter((m) => m.type === "image" && !m.pendingReview && !m.isIllustrative)
     .sort((a, b) => Number(b.aiGenerated) - Number(a.aiGenerated) || Number(b.isPrimary) - Number(a.isPrimary) || a.sortOrder - b.sortOrder)
     .slice(0, 4);
-  const supabase = await createSessionClient();
   let paths = photos.map((p) => p.storagePath);
   if (!paths.length) {
     // Ainda sem fotos aprovadas: usa as fotos do celular (a versão limpa, se já existir).
@@ -293,13 +313,16 @@ export async function suggestCopyAction(productId: string): Promise<ActionResult
   }
   if (!paths.length) return { ok: false, error: "Envie as fotos antes de pedir os textos." };
 
-  const images: { mime: string; bytes: Uint8Array }[] = [];
+  const images: Uint8Array[] = [];
   for (const storagePath of paths) {
     const { data } = await supabase.storage.from(MEDIA_BUCKET).download(storagePath);
-    if (data) images.push({ mime: data.type || "image/jpeg", bytes: new Uint8Array(await data.arrayBuffer()) });
+    if (data) images.push(new Uint8Array(await data.arrayBuffer()));
   }
   try {
-    return { ok: true, data: await suggestCopy({ product, images }) };
+    const draft = { ...(await suggestCopy({ product, images: await photosForCopy(images) })), createdAt: new Date().toISOString() };
+    const service = createServiceClient();
+    if (service) await storeCopyDraft(service, productId, draft);
+    return { ok: true, data: { status: "ready", draft } };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Não foi possível gerar os textos." };
   }

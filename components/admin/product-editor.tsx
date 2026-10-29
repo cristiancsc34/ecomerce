@@ -35,6 +35,7 @@ export function ProductEditor({
   publishIssues,
   photos,
   history,
+  aiCopyEnabled = false,
 }: {
   product: Product;
   categories: Pick<Category, "id" | "name" | "slug">[];
@@ -47,6 +48,8 @@ export function ProductEditor({
   /** Estúdio de IA + fotos na loja (aba "Fotos e 3D"). */
   photos: ReactNode;
   history: ReactNode;
+  /** A chave da OpenAI está no servidor ("Aprimorar descrição" na aba Informações). */
+  aiCopyEnabled?: boolean;
 }) {
   const [tab, setTab] = useState<ProductTab>(initialTab);
   const [dirty, setDirty] = useState(false);
@@ -133,6 +136,7 @@ export function ProductEditor({
             tab={tab}
             onTabChange={(t) => go(t)}
             onDirtyChange={setDirty}
+            aiCopyEnabled={aiCopyEnabled}
           />
         </div>
       </div>

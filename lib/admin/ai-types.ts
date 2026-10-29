@@ -1,3 +1,5 @@
+import type { CopyDraft } from "@/lib/ai/copy-draft";
+
 export type AiJobKind = "background_removal" | "catalog_photos" | "model_3d";
 export type AiJobStatus = "queued" | "running" | "succeeded" | "failed";
 
@@ -25,6 +27,8 @@ export type AiJobView = {
 
 export type AiStudioSnapshot = {
   jobs: AiJobView[];
+  /** Nome e descrição que a IA já escreveu a partir das fotos (guardado; não gasta de novo). */
+  copyDraft: CopyDraft | null;
   worker: {
     /** Alguém sabe processar: a IA na nuvem (chaves na Vercel) ou um processador local ligado. */
     online: boolean;

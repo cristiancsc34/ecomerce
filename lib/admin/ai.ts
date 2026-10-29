@@ -1,4 +1,5 @@
 import "server-only";
+import { parseCopyDraft } from "@/lib/ai/copy-draft";
 import { cloudAiConfig } from "@/lib/ai-cloud/config";
 import { requireStaffAction } from "@/lib/auth/staff";
 import { mediaPublicUrl } from "@/lib/catalog/mappers";
@@ -41,7 +42,7 @@ function workerStatus(local: { capabilities: string[]; engines: Record<string, s
 
 export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSnapshot> {
   await requireStaffAction();
-  if (!isUuid(productId)) return { jobs: [], worker: workerStatus([]) };
+  if (!isUuid(productId)) return { jobs: [], copyDraft: null, worker: workerStatus([]) };
   const supabase = await createSessionClient();
   const [{ data: jobs }, { data: workers }] = await Promise.all([
     supabase
@@ -60,8 +61,10 @@ export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSn
     (w) => now - new Date(w.last_seen_at).getTime() < WORKER_ONLINE_MS,
   );
 
+  const rows = (jobs ?? []) as unknown as JobRow[];
   return {
-    jobs: ((jobs ?? []) as unknown as JobRow[]).map((j) => ({
+    copyDraft: rows.map((j) => parseCopyDraft(j.details)).filter(Boolean).at(-1) ?? null,
+    jobs: rows.map((j) => ({
       id: j.id,
       kind: j.kind,
       status: j.status,

@@ -90,6 +90,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
           initialTab={initialTab}
           readiness={readiness(product)}
           publishIssues={issues}
+          aiCopyEnabled={Boolean(process.env.OPENAI_API_KEY)}
           photos={
             <>
               <AiStudio

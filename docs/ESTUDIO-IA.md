@@ -199,3 +199,17 @@ não inventar medidas, materiais, garantia, certificações ou benefícios; o qu
 aparência (ex.: “estrutura em tom de madeira clara”). Se o texto citar um número que não está nos dados confirmados, o
 painel avisa antes de aplicar. Nada é salvo sem a pessoa revisar e clicar em “Aplicar ao produto”. Limite: 10 pedidos a
 cada 10 minutos por pessoa. Leva ~8 s e custa centavos.
+
+**A IA lê as fotos uma vez só por produto (29/10/2026, pedido do dono).** Na IA na nuvem, o rascunho de nome e
+descrição é escrito **junto com as fotos de catálogo** (as mesmas fotos do celular, reduzidas a 1024 px para gastar
+menos), sem aumentar a espera, e fica guardado em `ai_jobs.details.copy` (gravado só pelo servidor). Depois disso:
+
+- **Aba Informações → “Aprimorar descrição”**: preenche a descrição curta e a completa com o rascunho guardado (e os
+  textos do Google, só se estiverem vazios) e mostra os nomes sugeridos para tocar e usar. Não chama a IA de novo. Se
+  a IA ainda estiver escrevendo, o botão espera alguns segundos. Nada é salvo sem tocar em **Salvar**.
+- **Estúdio, seção de textos**: mostra o mesmo rascunho; não chama mais a IA sozinho ao abrir a página.
+- Só se ninguém leu as fotos ainda (ex.: produto com menos de 3 fotos, sem fotos de catálogo), o primeiro toque lê as
+  fotos uma vez e guarda o rascunho para as próximas vezes.
+- Código: `lib/ai/copy-draft.ts` (ler, escrever e guardar), `startCopyDraft` em `scripts/ai-pipeline.mjs` e
+  `copyDraftAction` em `lib/admin/actions/ai.ts`.
+- Medido em 29/10 (cadeira preta, 3 fotos): ~8 s.

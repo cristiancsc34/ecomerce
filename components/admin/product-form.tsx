@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { get, useFieldArray, useForm, useWatch, type FieldErrors, type Path, type UseFormRegister } from "react-hook-form";
+import { copyDraftAction } from "@/lib/admin/actions/ai";
 import { saveProductAction } from "@/lib/admin/actions/products";
 import { productToFormValues } from "@/lib/admin/form-values";
 import { useHydrated } from "@/lib/use-hydrated";
@@ -16,9 +17,10 @@ import {
   type ProductFormOutput,
   type ProductFormValues,
 } from "@/lib/validation/product";
+import type { CopyDraft } from "@/lib/ai/copy-draft";
 import { Button } from "@/components/ui/button";
 import { controlClasses, FieldError, HelpText, Label } from "@/components/ui/field";
-import { ArrowDownIcon, ArrowUpIcon, CheckIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
+import { ArrowDownIcon, ArrowUpIcon, CheckIcon, PlusIcon, SparkIcon, TrashIcon } from "@/components/ui/icons";
 
 type FormPath = Path<ProductFormValues>;
 
@@ -125,6 +127,7 @@ export function ProductForm({
   tab,
   onTabChange,
   onDirtyChange,
+  aiCopyEnabled = false,
 }: {
   product: Product;
   categories: Pick<Category, "id" | "name" | "slug">[];
@@ -135,6 +138,8 @@ export function ProductForm({
   onTabChange: (tab: ProductTab) => void;
   /** Avisa o painel lateral (publicar só depois de salvar). */
   onDirtyChange?: (dirty: boolean) => void;
+  /** A chave da OpenAI está no servidor: mostra o "Aprimorar descrição". */
+  aiCopyEnabled?: boolean;
 }) {
   const router = useRouter();
   const hydrated = useHydrated();
@@ -216,6 +221,40 @@ export function ProductForm({
     },
   );
 
+  // "Aprimorar descrição": usa a leitura das fotos que a IA já fez e guardou (não gasta de novo).
+  const [improving, setImproving] = useState<"idle" | "busy" | "writing">("idle");
+  const [improved, setImproved] = useState<{ tone: "success" | "danger"; text: string; draft?: CopyDraft } | null>(null);
+  async function improveDescription() {
+    setImproving("busy");
+    setImproved(null);
+    const started = Date.now();
+    for (;;) {
+      const r = await copyDraftAction(product.id);
+      if (!r.ok) {
+        setImproved({ tone: "danger", text: r.error });
+        break;
+      }
+      if (r.data.status === "ready") {
+        const d = r.data.draft;
+        const opts = { shouldDirty: true, shouldValidate: true } as const;
+        setValue("shortDescription", d.shortDescription, opts);
+        setValue("description", d.description, opts);
+        // Os textos do Google só entram se ainda estiverem vazios (não apaga o que alguém escreveu).
+        if (!getValues("seoTitle")) setValue("seoTitle", d.seoTitle, opts);
+        if (!getValues("seoDescription")) setValue("seoDescription", d.seoDescription, opts);
+        setImproved({ tone: "success", text: "Descrição preenchida a partir das fotos. Revise e toque em Salvar.", draft: d });
+        break;
+      }
+      setImproving("writing");
+      if (Date.now() - started > 90_000) {
+        setImproved({ tone: "danger", text: "A IA ainda está escrevendo. Tente de novo em instantes." });
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+    setImproving("idle");
+  }
+
   const [seoTitle, seoDescription, name, shortDescription, slug, categoryId] = useWatch({
     control,
     name: ["seoTitle", "seoDescription", "name", "shortDescription", "slug", "categoryId"],
@@ -253,6 +292,50 @@ export function ProductForm({
               </select>
               <FieldError>{errors.categoryId?.message}</FieldError>
             </div>
+            {aiCopyEnabled ? (
+              <div className="rounded-xl border border-line bg-cloud p-3" data-testid="aprimorar-descricao">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={improveDescription}
+                    loading={improving !== "idle"}
+                    loadingLabel={improving === "writing" ? "A IA está terminando de escrever…" : "Buscando…"}
+                    disabled={!hydrated}
+                  >
+                    <SparkIcon className="h-5 w-5" /> Aprimorar descrição
+                  </Button>
+                  <span className="text-xs text-muted">
+                    Texto vendável a partir das fotos, lidas pela IA uma vez por produto. Nada é salvo sem você tocar em Salvar.
+                  </span>
+                </div>
+                {improved ? (
+                  <div role="status" className="mt-2 space-y-2 text-sm">
+                    <p className={improved.tone === "success" ? "text-success" : "text-danger"}>{improved.text}</p>
+                    {improved.draft?.unconfirmedNumbers.length ? (
+                      <p className="text-danger">
+                        Confira: o texto cita {improved.draft.unconfirmedNumbers.join(", ")}, que não está nos dados confirmados.
+                      </p>
+                    ) : null}
+                    {improved.draft?.nameSuggestions.length ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-muted">Nomes sugeridos (toque para usar):</span>
+                        {improved.draft.nameSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            className="min-h-9 rounded-full border border-line bg-white px-3 text-sm hover:bg-pale-blue"
+                            onClick={() => setValue("name", suggestion, { shouldDirty: true, shouldValidate: true })}
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <TextField
               name="shortDescription"
               label="Descrição curta"

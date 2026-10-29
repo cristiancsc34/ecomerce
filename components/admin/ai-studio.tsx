@@ -11,10 +11,10 @@ import {
   discardAiJobAction,
   requestCatalogPhotosAction,
   requestModel3dAction,
-  suggestCopyAction,
+  copyDraftAction,
   uploadAiPhotoAction,
 } from "@/lib/admin/actions/ai";
-import type { CopySuggestion } from "@/lib/ai/copy";
+import type { CopyDraft } from "@/lib/ai/copy-draft";
 import { deleteMediaAction } from "@/lib/admin/actions/media";
 import { isPending, type AiJobKind, type AiJobView, type AiStudioSnapshot } from "@/lib/admin/ai-types";
 import {
@@ -814,7 +814,11 @@ export function AiStudio({
         productId={productId}
         enabled={copyEnabled && canEdit && hydrated}
         hasPhotos={readyCount > 0 || aiMedia.some((m) => !m.pendingReview)}
-        autoStart={hydrated && auto && canEdit && photosReady && !hasCopy}
+        stored={snapshot.copyDraft}
+        // A IA na nuvem escreve junto com as fotos de catálogo: o rascunho chega sozinho.
+        waiting={
+          copyEnabled && !hasCopy && !snapshot.copyDraft && snapshot.worker.cloud && Boolean(catalogJob && isPending(catalogJob))
+        }
         onStatus={setCopyStatus}
         onApplied={(text) => {
           setMessage({ tone: "success", text });
@@ -829,46 +833,57 @@ function CopyAssistant({
   productId,
   enabled,
   hasPhotos,
-  autoStart,
+  stored,
+  waiting,
   onStatus,
   onApplied,
 }: {
   productId: string;
   enabled: boolean;
   hasPhotos: boolean;
-  /** Seguir as etapas sozinho: pede a sugestão assim que as fotos chegarem. */
-  autoStart: boolean;
+  /** Rascunho que a IA já escreveu a partir das fotos (guardado: mostrar não gasta nada). */
+  stored: CopyDraft | null;
+  /** A IA está escrevendo agora, junto com as fotos de catálogo. */
+  waiting: boolean;
   onStatus: (status: "idle" | "writing" | "draft") => void;
   onApplied: (message: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<(CopySuggestion & { name: string | null }) | null>(null);
-  const autoTried = useRef(false);
+  const [edited, setEdited] = useState<(CopyDraft & { name: string | null }) | null>(null);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  // O rascunho guardado aparece sozinho; o que a pessoa editou aqui tem prioridade.
+  const draft = edited ?? (stored && stored.createdAt !== dismissed ? { ...stored, name: null } : null);
+  const setDraft = (update: (d: CopyDraft & { name: string | null }) => CopyDraft & { name: string | null }) => {
+    if (draft) setEdited(update(draft));
+  };
 
+  const status = draft ? "draft" : busy || waiting ? "writing" : "idle";
+  useEffect(() => onStatus(status), [status, onStatus]);
+
+  /** Busca o rascunho guardado; se a IA ainda está escrevendo, espera alguns segundos. */
   async function suggest() {
     setBusy(true);
     setError(null);
-    onStatus("writing");
-    const r = await suggestCopyAction(productId);
-    setBusy(false);
-    if (!r.ok) {
-      onStatus("idle");
-      return setError(r.error);
+    const started = Date.now();
+    for (;;) {
+      const r = await copyDraftAction(productId);
+      if (!r.ok) {
+        setError(r.error);
+        break;
+      }
+      if (r.data.status === "ready") {
+        setEdited({ ...r.data.draft, name: null });
+        break;
+      }
+      if (Date.now() - started > 90_000) {
+        setError("A IA ainda está escrevendo. Tente de novo em instantes.");
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-    setDraft({ ...r.data, name: null });
-    onStatus("draft");
+    setBusy(false);
   }
-
-  // Uma tentativa automática por tela; se falhar, o botão continua para tentar de novo.
-  useEffect(() => {
-    if (!autoStart || autoTried.current || draft || busy || !enabled || !hasPhotos) return;
-    const timer = setTimeout(() => {
-      autoTried.current = true;
-      void suggest();
-    }, 0);
-    return () => clearTimeout(timer);
-  });
 
   async function apply() {
     if (!draft) return;
@@ -882,8 +897,8 @@ function CopyAssistant({
     });
     setBusy(false);
     if (!r.ok) return setError(r.error);
-    setDraft(null);
-    onStatus("idle");
+    setEdited(null);
+    setDismissed(draft.createdAt);
     onApplied("Textos aplicados ao produto. Revise no formulário abaixo antes de publicar.");
   }
 
@@ -895,7 +910,7 @@ function CopyAssistant({
         rows={rows}
         maxLength={max}
         value={draft?.[key] ?? ""}
-        onChange={(e) => setDraft((d) => (d ? { ...d, [key]: e.target.value } : d))}
+        onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
         className={controlClasses}
       />
     </div>
@@ -904,20 +919,30 @@ function CopyAssistant({
   return (
     <div className="mt-2">
       <p className="max-w-prose text-sm text-muted">
-        O ChatGPT olha as fotos e os dados confirmados e sugere nome, descrições e textos para o Google. Não inventa medidas,
-        materiais nem garantia: o que não foi confirmado ele descreve só pela aparência. Você revisa antes de aplicar.
+        O ChatGPT lê as fotos uma vez, junto com as fotos de catálogo, e deixa guardada uma sugestão de nome, descrições e
+        textos para o Google. Não inventa medidas, materiais nem garantia: o que não foi confirmado ele descreve só pela
+        aparência. Você revisa antes de aplicar.
       </p>
       {!enabled && hasPhotos ? <p className="mt-2 text-sm text-muted">Disponível quando a chave da OpenAI estiver configurada.</p> : null}
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <Button type="button" variant="secondary" onClick={suggest} loading={busy && !draft} loadingLabel="Escrevendo…" disabled={!enabled || !hasPhotos || busy}>
-          <SparkIcon className="h-5 w-5" /> {draft ? "Sugerir de novo" : "Sugerir textos com IA"}
-        </Button>
-      </div>
+      {draft ? null : (
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={suggest}
+            loading={busy}
+            loadingLabel="Escrevendo…"
+            disabled={!enabled || !hasPhotos || busy || waiting}
+          >
+            <SparkIcon className="h-5 w-5" /> {stored ? "Mostrar a sugestão guardada" : "Sugerir textos com IA"}
+          </Button>
+        </div>
+      )}
       {error ? <p className="mt-2 text-sm text-danger" role="alert">{error}</p> : null}
-      {busy && !draft ? (
+      {(busy || waiting) && !draft ? (
         <div className="mt-4 space-y-2.5 rounded-2xl border border-line bg-cloud p-4" data-testid="textos-escrevendo">
           <p className="flex items-center gap-2 text-xs font-semibold text-air-blue-ink">
-            <Spinner className="h-3.5 w-3.5" /> O ChatGPT está olhando as fotos e escrevendo… costuma levar ~8 s
+            <Spinner className="h-3.5 w-3.5" /> O ChatGPT está olhando as fotos e escrevendo… costuma levar ~10 s
           </p>
           {["w-2/3", "w-full", "w-11/12", "w-1/2"].map((width) => (
             <div
@@ -934,7 +959,7 @@ function CopyAssistant({
             <div className="mt-2 flex flex-wrap gap-2">
               {[null, ...draft.nameSuggestions].map((name) => (
                 <label key={name ?? "manter"} className="flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1.5 text-sm">
-                  <input type="radio" name="copy-name" checked={draft.name === name} onChange={() => setDraft((d) => (d ? { ...d, name } : d))} />
+                  <input type="radio" name="copy-name" checked={draft.name === name} onChange={() => setDraft((d) => ({ ...d, name }))} />
                   {name ?? "Manter o nome atual"}
                 </label>
               ))}
@@ -959,8 +984,8 @@ function CopyAssistant({
               type="button"
               variant="ghost"
               onClick={() => {
-                setDraft(null);
-                onStatus("idle");
+                setEdited(null);
+                setDismissed(draft.createdAt);
               }}
             >
               Descartar sugestão

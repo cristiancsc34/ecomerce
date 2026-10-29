@@ -487,6 +487,31 @@ async function model3d(supabase, job, product, inputFile, dir, engines, uploaded
  * e enquadramento das fotos comuns (padrão da loja) e entra SEM aprovação: só
  * aparece na loja depois que alguém conferir com as fotos reais.
  */
+/**
+ * Nome e descrição: na mesma rodada, a IA lê as mesmas fotos UMA vez e o rascunho
+ * fica guardado nos detalhes da tarefa (o botão "Aprimorar descrição" só lê). Corre
+ * junto com as imagens, sem aumentar a espera, e só se o produto ainda não tem
+ * rascunho. Sem o motor de textos (processador local), não faz nada.
+ */
+export async function startCopyDraft(supabase, job, product, references, engines) {
+  if (!engines.copyDraft) return {};
+  const { data: existing } = await supabase
+    .from("ai_jobs")
+    .select("id")
+    .eq("product_id", product.id)
+    .not("details->copy", "is", null)
+    .limit(1);
+  if (existing?.length) return {};
+  try {
+    const copy = await engines.copyDraft(references, product);
+    // Já aparece no painel antes de as fotos de catálogo terminarem.
+    await supabase.from("ai_jobs").update({ details: { copy } }).eq("id", job.id);
+    return { copy };
+  } catch (e) {
+    return { copyError: (e instanceof Error ? e.message : String(e)).slice(0, 300) };
+  }
+}
+
 async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, uploaded) {
   // As referências são as fotos do celular como foram tiradas: não precisa esperar a limpeza.
   const { data: cleaned, error } = await supabase
@@ -510,6 +535,7 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
   if (!references.length) throw new Error("Não foi possível ler as fotos reais.");
 
   const style = catalogStyle();
+  const copyTask = startCopyDraft(supabase, job, product, references, engines);
   const shots = await engines.catalogPhotos(references, dir, product, Object.keys(CATALOG_VIEWS));
 
   // Um novo conjunto substitui as imagens anteriores que ninguém aprovou (as aprovadas ficam).
@@ -572,6 +598,7 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
     mediaIds.push(media.id);
   }
   const usage = shots.map((s) => s.usage).filter(Boolean);
+  const copyResult = await copyTask;
   return {
     output_media_id: mediaIds[0] ?? null,
     details: {
@@ -580,6 +607,7 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
       style,
       views: shots.map((s) => s.view),
       references: references.length,
+      ...copyResult,
       ...(usage.length
         ? {
             usage: {

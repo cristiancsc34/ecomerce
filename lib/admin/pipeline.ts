@@ -147,7 +147,10 @@ export function studioPipeline(input: PipelineInput): Pipeline {
   else if (copy.hasCopy) Object.assign(textos, { state: "done", detail: "Descrição no produto.", etaSeconds: null });
   else if (copy.writing) Object.assign(textos, { state: "working", detail: "O ChatGPT está escrevendo." });
   else if (copy.draftReady) Object.assign(textos, { state: "review", detail: "Sugestão pronta: revise e toque em “Aplicar ao produto”.", etaSeconds: null });
-  else if (photosReady) textos.detail = "Começa sozinho.";
+  else if (photosReady) {
+    // A IA lê as fotos uma vez, junto com as fotos de catálogo, e guarda o rascunho.
+    textos.detail = readyCount >= MIN_PHOTOS_AUTO ? "Começa sozinho, junto com as fotos de catálogo." : "Toque em “Sugerir textos com IA”.";
+  }
 
   // 5. Modelo 3D (opcional enquanto a categoria não exigir)
   const modelJob = jobs.filter((j) => j.kind === "model_3d").at(-1) ?? null;

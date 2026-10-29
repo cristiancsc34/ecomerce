@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { after } from "next/server";
 import type { AiJobKind } from "@/lib/admin/ai-types";
+import { writeCopyDraft } from "@/lib/ai/copy-draft";
 import { createServiceClient } from "@/lib/supabase/service";
 import { falBackgroundEngine } from "@/scripts/ai-background.mjs";
 import {
@@ -31,8 +32,12 @@ const LOCAL_WORKER_ONLINE_MS = 30_000;
 type ClaimedJob = { id: string; kind: AiJobKind; product_id: string; input_path: string };
 export type CloudRun = { id: string; kind: AiJobKind; status: "succeeded" | "failed" | "timeout" };
 
-function enginesFor(msLeft: number, env = process.env) {
+function enginesFor(supabase: SupabaseClient, msLeft: number, env = process.env) {
   return {
+    // Nome e descrição: lidos das mesmas fotos, junto com as fotos de catálogo (uma vez por produto).
+    ...(env.OPENAI_API_KEY
+      ? { copyDraft: (files: string[], product: { id: string }) => writeCopyDraft(supabase, product.id, files) }
+      : {}),
     // Limpeza: fal.ai (recorte exato) se tiver a chave; senão, o ChatGPT.
     ...(env.FAL_KEY ? falBackgroundEngine(env.FAL_KEY) : openaiCleanupEngine(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL)),
     ...openaiCatalogEngine(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL),
@@ -94,7 +99,7 @@ export async function runCloudQueue(budgetMs = BUDGET_MS): Promise<CloudRun[]> {
 
       const msLeft = budgetMs - (Date.now() - started);
       const stop = deadline(supabase, job.id, msLeft);
-      const status = await Promise.race([processJob(supabase, job, enginesFor(msLeft), config.engines), stop.promise]);
+      const status = await Promise.race([processJob(supabase, job, enginesFor(supabase, msLeft), config.engines), stop.promise]);
       stop.cancel();
       done.push({ id: job.id, kind: job.kind, status: status as CloudRun["status"] });
       if (status === "timeout") break;
