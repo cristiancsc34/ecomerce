@@ -22,7 +22,7 @@ painel pelo celular a qualquer hora.
 | Etapa | Serviço | Chave na Vercel |
 | --- | --- | --- |
 | Pegar tarefas da fila e gravar os resultados | Supabase | `SUPABASE_SERVICE_ROLE_KEY` |
-| Limpeza do fundo (opcional) | fal.ai, BiRefNet ([fal.ai/models/fal-ai/birefnet/v2](https://fal.ai/models/fal-ai/birefnet/v2)) | `FAL_KEY` |
+| Limpeza do fundo | ChatGPT (OpenAI); ou fal.ai, BiRefNet, se tiver a chave | `OPENAI_API_KEY` (ou `FAL_KEY`, opcional) |
 | Fotos de catálogo e nome/descrição | OpenAI | `OPENAI_API_KEY` |
 | Modelo 3D (opcional) | Tripo | `TRIPO_API_KEY` |
 
@@ -31,17 +31,23 @@ Cadastre em **Vercel → projeto `cuxoes` → Settings → Environment Variables
 O painel mostra no topo do estúdio o que está ligado e quais chaves faltam (só os nomes). Cada chave liga a sua etapa:
 sem a do Tripo, por exemplo, todo o resto funciona e o 3D fica como “falta a chave”.
 
-O mínimo para funcionar é `SUPABASE_SERVICE_ROLE_KEY` + `OPENAI_API_KEY`: sem a `FAL_KEY`, a limpeza do fundo é
-**pulada** e as fotos de catálogo saem direto das fotos do celular (que já são a referência delas; a limpeza só gera a
-foto de “antes × depois”).
+O mínimo para funcionar é `SUPABASE_SERVICE_ROLE_KEY` + `OPENAI_API_KEY` (cadastradas em 29/10/2026). Escolha do dono
+(29/10): a limpeza do fundo é feita pelo **ChatGPT**, com a mesma chave das fotos de catálogo.
+
+- O ChatGPT redesenha a foto sem o cômodo (não é um recorte pixel a pixel como o da fal.ai). No teste com a cadeira
+  preta real ficou fiel. A foto limpa é só referência (“antes × depois”); a loja usa as fotos de catálogo aprovadas.
+- Qualidade **média** por padrão: medido **~20 s por foto** (alta: ~33 s). Troque com `OPENAI_CLEANUP_QUALITY=high`.
+- Com a `FAL_KEY` cadastrada, a limpeza passa para a fal.ai (recorte exato, alguns segundos).
+- As fotos de catálogo e os textos **não esperam a limpeza**: usam as fotos do celular como foram tiradas e começam junto
+  com ela. Medido em 29/10 (cadeira preta, 3 fotos): as 4 fotos de catálogo ficaram prontas em **45 s**.
 
 Como roda:
 
 - Quando o painel cria uma tarefa (foto enviada, fotos de catálogo, 3D), a mesma função da Vercel responde e continua
   trabalhando na fila (`after()` do Next, até **300 s**, `maxDuration` da página do produto). Enquanto há tarefas, o
   painel consulta a cada 2 s e cada consulta mantém a fila andando. Várias fotos são limpas ao mesmo tempo.
-- A limpeza manda a foto (reduzida a 2048 px) para a fal.ai com `sync_mode`: o recorte volta na própria resposta e não
-  fica no histórico da fal.ai. O enquadramento (1600 × 1200, fundo creme, sombra de contato) é feito na Vercel por
+- Com a fal.ai, a limpeza manda a foto (reduzida a 2048 px) com `sync_mode`: o recorte volta na própria resposta e não
+  fica no histórico da fal.ai. Nos dois casos (ChatGPT ou fal.ai), o enquadramento (1600 × 1200, fundo creme, sombra de contato) é feito na Vercel por
   `scripts/ai-background.mjs`, igual ao `ai/remove_background.py`. Diferença: a nuvem não tem o passo de profundidade
   que tira um móvel mais ao fundo. Fotos com outro móvel logo atrás do produto podem precisar ser refeitas.
 - Uma tarefa só começa se ainda der tempo de terminar dentro dos 300 s; senão, fica para a próxima consulta. Tarefa que
@@ -72,11 +78,11 @@ Painel (Next.js)  ──cria job──▶  ai_jobs (Supabase)  ◀──pega 1 p
 No topo do estúdio, **“Etapas deste produto”** mostra cada etapa com ✓ quando termina, a etapa atual em destaque, quanto
 cada uma costuma levar (tempos medidos abaixo) e quanto falta para o produto ficar pronto para conferir:
 
-1. Fotos do celular → 2. Limpeza do fundo (~40 s por foto) → 3. Fotos de catálogo (~50 s, estimativa) e 4. Nome e descrição
-   (~8 s), ao mesmo tempo → 5. Modelo 3D (~2 min 15 s, **opcional**) → 6. Conferir e aprovar (a pessoa).
+1. Fotos do celular → 2. Limpeza do fundo (~20 s por foto), 3. Fotos de catálogo (45 s medidos) e 4. Nome e descrição
+   (~8 s), todos ao mesmo tempo → 5. Modelo 3D (~2 min 15 s, **opcional**) → 6. Conferir e aprovar (a pessoa).
 
-Com **“Seguir as etapas sozinho”** marcado (padrão), quando as fotos terminam de limpar, com pelo menos 3 fotos (frente,
-lateral, traseira), o painel pede sozinho as fotos de catálogo e a sugestão de nome e descrição. O 3D só entra no
+Com **“Seguir as etapas sozinho”** marcado (padrão), assim que chegam pelo menos 3 fotos (frente, lateral, traseira),
+o painel pede sozinho as fotos de catálogo e a sugestão de nome e descrição. O 3D só entra no
 automático se **“Incluir o 3D no automático”** estiver marcado (padrão desmarcado: gasta créditos do Tripo). Nada vai para
 a loja sem a pessoa aprovar as fotos e aplicar os textos. As escolhas ficam salvas no navegador. Com a página fechada, a
 tarefa em andamento termina (na nuvem, até o limite de 300 s; o processador local segue a fila inteira); as próximas

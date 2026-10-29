@@ -3,8 +3,11 @@ import type { AiJobKind, AiJobView } from "@/lib/admin/ai-types";
 import { FAL_ENGINE_NAME } from "@/scripts/ai-background.mjs";
 import { DEFAULT_IMAGE_MODEL, DEFAULT_TRIPO_MODEL } from "@/scripts/ai-pipeline.mjs";
 
-/** Chaves que a IA na nuvem usa (cadastradas na Vercel, só no servidor). */
-export const CLOUD_AI_KEYS = ["SUPABASE_SERVICE_ROLE_KEY", "FAL_KEY", "OPENAI_API_KEY", "TRIPO_API_KEY"] as const;
+/**
+ * Chaves que a IA na nuvem usa (cadastradas na Vercel, só no servidor). A FAL_KEY
+ * é opcional: sem ela, a limpeza do fundo é feita pelo ChatGPT (OPENAI_API_KEY).
+ */
+export const CLOUD_AI_KEYS = ["SUPABASE_SERVICE_ROLE_KEY", "OPENAI_API_KEY", "TRIPO_API_KEY"] as const;
 
 /**
  * Tarefa "processando" há mais que isso foi interrompida: a função da Vercel
@@ -29,8 +32,10 @@ export function cloudAiConfig(env: NodeJS.ProcessEnv = process.env): CloudAiConf
   const missing = CLOUD_AI_KEYS.filter((key) => !env[key]);
   if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) return { engines: {}, missing };
   const engines: CloudAiConfig["engines"] = {};
+  const imageModel = env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL;
   if (env.FAL_KEY) engines.background_removal = `${FAL_ENGINE_NAME} (nuvem)`;
-  if (env.OPENAI_API_KEY) engines.catalog_photos = `OpenAI ${env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL} (nuvem)`;
+  else if (env.OPENAI_API_KEY) engines.background_removal = `ChatGPT ${imageModel} (nuvem)`;
+  if (env.OPENAI_API_KEY) engines.catalog_photos = `OpenAI ${imageModel} (nuvem)`;
   if (env.TRIPO_API_KEY) engines.model_3d = `Tripo ${env.TRIPO_MODEL || DEFAULT_TRIPO_MODEL} (nuvem)`;
   return { engines, missing };
 }

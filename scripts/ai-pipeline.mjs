@@ -19,6 +19,7 @@ import { NodeIO, getBounds } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, prune, textureCompress } from "@gltf-transform/functions";
 import sharp from "sharp";
+import { cleanWith } from "./ai-background.mjs";
 
 export const BUCKET = "product-media";
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // limite do bucket
@@ -95,7 +96,7 @@ export function scenePrompt() {
   ].join("\n");
 }
 
-async function openaiImageEdit({ apiKey, model, references, prompt, output, size = "1536x1024", transparent = true }) {
+async function openaiImageEdit({ apiKey, model, references, prompt, output, size = "1536x1024", transparent = true, quality = "high" }) {
   const form = new FormData();
   form.set("model", model);
   for (const ref of references) {
@@ -104,7 +105,7 @@ async function openaiImageEdit({ apiKey, model, references, prompt, output, size
   }
   form.set("prompt", prompt);
   form.set("size", size);
-  form.set("quality", "high");
+  form.set("quality", quality);
   if (transparent) form.set("background", "transparent");
   form.set("output_format", transparent ? "png" : "jpeg");
   const res = await fetch("https://api.openai.com/v1/images/edits", {
@@ -134,6 +135,59 @@ async function retryRateLimit(run, waitMs = 20_000) {
     await new Promise((r) => setTimeout(r, waitMs));
     return run();
   }
+}
+
+/** Instrução da limpeza do fundo com o ChatGPT: só tira o cômodo, o produto fica igual. */
+export function cleanupPrompt() {
+  return [
+    "Image 1 is a real phone photo of ONE product (a piece of furniture) in a room. It is the only source of truth for this exact product.",
+    "",
+    "Cut the product out: the same product, from the same viewing angle and perspective, whole product in frame, on a fully",
+    "transparent background, with no floor, no shadow and nothing else from the room.",
+    "",
+    "Keep the product exactly as it is in the photo: shape, proportions, every part and how parts connect, colors, materials,",
+    "texture, mesh and fabric pattern, small wear marks. Do not add, remove, repair, restyle or redesign anything. No text, no logos.",
+  ].join("\n");
+}
+
+/** Tamanho aceito pela API mais próximo do formato da foto (o celular costuma tirar em pé). */
+export function editSizeFor(width, height) {
+  const ratio = width / height;
+  return ratio < 0.85 ? "1024x1536" : ratio > 1.18 ? "1536x1024" : "1024x1024";
+}
+
+/**
+ * Limpeza do fundo com o ChatGPT (mesma chave das fotos de catálogo). Diferente
+ * da fal.ai, a IA redesenha a foto sem o cômodo: no teste com a cadeira real
+ * ficou fiel, mas não é um recorte pixel a pixel. Serve de referência (antes ×
+ * depois); a loja usa as fotos de catálogo aprovadas. Qualidade "medium" por
+ * padrão (medido: ~20 s por foto; "high", ~33 s), em OPENAI_CLEANUP_QUALITY.
+ */
+export function openaiCleanupEngine(
+  apiKey = process.env.OPENAI_API_KEY,
+  model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL,
+  { quality = process.env.OPENAI_CLEANUP_QUALITY || "medium", retryWaitMs = 20_000 } = {},
+) {
+  const remove = async (file) => {
+    // A foto vai já de pé (EXIF do celular) e no máximo com 2048 px.
+    const { data, info } = await sharp(file)
+      .rotate()
+      .resize(2048, 2048, { fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 92 })
+      .toBuffer({ resolveWithObject: true });
+    const reference = path.join(path.dirname(file), "limpeza-entrada.jpg");
+    const output = path.join(path.dirname(file), "limpeza-chatgpt.png");
+    await writeFile(reference, data);
+    const size = editSizeFor(info.width, info.height);
+    await retryRateLimit(
+      () => openaiImageEdit({ apiKey, model, references: [reference], prompt: cleanupPrompt(), output, size, quality }),
+      retryWaitMs,
+    );
+    return readFile(output);
+  };
+  return {
+    backgroundRemoval: (input, dir, { fundo = "creme" } = {}) => cleanWith(remove, input, dir, { fundo, engine: "chatgpt" }),
+  };
 }
 
 /** Motor de fotos de catálogo: os ângulos saem todos ao mesmo tempo (~40 s cada, em vez de 2 em 2). */

@@ -48,9 +48,13 @@ describe("fotos de catálogo: instrução para a IA", () => {
     expect(prompt).toMatch(/Not a collage/);
   });
 
-  it("só habilita as fotos de catálogo com a chave e o motor de limpeza instalados", () => {
+  it("só habilita as fotos de catálogo com a chave; sem o BiRefNet, a limpeza é feita pelo ChatGPT", () => {
     const root = mkdtempSync(path.join(tmpdir(), "motores-"));
-    expect(detectEngines(root, env({ OPENAI_API_KEY: "x" }))).toEqual({});
+    expect(detectEngines(root, env({ OPENAI_API_KEY: "x" }))).toEqual({
+      background_removal: "ChatGPT gpt-image-2.5-sunburst (API)",
+      catalog_photos: "OpenAI gpt-image-2.5-sunburst",
+    });
+    expect(detectEngines(root, env({}))).toEqual({});
     mkdirSync(path.join(root, "ai", "models", "birefnet"), { recursive: true });
     writeFileSync(path.join(root, "ai", "models", "birefnet", "model.onnx"), "");
     const withKey = detectEngines(root, env({ OPENAI_API_KEY: "x" }));

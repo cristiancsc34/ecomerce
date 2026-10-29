@@ -57,8 +57,8 @@ Copie [`.env.example`](.env.example) para `.env.local`.
 | `NEXT_PUBLIC_SUPABASE_URL` | sim | URL do projeto Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sim | Chave pública (anon/publishable). Segura por causa do RLS |
 | `SUPABASE_SERVICE_ROLE_KEY` | **não** | `npm run admin:create` na sua máquina e a **IA na nuvem** (estúdio de fotos e 3D). Na Vercel, só como variável **Sensitive** do servidor; nunca com prefixo `NEXT_PUBLIC_` |
-| `FAL_KEY` | **não** | Opcional: limpeza de fundo das fotos do estúdio pela fal.ai. Sem ela, a etapa é pulada (veja [`docs/ESTUDIO-IA.md`](docs/ESTUDIO-IA.md)) |
-| `OPENAI_API_KEY`, `TRIPO_API_KEY` | **não** | Fotos de catálogo e textos (OpenAI) e modelo 3D (Tripo) do estúdio |
+| `FAL_KEY` | **não** | Opcional: limpeza de fundo pela fal.ai. Sem ela, quem limpa é o ChatGPT (veja [`docs/ESTUDIO-IA.md`](docs/ESTUDIO-IA.md)) |
+| `OPENAI_API_KEY`, `TRIPO_API_KEY` | **não** | Limpeza do fundo, fotos de catálogo e textos (OpenAI) e modelo 3D (Tripo) do estúdio |
 | `AI_CLOUD` | não | `0` desliga a IA na nuvem (para usar só o processador local). Vazio: ligada quando as chaves existem |
 | `ADMIN_PIN`, `ADMIN_PIN_EMAIL`, `ADMIN_PIN_PASSWORD` | **não** | Entrada no painel por PIN (veja [`docs/PAINEL.md`](docs/PAINEL.md)). Vazio = só e-mail e senha |
 | `IMAGE_AI_*`, `THREE_D_MODEL_*`, `PAYMENT_*`, `EMAIL_*` | não | Reservadas para integrações futuras. Não configure ainda |

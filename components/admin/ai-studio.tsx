@@ -301,7 +301,7 @@ function StudioSteps({
             <span>
               <span className="font-semibold">Seguir as etapas sozinho</span>
               <span className="block text-xs text-muted">
-                Com {MIN_PHOTOS_AUTO} fotos limpas, pede as fotos de catálogo e o nome e a descrição. Você só confere e aprova.
+                Com {MIN_PHOTOS_AUTO} fotos enviadas, já pede as fotos de catálogo e o nome e a descrição. Você só confere e aprova.
               </span>
             </span>
           </label>
@@ -375,7 +375,7 @@ export function AiStudio({
   const chosenBase = readyPhotos.find((j) => j.id === baseJobId) ?? readyPhotos[0] ?? null;
   const has3d = modelJobs.some((j) => j.status === "succeeded" && j.outputUrl);
   const skipCleanup = cleanupSkipped(snapshot.worker.online, snapshot.worker.capabilities);
-  // Tarefas que ninguém sabe fazer agora (ex.: limpeza sem a chave da fal.ai) não prendem a tela esperando.
+  // Tarefas que ninguém sabe fazer agora (ex.: limpeza desligada) não prendem a tela esperando.
   const anyPending = snapshot.jobs.some(
     (j) => isPending(j) && (j.status === "running" || !snapshot.worker.online || snapshot.worker.capabilities.includes(j.kind)),
   );
@@ -455,10 +455,9 @@ export function AiStudio({
     await refresh();
   }
 
-  const cleanOk = cleanJobs.filter((j) => j.status === "succeeded");
-  // Fotos prontas para as próximas etapas: limpas, ou só enviadas quando a limpeza está desligada.
-  const cleanDone = skipCleanup ? cleanJobs.length > 0 : cleanOk.length > 0 && !cleanJobs.some(isPending);
-  const readyCount = skipCleanup ? cleanJobs.length : readyPhotos.length;
+  // As fotos de catálogo e os textos usam as fotos do celular como foram tiradas: começam junto com a limpeza.
+  const readyCount = cleanJobs.filter((j) => j.status !== "failed").length;
+  const photosReady = readyCount > 0;
   const pipeline = studioPipeline({
     jobs: snapshot.jobs,
     // O relógio só entra depois da hidratação: servidor e navegador desenham o mesmo texto.
@@ -471,11 +470,11 @@ export function AiStudio({
     model3d: { required: requires3d, auto: auto && auto3d },
   });
 
-  // Seguir as etapas sozinho: limpeza pronta → fotos de catálogo (e, se marcado, o 3D depois delas).
+  // Seguir as etapas sozinho: fotos enviadas → fotos de catálogo e textos (junto com a limpeza) → 3D, se marcado.
   // Só com a IA pronta para a etapa (nuvem ou processador), e uma vez só por etapa nesta tela.
   const autoReady = hydrated && auto && canEdit && !uploading && snapshot.worker.online;
   const wantsCatalog =
-    autoReady && canCatalog && cleanDone && readyCount >= MIN_PHOTOS_AUTO && !catalogJob && !aiMedia.length;
+    autoReady && canCatalog && photosReady && readyCount >= MIN_PHOTOS_AUTO && !catalogJob && !aiMedia.length;
   const wants3d = autoReady && auto3d && can3d && catalogReady && !latestModel && !has3d;
   useEffect(() => {
     const next = wantsCatalog ? "catalogo" : wants3d ? "3d" : null;
@@ -625,7 +624,7 @@ export function AiStudio({
                       </div>
                     ) : skipCleanup && job.status === "queued" ? (
                       <div className="flex h-full items-center justify-center p-3 text-center text-xs text-muted">
-                        Limpeza desligada (falta a chave da fal.ai). A foto já serve para as fotos de catálogo.
+                        Limpeza desligada. A foto já serve para as fotos de catálogo.
                       </div>
                     ) : (
                       <WorkingTile
@@ -815,7 +814,7 @@ export function AiStudio({
         productId={productId}
         enabled={copyEnabled && canEdit && hydrated}
         hasPhotos={readyCount > 0 || aiMedia.some((m) => !m.pendingReview)}
-        autoStart={hydrated && auto && canEdit && cleanDone && !hasCopy}
+        autoStart={hydrated && auto && canEdit && photosReady && !hasCopy}
         onStatus={setCopyStatus}
         onApplied={(text) => {
           setMessage({ tone: "success", text });
@@ -837,7 +836,7 @@ function CopyAssistant({
   productId: string;
   enabled: boolean;
   hasPhotos: boolean;
-  /** Seguir as etapas sozinho: pede a sugestão assim que as fotos estiverem limpas. */
+  /** Seguir as etapas sozinho: pede a sugestão assim que as fotos chegarem. */
   autoStart: boolean;
   onStatus: (status: "idle" | "writing" | "draft") => void;
   onApplied: (message: string) => void;

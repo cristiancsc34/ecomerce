@@ -1,10 +1,10 @@
 import { isPending, type AiJobView } from "./ai-types";
 
 /**
- * Tempos (docs/ESTUDIO-IA.md): limpeza 35–45 s por foto (medido no processador local), 3D ~2 min 15 s e textos ~8 s
- * (medidos). Fotos de catálogo: ~40 s por imagem medidos; as 4 agora saem ao mesmo tempo (estimativa: ~50 s).
+ * Tempos medidos (docs/ESTUDIO-IA.md): limpeza com o ChatGPT ~20 s por foto (+ enquadramento e gravação), as 4 fotos
+ * de catálogo ao mesmo tempo 45 s, 3D ~2 min 15 s, textos ~8 s. Na nuvem as tarefas rodam ao mesmo tempo.
  */
-export const TYPICAL_SECONDS = { background_removal: 40, catalog_photos: 50, model_3d: 135, copy: 8 } as const;
+export const TYPICAL_SECONDS = { background_removal: 25, catalog_photos: 50, model_3d: 135, copy: 8 } as const;
 
 /** Frente, lateral e traseira: com menos fotos o painel não segue sozinho (a IA teria de adivinhar lados). */
 export const MIN_PHOTOS_AUTO = 3;
@@ -63,8 +63,8 @@ function remaining(job: AiJobView, now: number | null) {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
- * A IA está ligada, mas sem a limpeza de fundo (falta a chave da fal.ai): a etapa é pulada e as fotos de catálogo
- * saem direto das fotos do celular (que já são a referência delas).
+ * A IA está ligada, mas sem a limpeza de fundo (nem ChatGPT nem fal.ai configurados para ela): a etapa é pulada e as
+ * fotos de catálogo saem direto das fotos do celular (que já são a referência delas).
  */
 export function cleanupSkipped(workerOnline: boolean, capabilities: string[]) {
   return workerOnline && !capabilities.includes("background_removal");
@@ -96,7 +96,7 @@ export function studioPipeline(input: PipelineInput): Pipeline {
   if (skipCleanup) {
     Object.assign(limpeza, {
       state: "off",
-      detail: "Pulada: falta a chave da fal.ai (FAL_KEY). As fotos de catálogo saem direto das fotos do celular.",
+      detail: "Pulada: a limpeza não está ligada. As fotos de catálogo saem direto das fotos do celular.",
       etaSeconds: null,
     });
   } else if (cleanPending.length) {
@@ -108,17 +108,18 @@ export function studioPipeline(input: PipelineInput): Pipeline {
         : workerOnline
           ? `${plural(cleanPending.length, "foto", "fotos")} na fila`
           : waitingDetail,
-      etaSeconds: cleanPending.reduce((sum, j) => sum + remaining(j, now), 0),
+      // Na nuvem as fotos são limpas ao mesmo tempo: falta o que a mais demorada ainda leva.
+      etaSeconds: Math.max(...cleanPending.map((j) => remaining(j, now))),
     });
   } else if (clean.length && !cleanOk.length) {
     Object.assign(limpeza, { state: "failed", detail: "Não foi possível limpar as fotos. Envie de novo.", etaSeconds: null });
   } else if (cleanOk.length) {
     Object.assign(limpeza, { state: "done", detail: plural(cleanOk.length, "foto limpa", "fotos limpas"), etaSeconds: null });
   }
-  // Fotos prontas para as próximas etapas: limpas, ou só enviadas quando a limpeza está desligada.
-  const cleanDone = skipCleanup ? clean.length > 0 : clean.length > 0 && !cleanPending.length && cleanOk.length > 0;
-  const readyCount = skipCleanup ? clean.length : cleanOk.length;
-  const afterPhotos = skipCleanup ? "Depois das fotos." : "Depois da limpeza.";
+  // As fotos de catálogo e os textos usam as fotos do celular como foram tiradas: começam junto com a limpeza.
+  const readyCount = clean.filter((j) => j.status !== "failed").length;
+  const photosReady = readyCount > 0;
+  const afterPhotos = "Depois das fotos.";
 
   // 3. Fotos de catálogo (padrão da loja)
   const catalogJob = jobs.filter((j) => j.kind === "catalog_photos").at(-1) ?? null;
@@ -135,7 +136,7 @@ export function studioPipeline(input: PipelineInput): Pipeline {
     Object.assign(catalogo, { state: "failed", detail: catalogJob.error ?? "Não foi possível criar as fotos. Tente de novo.", etaSeconds: null });
   } else if (workerOnline && !capabilities.includes("catalog_photos")) {
     Object.assign(catalogo, { state: "off", detail: "Falta a chave da OpenAI (OPENAI_API_KEY) na Vercel.", etaSeconds: null });
-  } else if (cleanDone) {
+  } else if (photosReady) {
     catalogo.detail = readyCount >= MIN_PHOTOS_AUTO ? "Começa sozinho." : "Com poucas fotos, toque em “Gerar fotos de catálogo”.";
   }
   const catalogDone = catalogo.state === "done";
@@ -146,7 +147,7 @@ export function studioPipeline(input: PipelineInput): Pipeline {
   else if (copy.hasCopy) Object.assign(textos, { state: "done", detail: "Descrição no produto.", etaSeconds: null });
   else if (copy.writing) Object.assign(textos, { state: "working", detail: "O ChatGPT está escrevendo." });
   else if (copy.draftReady) Object.assign(textos, { state: "review", detail: "Sugestão pronta: revise e toque em “Aplicar ao produto”.", etaSeconds: null });
-  else if (cleanDone) textos.detail = "Começa sozinho.";
+  else if (photosReady) textos.detail = "Começa sozinho.";
 
   // 5. Modelo 3D (opcional enquanto a categoria não exigir)
   const modelJob = jobs.filter((j) => j.kind === "model_3d").at(-1) ?? null;
@@ -188,11 +189,10 @@ export function studioPipeline(input: PipelineInput): Pipeline {
   const settled = (s: PipelineStep) => s.state === "done" || s.state === "off" || (s.optional && s.state === "todo");
   const current = steps.find((s) => !settled(s)) ?? null;
 
-  // Até ficar pronto para conferir: limpeza, depois fotos de catálogo e textos ao mesmo tempo, e o 3D se for entrar.
+  // Até ficar pronto para conferir: limpeza, fotos de catálogo e textos ao mesmo tempo, e depois o 3D se for entrar.
   const pendingEta = (s: PipelineStep) => (["working", "queued", "waiting", "todo"].includes(s.state) ? (s.etaSeconds ?? 0) : 0);
   const remainingSeconds =
-    (clean.length || uploading ? pendingEta(limpeza) : 0) +
-    Math.max(pendingEta(catalogo), pendingEta(textos)) +
+    Math.max(clean.length || uploading ? pendingEta(limpeza) : 0, pendingEta(catalogo), pendingEta(textos)) +
     (model3d.required || model3d.auto || (modelJob && isPending(modelJob)) ? pendingEta(modelo3d) : 0);
 
   return { steps, current, remainingSeconds: clean.length || uploading ? remainingSeconds : 0 };

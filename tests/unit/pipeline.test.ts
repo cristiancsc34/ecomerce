@@ -47,7 +47,7 @@ describe("etapas do estúdio", () => {
     expect(p.remainingSeconds).toBe(0);
   });
 
-  it("limpando a foto 1 de 3: etapa atual é a limpeza e o tempo soma limpeza + fotos de catálogo", () => {
+  it("limpando a foto 1 de 3: catálogo e textos não esperam a limpeza e tudo corre ao mesmo tempo", () => {
     const jobs = [
       job("background_removal", "running", { startedAt: ago(10) }),
       job("background_removal", "queued"),
@@ -57,8 +57,11 @@ describe("etapas do estúdio", () => {
     expect(p.current?.id).toBe("limpeza");
     expect(p.current?.detail).toBe("Foto 1 de 3");
     expect(states(base({ jobs }))).toMatchObject({ fotos: "done", limpeza: "working", catalogo: "todo", modelo3d: "todo" });
-    // 30 s (foto 1) + 40 + 40 (fila) + 50 (fotos de catálogo; os textos, ~8 s, correm junto)
-    expect(p.remainingSeconds).toBe(30 + 40 + 40 + 50);
+    expect(p.steps.find((s) => s.id === "catalogo")?.detail).toBe("Começa sozinho.");
+    expect(p.steps.find((s) => s.id === "textos")?.detail).toBe("Começa sozinho.");
+    // Fotos limpas ao mesmo tempo (a da fila leva ~25 s), catálogo ~50 s e textos ~8 s juntos: vale o mais demorado.
+    expect(p.steps.find((s) => s.id === "limpeza")?.etaSeconds).toBe(25);
+    expect(p.remainingSeconds).toBe(50);
   });
 
   it("3D opcional não entra na conta nem vira a etapa atual", () => {
@@ -93,12 +96,12 @@ describe("etapas do estúdio", () => {
     expect(p.current?.detail).toBe("Esperando a IA ser configurada");
   });
 
-  it("sem a chave da fal.ai: pula a limpeza e as fotos de catálogo saem direto das fotos do celular", () => {
+  it("sem motor de limpeza: pula a etapa e as fotos de catálogo saem direto das fotos do celular", () => {
     const jobs = [0, 1, 2].map(() => job("background_removal", "queued"));
     const input = base({ jobs, capabilities: ["catalog_photos"] });
     const p = studioPipeline(input);
     expect(states(input)).toMatchObject({ fotos: "done", limpeza: "off", catalogo: "todo", textos: "todo" });
-    expect(p.steps.find((s) => s.id === "limpeza")?.detail).toContain("FAL_KEY");
+    expect(p.steps.find((s) => s.id === "limpeza")?.detail).toContain("Pulada");
     expect(p.steps.find((s) => s.id === "catalogo")?.detail).toBe("Começa sozinho.");
     expect(p.current?.id).toBe("catalogo");
     expect(p.remainingSeconds).toBe(50);
@@ -119,7 +122,7 @@ describe("etapas do estúdio", () => {
 
   it("antes da hidratação usa o tempo típico (mesmo texto no servidor e no navegador)", () => {
     const jobs = [job("background_removal", "running", { startedAt: ago(30) })];
-    expect(studioPipeline(base({ jobs, now: null })).steps[1].etaSeconds).toBe(40);
+    expect(studioPipeline(base({ jobs, now: null })).steps[1].etaSeconds).toBe(25);
   });
 
   it("formata a duração", () => {

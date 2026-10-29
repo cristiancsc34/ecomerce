@@ -11,6 +11,9 @@
  * o BiRefNet instalado mas tem FAL_KEY. Diferença do Python: não há o passo de
  * profundidade (Depth Anything) que descarta um móvel mais ao fundo; continuam
  * descartadas as manchas soltas longe do objeto principal.
+ *
+ * `cleanWith` serve para qualquer removedor de fundo: a limpeza com o ChatGPT
+ * (scripts/ai-pipeline.mjs) usa o mesmo enquadramento.
  */
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -256,26 +259,36 @@ async function falRemoveBackground(apiKey, input, fetchImpl) {
   return Buffer.from(await image.arrayBuffer());
 }
 
-/** Motor de limpeza com a fal.ai (mesma interface de pythonEngines.backgroundRemoval). */
-export function falBackgroundEngine(apiKey = process.env.FAL_KEY, { fetchImpl = fetch } = {}) {
+/**
+ * Limpeza com um removedor de fundo qualquer (fal.ai, ChatGPT…), com a mesma
+ * saída de pythonEngines.backgroundRemoval. Imagem já recortada (ex.: foto de
+ * catálogo com fundo transparente) só recebe o enquadramento da loja, sem gastar
+ * a API; as outras passam pelo removedor (`remove(arquivo)` → PNG transparente).
+ */
+export async function cleanWith(remove, input, dir, { fundo = "creme", engine = null } = {}) {
+  const started = Date.now();
+  const original = await readRgba(input);
+  const alreadyCut = isCutout(original);
+  const rgba = alreadyCut ? original : await readRgba(await remove(input));
+  const result = await composeStudio(rgba, { fundo, cleanMask: !alreadyCut });
+  const cutout = path.join(dir, "recorte.png");
+  const studioFile = path.join(dir, "estudio.jpg");
+  await writeFile(cutout, result.cutout);
+  await writeFile(studioFile, result.studio);
   return {
-    async backgroundRemoval(input, dir, { fundo = "creme" } = {}) {
-      const started = Date.now();
-      const original = await readRgba(input);
-      const alreadyCut = isCutout(original);
-      if (!alreadyCut && !apiKey) throw new Error("Falta a chave da fal.ai (FAL_KEY) para limpar o fundo desta imagem.");
-      // Imagem já recortada: só aplica o enquadramento padrão da loja (não gasta a API).
-      const rgba = alreadyCut ? original : await readRgba(await falRemoveBackground(apiKey, input, fetchImpl));
-      const result = await composeStudio(rgba, { fundo, cleanMask: !alreadyCut });
-      const cutout = path.join(dir, "recorte.png");
-      const studioFile = path.join(dir, "estudio.jpg");
-      await writeFile(cutout, result.cutout);
-      await writeFile(studioFile, result.studio);
-      return {
-        cutout,
-        studio: studioFile,
-        meta: { ...result.meta, ...(alreadyCut ? {} : { engine: "fal", seconds: Math.round((Date.now() - started) / 1000) }) },
-      };
-    },
+    cutout,
+    studio: studioFile,
+    meta: { ...result.meta, ...(alreadyCut ? {} : { engine, seconds: Math.round((Date.now() - started) / 1000) }) },
+  };
+}
+
+/** Motor de limpeza com a fal.ai (recorte exato, pixel a pixel). */
+export function falBackgroundEngine(apiKey = process.env.FAL_KEY, { fetchImpl = fetch } = {}) {
+  const remove = async (file) => {
+    if (!apiKey) throw new Error("Falta a chave da fal.ai (FAL_KEY) para limpar o fundo desta imagem.");
+    return falRemoveBackground(apiKey, file, fetchImpl);
+  };
+  return {
+    backgroundRemoval: (input, dir, { fundo = "creme" } = {}) => cleanWith(remove, input, dir, { fundo, engine: "fal" }),
   };
 }

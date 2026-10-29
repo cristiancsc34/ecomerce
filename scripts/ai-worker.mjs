@@ -12,7 +12,8 @@
  *
  * Motores habilitados:
  *   - limpeza de fundo: quando o modelo BiRefNet está baixado (ai:setup); sem
- *     ele, pela API da fal.ai com FAL_KEY (scripts/ai-background.mjs);
+ *     ele, pela API da fal.ai com FAL_KEY (scripts/ai-background.mjs) ou pelo
+ *     ChatGPT com OPENAI_API_KEY;
  *   - fotos de catálogo (IA recria a cena a partir das fotos reais): com
  *     OPENAI_API_KEY (GPT Image, edição com várias fotos de referência);
  *     estilo em CATALOG_STYLE (padrão "creme"; ou "neutro" / "ambiente-vazio");
@@ -26,7 +27,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { FAL_ENGINE_NAME, falBackgroundEngine } from "./ai-background.mjs";
-import { DEFAULT_IMAGE_MODEL, DEFAULT_TRIPO_MODEL, openaiCatalogEngine, processNext, requeueStale, tripoEngine } from "./ai-pipeline.mjs";
+import {
+  DEFAULT_IMAGE_MODEL,
+  DEFAULT_TRIPO_MODEL,
+  openaiCatalogEngine,
+  openaiCleanupEngine,
+  processNext,
+  requeueStale,
+  tripoEngine,
+} from "./ai-pipeline.mjs";
 
 // As etapas em Node ficam em ai-pipeline.mjs; reexportadas para quem já usa este arquivo.
 export * from "./ai-pipeline.mjs";
@@ -43,6 +52,8 @@ export function detectEngines(root = ROOT, env = process.env) {
     engines.background_removal = "BiRefNet + Depth Anything V2 (local)";
   } else if (env.FAL_KEY) {
     engines.background_removal = `${FAL_ENGINE_NAME} (API)`;
+  } else if (env.OPENAI_API_KEY) {
+    engines.background_removal = `ChatGPT ${env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL} (API)`;
   }
   if (env.OPENAI_API_KEY && engines.background_removal) {
     engines.catalog_photos = `OpenAI ${env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL}`;
@@ -121,6 +132,7 @@ async function main() {
   const engines = {
     ...pythonEngines,
     ...(engineNames.background_removal?.startsWith(FAL_ENGINE_NAME) ? falBackgroundEngine() : {}),
+    ...(engineNames.background_removal?.startsWith("ChatGPT") ? openaiCleanupEngine() : {}),
     ...(engineNames.catalog_photos ? openaiCatalogEngine() : {}),
     ...(engineNames.model_3d?.startsWith("Tripo") ? tripoEngine() : {}),
   };

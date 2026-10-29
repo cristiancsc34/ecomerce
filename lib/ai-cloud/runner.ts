@@ -4,7 +4,14 @@ import { after } from "next/server";
 import type { AiJobKind } from "@/lib/admin/ai-types";
 import { createServiceClient } from "@/lib/supabase/service";
 import { falBackgroundEngine } from "@/scripts/ai-background.mjs";
-import { DEFAULT_IMAGE_MODEL, DEFAULT_TRIPO_MODEL, openaiCatalogEngine, processJob, tripoEngine } from "@/scripts/ai-pipeline.mjs";
+import {
+  DEFAULT_IMAGE_MODEL,
+  DEFAULT_TRIPO_MODEL,
+  openaiCatalogEngine,
+  openaiCleanupEngine,
+  processJob,
+  tripoEngine,
+} from "@/scripts/ai-pipeline.mjs";
 import { CLOUD_STALE_MINUTES, cloudAiConfig } from "./config";
 
 /**
@@ -26,7 +33,8 @@ export type CloudRun = { id: string; kind: AiJobKind; status: "succeeded" | "fai
 
 function enginesFor(msLeft: number, env = process.env) {
   return {
-    ...falBackgroundEngine(env.FAL_KEY),
+    // Limpeza: fal.ai (recorte exato) se tiver a chave; senão, o ChatGPT.
+    ...(env.FAL_KEY ? falBackgroundEngine(env.FAL_KEY) : openaiCleanupEngine(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL)),
     ...openaiCatalogEngine(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL),
     // O 3D desiste sozinho antes de a função acabar, e registra o motivo.
     ...tripoEngine(env.TRIPO_API_KEY, env.TRIPO_MODEL || DEFAULT_TRIPO_MODEL, undefined, Math.max(60_000, msLeft - 15_000)),
