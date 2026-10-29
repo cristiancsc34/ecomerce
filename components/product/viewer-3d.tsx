@@ -56,8 +56,11 @@ function detectArSupport(): ArSupport {
   return "computador";
 }
 
-/** Celular com navegador que não abre a câmera: explica e facilita abrir no navegador certo. */
-function OpenInBrowserNotice({ browser, productName }: { browser: "Safari" | "Chrome"; productName: string }) {
+/** Volta do Safari/Chrome com este parâmetro: a página já carrega o 3D e pede um toque para a câmera. */
+const AR_PARAM = "ver-no-ambiente";
+
+/** Reserva: o app não deixou abrir o Safari/Chrome sozinho, então oferece copiar o link. */
+function CopyLinkFallback({ browser }: { browser: "Safari" | "Chrome" }) {
   const [copied, setCopied] = useState<string | null>(null);
   async function copy() {
     try {
@@ -68,11 +71,8 @@ function OpenInBrowserNotice({ browser, productName }: { browser: "Safari" | "Ch
     }
   }
   return (
-    <Notice tone="info" className="mt-3" title={`Para ver no seu ambiente, abra no ${browser}`}>
-      <p>
-        Este navegador não abre a câmera com o 3D. No {browser}, o botão “Ver no seu ambiente” mostra {productName} no seu
-        espaço pela câmera do celular.
-      </p>
+    <Notice tone="info" className="mt-3" title={`Abra no ${browser} para ver no seu ambiente`}>
+      <p>Este app não deixou abrir o {browser} sozinho. Copie o link e cole no {browser}.</p>
       <Button type="button" variant="secondary" size="sm" className="mt-2" onClick={copy}>
         <CopyIcon className="h-4 w-4" /> Copiar link
       </Button>
@@ -102,6 +102,52 @@ export function Viewer3D({ model, poster, productName }: { model: ProductMedia; 
   const wantsAr = useRef(false);
   const arSupport = useSyncExternalStore(subscribeNever, detectArSupport, (): ArSupport => "computador");
   const arCandidate = arSupport === "camera";
+  const onPhone = arSupport !== "computador";
+  const cameraBrowser = arSupport === "outro-android" ? "Chrome" : "Safari";
+  const [leaving, setLeaving] = useState(false);
+  const [jumpFailed, setJumpFailed] = useState(false);
+  const [arrivedFromApp, setArrivedFromApp] = useState(false);
+  const arrived = useRef(false);
+
+  /**
+   * App do Google, WhatsApp, Instagram (iPhone) ou Firefox (Android) não abrem a
+   * câmera com 3D: abre esta mesma página no Safari/Chrome, já no visualizador.
+   * x-safari-https:// abre o Safari no iOS; intent:// abre o Chrome no Android.
+   */
+  function openInCameraBrowser() {
+    const url = new URL(window.location.href);
+    url.searchParams.set(AR_PARAM, "1");
+    url.hash = "visualizador-3d";
+    const target =
+      arSupport === "outro-android"
+        ? `intent://${url.host}${url.pathname}${url.search}#Intent;scheme=${url.protocol.replace(":", "")};package=com.android.chrome;end`
+        : `x-safari-${url.href}`;
+    setJumpFailed(false);
+    setLeaving(true);
+    const link = document.createElement("a");
+    link.href = target;
+    link.click();
+    // Se o app não deixou sair (a página continua na tela), oferece copiar o link.
+    window.setTimeout(() => {
+      setLeaving(false);
+      if (document.visibilityState === "visible") setJumpFailed(true);
+    }, 2000);
+  }
+
+  // Chegou do app pelo Safari/Chrome: já carrega o 3D; a câmera abre no próximo toque (exigência do celular).
+  useEffect(() => {
+    if (!arCandidate || !new URLSearchParams(window.location.search).has(AR_PARAM)) return;
+    const timer = setTimeout(() => {
+      if (arrived.current) return;
+      arrived.current = true;
+      const url = new URL(window.location.href);
+      url.searchParams.delete(AR_PARAM);
+      window.history.replaceState(window.history.state, "", url);
+      setArrivedFromApp(true);
+      void load("3d");
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [arCandidate]);
 
   async function load(mode: "3d" | "ar") {
     wantsAr.current = mode === "ar";
@@ -170,7 +216,7 @@ export function Viewer3D({ model, poster, productName }: { model: ProductMedia; 
       </h2>
       <p className="mt-1 text-sm text-muted">
         Gire e aproxime para ver {productName} de todos os lados
-        {arCandidate ? " ou abra a câmera para ver no seu ambiente." : "."}
+        {onPhone ? " ou abra a câmera para ver no seu ambiente." : "."}
         {model.isIllustrative ? " Modelo ilustrativo: proporções e cores aproximadas." : null}
       </p>
 
@@ -207,18 +253,36 @@ export function Viewer3D({ model, poster, productName }: { model: ProductMedia; 
               Aponte a câmera para o chão e mova o celular devagar
             </p>
           </model-viewer>
-        ) : (
+        ) : null}
+        {state === "ready" && onPhone && !arCandidate ? (
+          <Button
+            size="lg"
+            className="absolute bottom-4 left-1/2 w-max -translate-x-1/2 shadow-lg"
+            onClick={openInCameraBrowser}
+            loading={leaving}
+            loadingLabel={`Abrindo no ${cameraBrowser}…`}
+          >
+            <CameraIcon className="h-5 w-5" /> Ver no seu ambiente
+          </Button>
+        ) : null}
+        {state !== "ready" ? (
           <>
             <ProductImage media={poster} sizes="(min-width: 1024px) 800px, 100vw" aspect="h-full" showIllustrativeBadge={false} />
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/40">
-              {arCandidate ? (
-                <Button size="lg" onClick={() => load("ar")} loading={pending === "ar"} disabled={pending !== null} loadingLabel="Abrindo a câmera…">
+              {onPhone ? (
+                <Button
+                  size="lg"
+                  onClick={() => (arCandidate ? load("ar") : openInCameraBrowser())}
+                  loading={pending === "ar" || leaving}
+                  disabled={pending !== null}
+                  loadingLabel={arCandidate ? "Abrindo a câmera…" : `Abrindo no ${cameraBrowser}…`}
+                >
                   <CameraIcon className="h-5 w-5" /> Ver no seu ambiente
                 </Button>
               ) : null}
               <Button
                 size="lg"
-                variant={arCandidate ? "secondary" : "primary"}
+                variant={onPhone ? "secondary" : "primary"}
                 onClick={() => load("3d")}
                 loading={pending === "3d"}
                 disabled={pending !== null}
@@ -228,7 +292,7 @@ export function Viewer3D({ model, poster, productName }: { model: ProductMedia; 
               </Button>
             </div>
           </>
-        )}
+        ) : null}
       </div>
 
       {state === "ready" ? (
@@ -242,14 +306,17 @@ export function Viewer3D({ model, poster, productName }: { model: ProductMedia; 
         </p>
       ) : (
         <p className="mt-3 text-sm text-muted">
-          {arCandidate
+          {onPhone
             ? "Toque em “Ver no seu ambiente” para abrir a câmera com o produto, ou em “Girar em 3D”."
             : "Toque em “Girar em 3D” para carregar o modelo."}
         </p>
       )}
-      {arSupport === "outro-iphone" || arSupport === "outro-android" ? (
-        <OpenInBrowserNotice browser={arSupport === "outro-iphone" ? "Safari" : "Chrome"} productName={productName} />
+      {arrivedFromApp && state === "ready" ? (
+        <Notice tone="success" role="status" className="mt-3" title="Pronto para ver no seu ambiente">
+          Toque em “Ver no seu ambiente”, sobre o 3D, para abrir a câmera.
+        </Notice>
       ) : null}
+      {jumpFailed ? <CopyLinkFallback browser={cameraBrowser} /> : null}
       {arProblem ? (
         <Notice tone="warning" role="status" className="mt-3" title="Realidade aumentada indisponível">
           {arProblem}
