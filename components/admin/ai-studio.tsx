@@ -58,6 +58,13 @@ async function shrinkPhoto(file: File): Promise<File> {
   return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "foto"}.jpg`, { type: "image/jpeg" });
 }
 
+const KIND_ORDER: AiJobKind[] = ["background_removal", "catalog_photos", "model_3d"];
+const KIND_LABEL: Record<AiJobKind, string> = {
+  background_removal: "limpeza do fundo",
+  catalog_photos: "fotos de catálogo",
+  model_3d: "modelo 3D",
+};
+
 const WORKING_LABEL: Record<AiJobKind, string> = {
   background_removal: "Limpando o fundo",
   catalog_photos: "Criando as fotos de catálogo",
@@ -107,7 +114,7 @@ function ProgressTrack({ value, label }: { value?: number; label: string }) {
 
 /**
  * O que está acontecendo com uma tarefa da IA, com tempo decorrido e o tempo
- * que costuma levar. A barra anda pelo relógio (o processador não informa a
+ * que costuma levar. A barra anda pelo relógio (a IA não informa a
  * porcentagem) e para em 95% até a tarefa terminar de verdade.
  */
 function JobProgress({ job, now, hydrated, workerOnline }: { job: AiJobView; now: number; hydrated: boolean; workerOnline: boolean }) {
@@ -117,7 +124,7 @@ function JobProgress({ job, now, hydrated, workerOnline }: { job: AiJobView; now
     return (
       <div className="mt-3">
         <p className="text-xs font-semibold text-muted">
-          {workerOnline ? "Na fila: começa assim que a tarefa anterior terminar." : "Na fila, esperando o processador de IA ser ligado."}
+          {workerOnline ? "Na fila: começa assim que a tarefa anterior terminar." : "Na fila, esperando a IA ser configurada."}
         </p>
         {workerOnline ? <ProgressTrack label="Na fila" /> : null}
       </div>
@@ -137,7 +144,7 @@ function JobProgress({ job, now, hydrated, workerOnline }: { job: AiJobView; now
       </div>
       <ProgressTrack value={Math.min(95, Math.round((seconds / typical) * 100))} label={WORKING_LABEL[job.kind]} />
       {!workerOnline ? (
-        <p className="mt-1.5 text-xs text-danger">O processador de IA parou de responder.</p>
+        <p className="mt-1.5 text-xs text-danger">A IA parou de responder.</p>
       ) : seconds > typical * 1.5 ? (
         <p className="mt-1.5 text-xs text-muted">Está levando mais que o normal; a IA continua trabalhando.</p>
       ) : null}
@@ -174,7 +181,7 @@ const STATE_TEXT: Record<StepState, string> = {
   done: "feito",
   working: "gerando agora",
   queued: "na fila",
-  waiting: "esperando o processador",
+  waiting: "esperando a IA",
   todo: "ainda não começou",
   review: "precisa de você",
   failed: "deu erro",
@@ -395,7 +402,8 @@ export function AiStudio({
     }
   }
 
-  // Acompanha a fila enquanto houver algo processando (ou o processador estiver desligado).
+  // Acompanha a fila enquanto houver algo processando (ou a IA ainda não estiver pronta). Cada consulta também
+  // mantém a fila andando na nuvem.
   useEffect(() => {
     if (!anyPending && snapshot.worker.online) return;
     const timer = setInterval(() => {
@@ -457,7 +465,7 @@ export function AiStudio({
   });
 
   // Seguir as etapas sozinho: limpeza pronta → fotos de catálogo (e, se marcado, o 3D depois delas).
-  // Só com o processador ligado e capaz da etapa, e uma vez só por etapa nesta tela.
+  // Só com a IA pronta para a etapa (nuvem ou processador), e uma vez só por etapa nesta tela.
   const autoReady = hydrated && auto && canEdit && !uploading && snapshot.worker.online;
   const wantsCatalog =
     autoReady && canCatalog && cleanDone && cleanOk.length >= MIN_PHOTOS_AUTO && !catalogJob && !aiMedia.length;
@@ -505,22 +513,34 @@ export function AiStudio({
         </ul>
       </div>
 
-      <p className="mt-4 text-sm" data-testid="estado-processador">
-        {snapshot.worker.online ? (
-          <span className="text-success">
-            ● Processador de IA ligado: {Object.values(snapshot.worker.engines).join(" · ")}
-          </span>
+      <div className="mt-4 text-sm" data-testid="estado-processador">
+        {snapshot.worker.cloud ? (
+          <p className="text-success">
+            ● IA na nuvem ligada: {KIND_ORDER.filter((k) => snapshot.worker.capabilities.includes(k)).map((k) => KIND_LABEL[k]).join(" · ")}
+          </p>
+        ) : snapshot.worker.online ? (
+          <p className="text-success">● Processador de IA ligado no computador: {Object.values(snapshot.worker.engines).join(" · ")}</p>
         ) : (
-          <span className="text-muted">
-            ○ Processador de IA desligado. As fotos ficam na fila até ele ser ligado (<code>npm run ai:worker</code>).
-          </span>
+          <p className="text-muted">○ IA ainda não configurada: as fotos ficam guardadas na fila até lá.</p>
         )}
-      </p>
+        {snapshot.worker.missing.length ? (
+          <p className="mt-1 text-xs text-muted [overflow-wrap:anywhere]">
+            Falta cadastrar na Vercel (Settings → Environment Variables):{" "}
+            {snapshot.worker.missing.map((key, i) => (
+              <span key={key}>
+                {i ? ", " : null}
+                <code>{key}</code>
+              </span>
+            ))}
+            .
+          </p>
+        ) : null}
+      </div>
 
       {!snapshot.worker.online && anyPending ? (
-        <Notice tone="warning" className="mt-3" title="Processador de IA desligado: nada está sendo gerado agora">
-          As fotos ficam guardadas na fila e começam sozinhas quando o processador for ligado no computador do estúdio. Pode
-          sair desta página: nada se perde.
+        <Notice tone="warning" className="mt-3" title="A IA ainda não está configurada: nada está sendo gerado agora">
+          As fotos ficam guardadas na fila e começam sozinhas assim que as chaves da IA forem cadastradas na Vercel. Pode sair
+          desta página: nada se perde.
         </Notice>
       ) : null}
 
@@ -599,7 +619,7 @@ export function AiStudio({
                     ) : (
                       <WorkingTile
                         active={job.status === "running"}
-                        label={job.status === "running" ? "Limpando o fundo…" : snapshot.worker.online ? "Na fila" : "Esperando o processador"}
+                        label={job.status === "running" ? "Limpando o fundo…" : snapshot.worker.online ? "Na fila" : "Esperando a IA"}
                       />
                     )}
                   </div>
@@ -660,7 +680,8 @@ export function AiStudio({
       {!canCatalog && snapshot.worker.online ? (
         <div className="mt-2">
           <Notice tone="warning" title="Gerador de fotos de catálogo ainda não ligado">
-            Precisa da chave da API de imagem (OpenAI). Enquanto isso, as fotos limpas acima já servem para a loja.
+            Falta a chave da OpenAI (<code>OPENAI_API_KEY</code>) na Vercel. Enquanto isso, as fotos limpas acima ficam como
+            referência.
           </Notice>
         </div>
       ) : null}
@@ -709,9 +730,9 @@ export function AiStudio({
       </h3>
       {!can3d && snapshot.worker.online ? (
         <div className="mt-2">
-          <Notice tone="warning" title="Gerador 3D não habilitado neste processador">
-            A limpeza de fundo está funcionando. Para gerar o 3D aqui, habilite o motor 3D (veja docs/ESTUDIO-IA.md) ou envie
-            um arquivo .glb na seção de mídia abaixo.
+          <Notice tone="warning" title="Gerador 3D ainda não ligado">
+            Falta a chave do Tripo (<code>TRIPO_API_KEY</code>) na Vercel. Enquanto isso, dá para enviar um arquivo .glb na
+            seção de mídia abaixo.
           </Notice>
         </div>
       ) : null}

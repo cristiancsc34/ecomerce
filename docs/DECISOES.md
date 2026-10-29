@@ -17,6 +17,7 @@
 | **3D com `<model-viewer>` sob demanda** | Biblioteca e `.glb` só baixam no clique (testado). Realidade aumentada no celular: Scene Viewer no Android (WebXR de reserva) e AR Quick Look no iPhone |
 | **Ilustrações próprias** | Não há fotos reais ainda; usar fotos de terceiros seria copiar identidade. Todas marcadas como ilustrativas |
 | **Fonte Inter via `next/font`** | Auto-hospedada no build, com métricas de fallback (evita salto de layout) |
+| **IA do estúdio na nuvem (Vercel), 29/10/2026** | O dono pediu para o painel funcionar pelo celular a qualquer hora, sem computador ligado. A limpeza de fundo passou do BiRefNet local para a API da fal.ai (o mesmo modelo); o enquadramento da loja (fundo creme, sombra) é feito em Node com sharp, igual ao script Python. As etapas rodam na própria função da Vercel depois de responder ao painel (`after`, até 300 s), com a chave de serviço do Supabase só no servidor. Tarefa interrompida vira falha com aviso, sem repetir sozinha (não gasta créditos duas vezes). O processador local continua funcionando |
 | **`air-blue-ink` (#2E6E9E)** | O `#408AC2` tem contraste 3,7:1 sobre branco (abaixo de AA para texto). Usamos uma variante escura só para texto de links; o azul original fica para ícones e elementos grandes |
 
 ## Revisão de código independente (27/10/2026)

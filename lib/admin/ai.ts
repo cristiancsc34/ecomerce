@@ -1,4 +1,5 @@
 import "server-only";
+import { cloudAiConfig } from "@/lib/ai-cloud/config";
 import { requireStaffAction } from "@/lib/auth/staff";
 import { mediaPublicUrl } from "@/lib/catalog/mappers";
 import { isUuid } from "@/lib/catalog/slug";
@@ -25,9 +26,22 @@ type JobRow = {
   output: { storage_path: string } | null;
 };
 
+/** Quem processa: a IA na nuvem (pelas chaves cadastradas) e/ou processadores locais ligados. */
+function workerStatus(local: { capabilities: string[]; engines: Record<string, string> }[]): AiStudioSnapshot["worker"] {
+  const cloud = cloudAiConfig();
+  const cloudKinds = Object.keys(cloud.engines);
+  return {
+    online: local.length > 0 || cloudKinds.length > 0,
+    cloud: cloudKinds.length > 0,
+    capabilities: [...new Set([...cloudKinds, ...local.flatMap((w) => w.capabilities)])],
+    engines: Object.assign({}, ...local.map((w) => w.engines), cloud.engines),
+    missing: cloud.missing,
+  };
+}
+
 export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSnapshot> {
   await requireStaffAction();
-  if (!isUuid(productId)) return { jobs: [], worker: { online: false, capabilities: [], engines: {} } };
+  if (!isUuid(productId)) return { jobs: [], worker: workerStatus([]) };
   const supabase = await createSessionClient();
   const [{ data: jobs }, { data: workers }] = await Promise.all([
     supabase
@@ -69,17 +83,14 @@ export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSn
       startedAt: j.started_at,
       finishedAt: j.finished_at,
     })),
-    worker: {
-      online: online.length > 0,
-      capabilities: [...new Set(online.flatMap((w) => w.capabilities))],
-      engines: Object.assign({}, ...online.map((w) => w.engines)),
-    },
+    worker: workerStatus(online),
   };
 }
 
-/** O processador de fotos/3D deu sinal de vida há pouco? (para o aviso no Início). */
+/** A IA de fotos/3D está pronta para trabalhar? (para o aviso no Início). */
 export async function getAiWorkerOnline(): Promise<boolean> {
   await requireStaffAction();
+  if (Object.keys(cloudAiConfig().engines).length) return true;
   const supabase = await createSessionClient();
   const { data } = await supabase.from("ai_workers").select("last_seen_at");
   const now = Date.now();

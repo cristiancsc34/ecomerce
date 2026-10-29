@@ -5,8 +5,8 @@ Na página de cada produto, o painel tem o **Estúdio de fotos e 3D**:
 1. **Fotos do celular**: o funcionário envia 3 ou 4 fotos (frente, lateral, traseira) com qualquer fundo. O navegador
    reduz fotos grandes antes de enviar (limite de 4 MB por arquivo).
 2. **Limpeza de fundo automática**: cada foto vira uma foto de estúdio 4:3, com fundo creme e sombra suave. O painel
-   mostra **antes × depois**. Se um móvel ao fundo “grudou” na máscara, ele é retirado automaticamente. Essas fotos são
-   referência (não vão para a loja).
+   mostra **antes × depois**. No processador local, se um móvel ao fundo “grudou” na máscara, ele é retirado
+   automaticamente. Essas fotos são referência (não vão para a loja).
 3. **Modelo 3D** gerado a partir da foto escolhida, com prévia girando no painel. Fica marcado como **ilustrativo** até
    alguém revisar.
 4. **Vídeo (opcional)**: enviado na seção de mídia.
@@ -14,18 +14,52 @@ Na página de cada produto, o painel tem o **Estúdio de fotos e 3D**:
 Categorias marcadas com **“Exige modelo 3D para publicar”** (como “Cadeiras e poltronas”) só publicam com 3D. Fotos são
 sempre obrigatórias; vídeo é opcional.
 
+## IA na nuvem (padrão): sem computador ligado
+
+Com as chaves cadastradas na Vercel, todas as etapas rodam na própria Vercel, onde o site já está. Dá para usar o
+painel pelo celular a qualquer hora.
+
+| Etapa | Serviço | Chave na Vercel |
+| --- | --- | --- |
+| Pegar tarefas da fila e gravar os resultados | Supabase | `SUPABASE_SERVICE_ROLE_KEY` |
+| Limpeza do fundo | fal.ai, BiRefNet ([fal.ai/models/fal-ai/birefnet/v2](https://fal.ai/models/fal-ai/birefnet/v2)) | `FAL_KEY` |
+| Fotos de catálogo e nome/descrição | OpenAI | `OPENAI_API_KEY` |
+| Modelo 3D (opcional) | Tripo | `TRIPO_API_KEY` |
+
+Cadastre em **Vercel → projeto `cuxoes` → Settings → Environment Variables**, ambiente **Production**, marcando
+**Sensitive**. Nunca use o prefixo `NEXT_PUBLIC_`. Depois, faça um **Redeploy** (as variáveis só valem em deploys novos).
+O painel mostra no topo do estúdio o que está ligado e quais chaves faltam (só os nomes). Cada chave liga a sua etapa:
+sem a do Tripo, por exemplo, todo o resto funciona e o 3D fica como “falta a chave”.
+
+Como roda:
+
+- Quando o painel cria uma tarefa (foto enviada, fotos de catálogo, 3D), a mesma função da Vercel responde e continua
+  trabalhando na fila (`after()` do Next, até **300 s**, `maxDuration` da página do produto). Enquanto há tarefas, o
+  painel consulta a cada 2 s e cada consulta mantém a fila andando. Várias fotos são limpas ao mesmo tempo.
+- A limpeza manda a foto (reduzida a 2048 px) para a fal.ai com `sync_mode`: o recorte volta na própria resposta e não
+  fica no histórico da fal.ai. O enquadramento (1600 × 1200, fundo creme, sombra de contato) é feito na Vercel por
+  `scripts/ai-background.mjs`, igual ao `ai/remove_background.py`. Diferença: a nuvem não tem o passo de profundidade
+  que tira um móvel mais ao fundo. Fotos com outro móvel logo atrás do produto podem precisar ser refeitas.
+- Uma tarefa só começa se ainda der tempo de terminar dentro dos 300 s; senão, fica para a próxima consulta. Tarefa que
+  passar do limite, ou que ficar “processando” por mais de 8 minutos (a função caiu), vira **falha com aviso**. Ela não
+  é repetida sozinha, para não gastar créditos duas vezes: toque para tentar de novo.
+- Código: `lib/ai-cloud/` (configuração e fila), `scripts/ai-pipeline.mjs` (etapas em Node, as mesmas do processador
+  local) e `scripts/ai-background.mjs` (limpeza com a fal.ai).
+- `AI_CLOUD=0` desliga a nuvem (por exemplo, para testar com o processador local).
+
 ## Como funciona
 
 ```
-Painel (Next.js)  ──cria job──▶  ai_jobs (Supabase)  ◀──pega 1 por vez──  Processador (scripts/ai-worker.mjs)
-       ▲                                                                       │ roda ai/*.py (CPU)
+Painel (Next.js)  ──cria job──▶  ai_jobs (Supabase)  ◀──pega 1 por vez──  IA na nuvem (Vercel) ou processador local
+       ▲                                                                       │ fal.ai / OpenAI / Tripo (ou ai/*.py)
        └────────── acompanha a cada 2 s ◀── grava a foto/3D como mídia ◀────────┘
 ```
 
 - O painel só **cria** e **acompanha** jobs (RLS: equipe, produto editável, arquivo da pasta do produto). Quem muda o
-  status e grava o resultado é o processador, com a chave de serviço.
-- O processador roda numa máquina da loja ou num servidor (nunca no navegador nem na Vercel). Ele avisa que está ligado
-  (tabela `ai_workers`) e o painel mostra quais motores estão disponíveis.
+  status e grava o resultado é a IA na nuvem ou o processador local, com a chave de serviço (só no servidor).
+- O processador local (opcional) roda numa máquina da loja (`scripts/ai-worker.mjs`). Ele avisa que está ligado
+  (tabela `ai_workers`) e o painel mostra quais motores estão disponíveis. Sem o BiRefNet instalado, ele também usa a
+  fal.ai se tiver `FAL_KEY`.
 - Arquivos: `products/<id>/originais/` (foto enviada), `products/<id>/recortes/` (recorte com transparência, base do
   3D) e `products/<id>/<uuid>.jpg|.glb` (resultado).
 
@@ -40,13 +74,16 @@ cada uma costuma levar (tempos medidos abaixo) e quanto falta para o produto fic
 Com **“Seguir as etapas sozinho”** marcado (padrão), quando as fotos terminam de limpar, com pelo menos 3 fotos (frente,
 lateral, traseira), o painel pede sozinho as fotos de catálogo e a sugestão de nome e descrição. O 3D só entra no
 automático se **“Incluir o 3D no automático”** estiver marcado (padrão desmarcado: gasta créditos do Tripo). Nada vai para
-a loja sem a pessoa aprovar as fotos e aplicar os textos. As escolhas ficam salvas no navegador. O processador continua o
-que já está na fila com a página fechada; as próximas etapas são pedidas quando alguém abre o produto no painel.
+a loja sem a pessoa aprovar as fotos e aplicar os textos. As escolhas ficam salvas no navegador. Com a página fechada, a
+tarefa em andamento termina (na nuvem, até o limite de 300 s; o processador local segue a fila inteira); as próximas
+etapas são pedidas quando alguém abre o produto no painel.
 
 O 3D obrigatório é uma opção da categoria (**Categorias → “Exige modelo 3D para publicar”**): desmarcada, o produto
 publica sem 3D.
 
-## Instalar e rodar
+## Processador local (opcional)
+
+Para limpar as fotos no próprio computador (de graça, sem mandar a foto para fora):
 
 ```bash
 npm run ai:setup    # uma vez: ambiente Python (CPU) + modelos (~1,1 GB)

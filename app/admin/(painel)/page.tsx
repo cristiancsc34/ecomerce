@@ -127,7 +127,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
             </Link>
             <p className="mt-3 flex items-center gap-2 text-sm">
               <span className={`h-2.5 w-2.5 rounded-full ${workerOnline ? "bg-success" : "bg-line"}`} aria-hidden="true" />
-              {workerOnline ? "Processador de fotos e 3D ligado." : "Processador de fotos e 3D desligado (as fotos ficam na fila)."}
+              {workerOnline ? "IA de fotos e 3D pronta." : "IA de fotos e 3D ainda não configurada (as fotos ficam na fila)."}
             </p>
           </Card>
 

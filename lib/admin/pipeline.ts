@@ -8,7 +8,7 @@ export const MIN_PHOTOS_AUTO = 3;
 
 export type StepId = "fotos" | "limpeza" | "catalogo" | "textos" | "modelo3d" | "conferir";
 /**
- * done: feito · working: gerando agora · queued: na fila · waiting: processador desligado ·
+ * done: feito · working: gerando agora · queued: na fila · waiting: IA ainda não configurada ·
  * todo: ainda não começou · review: precisa da pessoa · failed: deu erro · off: indisponível.
  */
 export type StepState = "done" | "working" | "queued" | "waiting" | "todo" | "review" | "failed" | "off";
@@ -63,7 +63,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export function studioPipeline(input: PipelineInput): Pipeline {
   const { jobs, now, workerOnline, capabilities, uploading, catalogMedia, copy, model3d } = input;
   const pendingState = (job: AiJobView): StepState => (job.status === "running" ? "working" : workerOnline ? "queued" : "waiting");
-  const waitingDetail = "Esperando o processador de IA ser ligado";
+  const waitingDetail = "Esperando a IA ser configurada";
 
   // 1. Fotos do celular
   const clean = jobs.filter((j) => j.kind === "background_removal");
@@ -113,7 +113,7 @@ export function studioPipeline(input: PipelineInput): Pipeline {
   } else if (catalogJob?.status === "failed") {
     Object.assign(catalogo, { state: "failed", detail: catalogJob.error ?? "Não foi possível criar as fotos. Tente de novo.", etaSeconds: null });
   } else if (workerOnline && !capabilities.includes("catalog_photos")) {
-    Object.assign(catalogo, { state: "off", detail: "Gerador não ligado no processador (falta a chave da OpenAI).", etaSeconds: null });
+    Object.assign(catalogo, { state: "off", detail: "Falta a chave da OpenAI (OPENAI_API_KEY) na Vercel.", etaSeconds: null });
   } else if (cleanDone) {
     catalogo.detail = cleanOk.length >= MIN_PHOTOS_AUTO ? "Começa sozinho." : "Com poucas fotos, toque em “Gerar fotos de catálogo”.";
   }
@@ -121,7 +121,7 @@ export function studioPipeline(input: PipelineInput): Pipeline {
 
   // 4. Nome e descrição (sugestão do ChatGPT; a pessoa revisa e aplica)
   const textos: PipelineStep = { id: "textos", label: "Nome e descrição", state: "todo", detail: "Depois da limpeza.", etaSeconds: TYPICAL_SECONDS.copy, optional: false };
-  if (!copy.enabled) Object.assign(textos, { state: "off", detail: "Precisa da chave da OpenAI no servidor.", etaSeconds: null });
+  if (!copy.enabled) Object.assign(textos, { state: "off", detail: "Falta a chave da OpenAI (OPENAI_API_KEY) na Vercel.", etaSeconds: null });
   else if (copy.hasCopy) Object.assign(textos, { state: "done", detail: "Descrição no produto.", etaSeconds: null });
   else if (copy.writing) Object.assign(textos, { state: "working", detail: "O ChatGPT está escrevendo." });
   else if (copy.draftReady) Object.assign(textos, { state: "review", detail: "Sugestão pronta: revise e toque em “Aplicar ao produto”.", etaSeconds: null });
@@ -152,7 +152,7 @@ export function studioPipeline(input: PipelineInput): Pipeline {
   else if (modelJob?.status === "failed") {
     Object.assign(modelo3d, { state: "failed", detail: modelJob.error ?? "Não foi possível gerar o 3D.", etaSeconds: null });
   } else if (workerOnline && !capabilities.includes("model_3d")) {
-    Object.assign(modelo3d, { state: "off", detail: "Gerador 3D não ligado no processador.", etaSeconds: null });
+    Object.assign(modelo3d, { state: "off", detail: "Falta a chave do Tripo (TRIPO_API_KEY) na Vercel.", etaSeconds: null });
   }
 
   // 6. Conferir e aprovar (a pessoa)

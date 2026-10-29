@@ -86,11 +86,11 @@ describe("etapas do estúdio", () => {
     expect(p.remainingSeconds).toBe(90 + 135);
   });
 
-  it("processador desligado: as etapas esperam e dizem por quê", () => {
+  it("IA não configurada: as etapas esperam e dizem por quê", () => {
     const input = base({ jobs: [0, 1, 2].map(() => job("background_removal", "queued")), workerOnline: false, capabilities: [] });
     const p = studioPipeline(input);
     expect(p.current?.state).toBe("waiting");
-    expect(p.current?.detail).toBe("Esperando o processador de IA ser ligado");
+    expect(p.current?.detail).toBe("Esperando a IA ser configurada");
   });
 
   it("menos de 3 fotos: avisa quantas faltam para seguir sozinho", () => {

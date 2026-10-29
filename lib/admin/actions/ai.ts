@@ -2,6 +2,8 @@
 
 import { updateTag } from "next/cache";
 import { suggestCopy, type CopySuggestion } from "@/lib/ai/copy";
+import { cloudAiConfig, needsCloudRun } from "@/lib/ai-cloud/config";
+import { kickCloudQueue } from "@/lib/ai-cloud/runner";
 import { rateLimit } from "@/lib/auth/rate-limit";
 import { AuthorizationError, requireStaffAction } from "@/lib/auth/staff";
 import { MEDIA_BUCKET } from "@/lib/catalog/mappers";
@@ -55,16 +57,20 @@ export async function uploadAiPhotoAction(productId: string, formData: FormData)
     await supabase.storage.from(MEDIA_BUCKET).remove([path]);
     return { ok: false, error: friendlyDbError(error, "Não foi possível colocar a foto na fila.") };
   }
+  kickCloudQueue();
   return { ok: true };
 }
 
 export async function aiStudioSnapshotAction(productId: string): Promise<ActionResult<AiStudioSnapshot>> {
   const denied = await guard();
   if (denied) return denied;
-  return { ok: true, data: await getAiStudioSnapshot(productId) };
+  const snapshot = await getAiStudioSnapshot(productId);
+  // O painel consulta a cada 2 s enquanto há tarefas: é o que mantém a fila andando na nuvem.
+  if (needsCloudRun(snapshot.jobs, cloudAiConfig())) kickCloudQueue();
+  return { ok: true, data: snapshot };
 }
 
-/** O processador grava a mídia com a chave de serviço; a vitrine precisa saber. */
+/** O processador (ou a IA na nuvem) grava a mídia com a chave de serviço; a vitrine precisa saber. */
 export async function aiResultsSeenAction(): Promise<ActionResult> {
   const denied = await guard();
   if (denied) return denied;
@@ -120,6 +126,7 @@ export async function requestModel3dAction(productId: string, cleanJobId: string
     source_media_id: base?.output_media_id ?? null,
   });
   if (error) return { ok: false, error: friendlyDbError(error, "Não foi possível pedir o modelo 3D.") };
+  kickCloudQueue();
   return { ok: true };
 }
 
@@ -154,6 +161,7 @@ export async function requestCatalogPhotosAction(productId: string): Promise<Act
     .from("ai_jobs")
     .insert({ product_id: productId, kind: "catalog_photos", input_path: photos[0].input_path as string });
   if (error) return { ok: false, error: friendlyDbError(error, "Não foi possível pedir as fotos de catálogo.") };
+  kickCloudQueue();
   return { ok: true };
 }
 

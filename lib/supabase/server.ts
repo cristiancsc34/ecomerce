@@ -7,7 +7,7 @@ import { connection } from "next/server";
 /**
  * Cliente com a sessão do usuário (cookies). Usado só no painel e nas Server
  * Actions: todas as leituras e escritas passam pelo RLS com o papel do usuário.
- * A aplicação nunca usa a service role em tempo de execução.
+ * A service role só é usada pela IA na nuvem do estúdio (lib/supabase/service.ts).
  */
 export async function createSessionClient(): Promise<SupabaseClient> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

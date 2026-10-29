@@ -25,7 +25,16 @@ export type AiJobView = {
 
 export type AiStudioSnapshot = {
   jobs: AiJobView[];
-  worker: { online: boolean; capabilities: string[]; engines: Record<string, string> };
+  worker: {
+    /** Alguém sabe processar: a IA na nuvem (chaves na Vercel) ou um processador local ligado. */
+    online: boolean;
+    /** A IA na nuvem está configurada (sem computador ligado). */
+    cloud: boolean;
+    capabilities: string[];
+    engines: Record<string, string>;
+    /** Chaves da IA na nuvem que faltam cadastrar na Vercel (só os nomes). */
+    missing: string[];
+  };
 };
 
 export const isPending = (job: Pick<AiJobView, "status">) => job.status === "queued" || job.status === "running";

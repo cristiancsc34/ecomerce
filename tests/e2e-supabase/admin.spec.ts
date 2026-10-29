@@ -146,12 +146,12 @@ test("editor cria rascunho em um passo, preenche pelas abas e envia para revisã
   await expect(page.getByText("Principal", { exact: true })).toBeVisible();
   await expect(panel(page).getByRole("button", { name: /Fotos \(pronto\)/ })).toBeVisible();
 
-  // Estúdio de IA: a foto do celular entra na fila de limpeza; sem processador ligado, espera.
+  // Estúdio de IA: a foto do celular entra na fila de limpeza; sem IA configurada, espera.
   await page.locator("#estudio-fotos").setInputFiles({ name: "celular.png", mimeType: "image/png", buffer: await photo(page) });
   await expect(page.getByText("Foto na fila de limpeza.")).toBeVisible();
   const studioPhoto = page.getByTestId("foto-estudio").first();
   await expect(studioPhoto).toHaveAttribute("data-status", "queued");
-  await expect(page.getByTestId("estado-processador")).toContainText("Processador de IA desligado");
+  await expect(page.getByTestId("estado-processador")).toContainText("IA ainda não configurada");
   await expect(page.getByRole("button", { name: "Gerar modelo 3D" })).toBeDisabled();
   await studioPhoto.getByRole("button", { name: "Descartar" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Descartar" }).click();

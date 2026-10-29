@@ -40,6 +40,8 @@ export default defineConfig({
       CATALOG_SOURCE: "supabase",
       NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}`,
       NEXT_TELEMETRY_DISABLED: "1",
+      // Sem IA na nuvem: o teste confere a fila esperando, sem gastar APIs pagas.
+      AI_CLOUD: "0",
     },
   },
 });

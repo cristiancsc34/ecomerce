@@ -18,6 +18,8 @@ import { ExternalIcon, EyeIcon } from "@/components/ui/icons";
 import { Notice } from "@/components/ui/notice";
 
 export const metadata: Metadata = { title: "Editar produto" };
+// As ações do estúdio de IA seguem processando a fila na nuvem depois de responder (limite da Vercel: 300 s).
+export const maxDuration = 300;
 
 export default async function EditProductPage({ params, searchParams }: PageProps<"/admin/produtos/[id]">) {
   const staff = await requireStaffPage();
