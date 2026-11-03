@@ -11,7 +11,8 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin", "/api", "/carrinho", "/conta", "/busca"],
+        // /pedido: páginas pessoais com link secreto; /finalizar: dados do cliente.
+        disallow: ["/admin", "/api", "/carrinho", "/finalizar", "/pedido", "/conta", "/busca"],
       },
     ],
     sitemap: `${siteUrl()}/sitemap.xml`,

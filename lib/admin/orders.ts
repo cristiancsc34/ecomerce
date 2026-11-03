@@ -8,6 +8,9 @@ import { listAdminProducts } from "./data";
 
 /** Leituras de pedidos do painel (sessão do usuário; o RLS só libera a equipe). */
 
+/** De onde veio o pedido: registrado pela equipe no painel ou feito pelo cliente no site. */
+export type OrderSource = "painel" | "site";
+
 export type OrderSummary = {
   id: string;
   code: string;
@@ -19,6 +22,7 @@ export type OrderSummary = {
   createdAt: string;
   updatedAt: string;
   itemCount: number;
+  source: OrderSource;
 };
 
 export type OrderItem = {
@@ -56,12 +60,14 @@ export type OrderDetail = Omit<OrderSummary, "itemCount"> & {
 
 type Row = Record<string, unknown>;
 
+const toSource = (v: unknown): OrderSource => (v === "site" ? "site" : "painel");
+
 export async function listOrders(): Promise<OrderSummary[]> {
   await requireStaffAction();
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("id,code,status,customer_name,total_cents,delivery_method,scheduled_date,created_at,updated_at,items:order_items(quantity)")
+    .select("id,code,status,customer_name,total_cents,delivery_method,scheduled_date,created_at,updated_at,source,items:order_items(quantity)")
     .order("created_at", { ascending: false })
     .limit(500);
   if (error) throw new Error("Falha ao carregar os pedidos.");
@@ -76,6 +82,7 @@ export async function listOrders(): Promise<OrderSummary[]> {
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
     itemCount: ((r.items as { quantity: number }[]) ?? []).reduce((n, i) => n + i.quantity, 0),
+    source: toSource(r.source),
   }));
 }
 
@@ -121,6 +128,7 @@ export async function getOrder(id: string): Promise<OrderDetail | null> {
     paidAt: (r.paid_at as string | null) ?? null,
     internalNotes: (r.internal_notes as string | null) ?? null,
     publicToken: r.public_token as string,
+    source: toSource(r.source),
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
     items: items.map((i) => ({

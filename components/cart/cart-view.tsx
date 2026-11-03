@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { brand, hasAnyContact } from "@/config/brand";
+import { isSupabaseConfigured } from "@/config/site";
 import { cart, useCartItems } from "@/lib/cart/store";
 import { MAX_QUANTITY_PER_LINE, type CartItem, type CartQuote } from "@/lib/cart/types";
 import { formatPrice } from "@/lib/catalog/money";
@@ -19,6 +20,9 @@ type State =
   | { status: "error"; message: string };
 
 const key = (items: CartItem[]) => JSON.stringify(items);
+
+/** Pedido pelo site precisa do Supabase (variáveis públicas, iguais no servidor e no navegador). */
+const SITE_CHECKOUT_ENABLED = isSupabaseConfigured();
 
 export function CartView() {
   const hydrated = useHydrated();
@@ -95,6 +99,8 @@ export function CartView() {
   }
 
   const { quote } = state;
+  // A cotação só devolve itens com preço e disponíveis; produtos de demonstração não viram pedido.
+  const canCheckout = SITE_CHECKOUT_ENABLED && quote.lines.length > 0 && !quote.hasDemoItems;
 
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-6">
@@ -169,16 +175,33 @@ export function CartView() {
             </div>
           </dl>
           <p className="text-xs text-muted">Valores recalculados pela loja agora; o navegador não define preços.</p>
-          <Button size="lg" className="w-full" disabled aria-describedby="checkout-indisponivel">
-            Finalizar compra
-          </Button>
-          <p id="checkout-indisponivel" className="text-sm text-ink">
-            A compra online ainda não está ativa. Para comprar, fale com o{" "}
-            <Link href="/atendimento" className="link">
-              atendimento da {brand.name}
-            </Link>
-            {hasAnyContact() ? "." : " (canais em configuração)."}
-          </p>
+          {canCheckout ? (
+            <>
+              <ButtonLink href="/finalizar" size="lg" className="w-full">
+                Finalizar compra
+              </ButtonLink>
+              <p className="text-sm text-ink">
+                Prefere falar com alguém? Chame o{" "}
+                <Link href="/atendimento" className="link">
+                  atendimento da {brand.name}
+                </Link>
+                {hasAnyContact() ? "." : " (canais em configuração)."}
+              </p>
+            </>
+          ) : (
+            <>
+              <Button size="lg" className="w-full" disabled aria-describedby="checkout-indisponivel">
+                Finalizar compra
+              </Button>
+              <p id="checkout-indisponivel" className="text-sm text-ink">
+                A compra online ainda não está ativa. Para comprar, fale com o{" "}
+                <Link href="/atendimento" className="link">
+                  atendimento da {brand.name}
+                </Link>
+                {hasAnyContact() ? "." : " (canais em configuração)."}
+              </p>
+            </>
+          )}
         </div>
       </aside>
     </div>

@@ -10,7 +10,33 @@
 --   * entrega da loja exige endereço; frete fica vazio ("a combinar"), nunca inventado; retirada = frete 0;
 --   * o cliente aceita ser contatado pelo WhatsApp (é por lá que a venda é confirmada);
 --   * a função roda com os direitos do dono (security definer): o visitante continua sem ler a tabela de pedidos e
---     só acompanha o próprio pedido pelo link secreto devolvido aqui.
+--     só acompanha o próprio pedido pelo link secreto devolvido aqui;
+--   * a função pode ser chamada direto pela API pública (chave anon), sem passar pelo limite por IP do site; por isso
+--     o próprio banco limita: até 5 pedidos por celular por hora e até 30 pedidos do site a cada 10 minutos;
+--   * textos do cliente perdem caracteres de controle e invisíveis (quebra de linha só nas observações).
+
+-- Contagem rápida dos pedidos recentes do site (limite contra pedidos em massa).
+create index if not exists orders_source_created_idx on public.orders (source, created_at desc);
+
+-- Tira caracteres de controle e invisíveis (inclusive os que invertem a direção do texto) e espaços nas pontas.
+-- p_multiline = true mantém as quebras de linha (observações da entrega).
+create or replace function private.site_clean_text(p_value text, p_multiline boolean default false)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select btrim(
+    regexp_replace(
+      regexp_replace(
+        case when p_multiline then regexp_replace(coalesce(p_value, ''), '\r\n?', E'\n', 'g') else coalesce(p_value, '') end,
+        '[​-‏‪-‮⁠-⁩﻿]', '', 'g'),
+      case when p_multiline then '[\u0001-\u0009\u000B-\u001F\u007F-\u009F]+' else '[\u0001-\u001F\u007F-\u009F]+' end,
+      ' ', 'g'),
+    E' \n');
+$$;
+
+revoke all on function private.site_clean_text(text, boolean) from public;
 
 create or replace function public.place_site_order(p_data jsonb)
 returns jsonb
@@ -57,7 +83,7 @@ begin
   end if;
 
   -- Cliente ------------------------------------------------------------------
-  v_name := btrim(coalesce(p_data ->> 'customerName', ''));
+  v_name := private.site_clean_text(p_data ->> 'customerName');
   if char_length(v_name) not between 2 and 120 then
     raise exception 'Informe seu nome (de 2 a 120 letras).' using errcode = '22023';
   end if;
@@ -70,7 +96,7 @@ begin
     raise exception 'Informe o celular com DDD, ex.: (11) 98765-4321.' using errcode = '22023';
   end if;
 
-  v_email := nullif(btrim(coalesce(p_data ->> 'customerEmail', '')), '');
+  v_email := nullif(private.site_clean_text(p_data ->> 'customerEmail'), '');
   if v_email is not null and (char_length(v_email) > 200 or v_email !~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$') then
     raise exception 'E-mail inválido. Confira ou deixe em branco.' using errcode = '22023';
   end if;
@@ -89,7 +115,7 @@ begin
     raise exception 'Escolha entre entrega e retirada na loja.' using errcode = '22023';
   end if;
 
-  v_notes := nullif(btrim(coalesce(p_data ->> 'deliveryNotes', '')), '');
+  v_notes := nullif(private.site_clean_text(p_data ->> 'deliveryNotes', true), '');
   if char_length(v_notes) > 1000 then
     raise exception 'Observações da entrega: no máximo 1000 caracteres.' using errcode = '22023';
   end if;
@@ -97,13 +123,13 @@ begin
   if v_method = 'entrega_propria' then
     v_addr := case when jsonb_typeof(p_data -> 'address') = 'object' then p_data -> 'address' else '{}'::jsonb end;
     v_cep := regexp_replace(coalesce(v_addr ->> 'cep', ''), '[^0-9]', '', 'g');
-    v_rua := btrim(coalesce(v_addr ->> 'rua', ''));
-    v_numero := btrim(coalesce(v_addr ->> 'numero', ''));
-    v_complemento := btrim(coalesce(v_addr ->> 'complemento', ''));
-    v_bairro := btrim(coalesce(v_addr ->> 'bairro', ''));
-    v_cidade := btrim(coalesce(v_addr ->> 'cidade', ''));
-    v_uf := upper(btrim(coalesce(v_addr ->> 'uf', '')));
-    v_referencia := btrim(coalesce(v_addr ->> 'referencia', ''));
+    v_rua := private.site_clean_text(v_addr ->> 'rua');
+    v_numero := private.site_clean_text(v_addr ->> 'numero');
+    v_complemento := private.site_clean_text(v_addr ->> 'complemento');
+    v_bairro := private.site_clean_text(v_addr ->> 'bairro');
+    v_cidade := private.site_clean_text(v_addr ->> 'cidade');
+    v_uf := upper(private.site_clean_text(v_addr ->> 'uf'));
+    v_referencia := private.site_clean_text(v_addr ->> 'referencia');
     if v_cep !~ '^[0-9]{8}$' then
       raise exception 'Informe o CEP da entrega (8 números).' using errcode = '22023';
     end if;
@@ -225,6 +251,20 @@ begin
   v_total := v_subtotal + coalesce(v_shipping, 0);
   if v_total > 2147483647 then
     raise exception 'Valor do pedido acima do limite. Fale com o atendimento.' using errcode = '22023';
+  end if;
+
+  -- Limite contra pedidos em massa (a função também pode ser chamada direto pela API pública).
+  -- A trava em fila deixa a contagem exata mesmo com pedidos chegando ao mesmo tempo.
+  perform pg_advisory_xact_lock(hashtext('public.place_site_order'));
+  if (select count(*) from public.orders o
+      where o.source = 'site' and o.customer_phone = v_phone and o.created_at > now() - interval '1 hour') >= 5 then
+    raise exception 'Já recebemos vários pedidos deste celular na última hora. Aguarde um pouco ou fale com o atendimento.'
+      using errcode = '22023';
+  end if;
+  if (select count(*) from public.orders o
+      where o.source = 'site' and o.created_at > now() - interval '10 minutes') >= 30 then
+    raise exception 'Muitos pedidos ao mesmo tempo agora. Tente de novo em alguns minutos ou fale com o atendimento.'
+      using errcode = '22023';
   end if;
 
   -- Grava (tudo validado antes, para não gastar números de pedido à toa) -------

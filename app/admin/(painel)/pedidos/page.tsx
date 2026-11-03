@@ -5,7 +5,7 @@ import { requireStaffPage } from "@/lib/auth/staff";
 import { formatPrice } from "@/lib/catalog/money";
 import { formatDeliveryDate } from "@/lib/orders/messages";
 import { DELIVERY_LABEL, isOpen } from "@/lib/orders/status";
-import { OrderStatusBadge } from "@/components/admin/order-status-badge";
+import { OrderSourceBadge, OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { PageHeader } from "@/components/admin/ui";
 import { ButtonLink } from "@/components/ui/button";
 import { ChevronRightIcon, TruckIcon } from "@/components/ui/icons";
@@ -34,7 +34,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps<"/admi
     <div>
       <PageHeader
         title="Pedidos"
-        subtitle="Do pedido fechado no atendimento até a entrega, etapa por etapa."
+        subtitle="Pedidos do site e do atendimento, do registro até a entrega, etapa por etapa."
         actions={<ButtonLink href="/admin/pedidos/novo">Novo pedido</ButtonLink>}
       />
       <nav aria-label="Filtrar pedidos" className="-mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
@@ -63,6 +63,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps<"/admi
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="font-semibold text-deep-fjord">{o.code}</span>
                     <OrderStatusBadge status={o.status} />
+                    <OrderSourceBadge source={o.source} />
                   </span>
                   <span className="mt-0.5 block truncate text-sm text-ink">
                     {o.customerName} · {o.itemCount} {o.itemCount === 1 ? "item" : "itens"} · {formatPrice(o.totalCents)}

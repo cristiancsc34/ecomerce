@@ -12,6 +12,23 @@ const FRIENDLY_PREFIXES = [
   "Um pedido novo",
   "Os itens só podem",
   "Não dá para passar",
+  // Pedido pelo site (supabase/migrations/20261103000200_site_checkout.sql)
+  "Envie os dados do pedido",
+  "Informe ",
+  "E-mail inválido",
+  "Para fazer o pedido",
+  "Escolha ",
+  "Observações da entrega",
+  "Endereço com texto",
+  "A sacola ",
+  "Quantidade inválida",
+  "Produto indisponível",
+  "Produto sem preço",
+  "Produto esgotado",
+  "Estoque insuficiente",
+  "Valor do pedido",
+  "Já recebemos vários pedidos",
+  "Muitos pedidos ao mesmo tempo",
 ];
 
 type DbError = { code?: string; message?: string; details?: string | null; hint?: string | null } | null | undefined;

@@ -16,3 +16,9 @@ const TONE: Record<OrderStatus, "neutral" | "info" | "warm" | "success" | "dange
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {
   return <Badge tone={TONE[status]}>{STATUS_LABEL[status]}</Badge>;
 }
+
+/** Selo para pedidos feitos pelo cliente no site (os do painel não levam selo). */
+export function OrderSourceBadge({ source }: { source: "painel" | "site" }) {
+  if (source !== "site") return null;
+  return <Badge tone="info">Site</Badge>;
+}

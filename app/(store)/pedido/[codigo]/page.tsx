@@ -30,8 +30,9 @@ export default function TrackingPage({ params, searchParams }: PageProps<"/pedid
 
 async function Tracking({ params, searchParams }: Pick<PageProps<"/pedido/[codigo]">, "params" | "searchParams">) {
   const [{ codigo }, sp] = await Promise.all([params, searchParams]);
-  const order = await getOrderTracking(decodeURIComponent(codigo), typeof sp.t === "string" ? sp.t : undefined);
-  if (!order) {
+  const token = typeof sp.t === "string" ? sp.t : undefined;
+  const order = await getOrderTracking(decodeURIComponent(codigo), token);
+  if (!order || !token) {
     return (
       <div className="mx-auto mt-6 max-w-xl">
         <h1 className="text-3xl font-bold">Acompanhar pedido</h1>
@@ -44,5 +45,6 @@ async function Tracking({ params, searchParams }: Pick<PageProps<"/pedido/[codig
       </div>
     );
   }
-  return <OrderView order={order} />;
+  // ?novo=1 vem do checkout do site: mostra o aviso "Pedido enviado!" no topo.
+  return <OrderView order={order} token={token} isNew={sp.novo === "1"} />;
 }

@@ -256,7 +256,7 @@ test.describe("vitrine em modo demonstração", () => {
 
   test("sem rolagem horizontal a partir de 360 px", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 780 });
-    for (const path of ["/", "/produtos", "/produtos/poltrona-azul", "/produtos/cadeira-cinza-trama", "/busca?q=poltrona", "/carrinho", "/atendimento", "/politicas/privacidade"]) {
+    for (const path of ["/", "/produtos", "/produtos/poltrona-azul", "/produtos/cadeira-cinza-trama", "/busca?q=poltrona", "/carrinho", "/finalizar", "/pedido/PED-1001", "/atendimento", "/politicas/privacidade"]) {
       await page.goto(path);
       await page.waitForLoadState("networkidle");
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

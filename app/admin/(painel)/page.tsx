@@ -2,14 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getAiWorkerOnline } from "@/lib/admin/ai";
 import { listAdminProducts, listAuditEvents } from "@/lib/admin/data";
+import { listOrders, type OrderSummary } from "@/lib/admin/orders";
 import { missingLabel, pendingAiPhotos, readinessSummary } from "@/lib/admin/readiness";
 import { requireStaffPage } from "@/lib/auth/staff";
 import { STATUS_LABELS, type Product, type ProductStatus } from "@/lib/catalog/types";
+import { isOpen } from "@/lib/orders/status";
 import { AuditList } from "@/components/admin/audit-list";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Card, PageHeader, ProductThumb } from "@/components/admin/ui";
 import { buttonClasses, ButtonLink } from "@/components/ui/button";
-import { CameraIcon, CheckIcon, ChevronRightIcon, ExternalIcon } from "@/components/ui/icons";
+import { CameraIcon, CheckIcon, ChevronRightIcon, ExternalIcon, TruckIcon } from "@/components/ui/icons";
 import { Notice } from "@/components/ui/notice";
 
 export const metadata: Metadata = { title: "Início" };
@@ -38,12 +40,29 @@ function todos(products: Product[]): Todo[] {
   return list.sort((a, b) => order[a.tone] - order[b.tone]);
 }
 
+/** Contagem para o cartão "Pedidos". Se a leitura falhar, o Início continua abrindo (o cartão avisa). */
+async function orderCounts(): Promise<{ waiting: number; waitingFromSite: number; inProgress: number } | null> {
+  let orders: OrderSummary[];
+  try {
+    orders = await listOrders();
+  } catch {
+    return null;
+  }
+  const waiting = orders.filter((o) => o.status === "recebido");
+  return {
+    waiting: waiting.length,
+    waitingFromSite: waiting.filter((o) => o.source === "site").length,
+    inProgress: orders.filter((o) => o.status !== "recebido" && isOpen(o.status)).length,
+  };
+}
+
 export default async function DashboardPage({ searchParams }: PageProps<"/admin">) {
   await requireStaffPage();
-  const [products, events, workerOnline, params] = await Promise.all([
+  const [products, events, workerOnline, orders, params] = await Promise.all([
     listAdminProducts(),
     listAuditEvents({ limit: 6 }),
     getAiWorkerOnline(),
+    orderCounts(),
     searchParams,
   ]);
   const count = (s: ProductStatus) => products.filter((p) => p.status === s && !p.isDemo).length;
@@ -115,6 +134,53 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
         </Card>
 
         <div className="space-y-6">
+          <Card
+            id="pedidos"
+            title="Pedidos"
+            actions={
+              <Link href="/admin/pedidos" className="link text-sm">
+                Ver pedidos
+              </Link>
+            }
+          >
+            {orders ? (
+              <>
+                <ul className="grid grid-cols-2 gap-3" data-testid="resumo-pedidos">
+                  <li>
+                    <Link
+                      href="/admin/pedidos"
+                      className={`flex h-full flex-col justify-between rounded-xl border px-4 py-3 hover:border-deep-fjord ${
+                        orders.waiting ? "border-linen bg-linen/40" : "border-line bg-white"
+                      }`}
+                    >
+                      <span className="text-sm font-medium text-muted">Aguardando confirmação</span>
+                      <span className="mt-1 text-2xl font-bold text-deep-fjord">{orders.waiting}</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="/admin/pedidos"
+                      className="flex h-full flex-col justify-between rounded-xl border border-line bg-white px-4 py-3 hover:border-deep-fjord"
+                    >
+                      <span className="text-sm font-medium text-muted">Em andamento</span>
+                      <span className="mt-1 text-2xl font-bold text-deep-fjord">{orders.inProgress}</span>
+                    </Link>
+                  </li>
+                </ul>
+                <p className="mt-3 flex items-start gap-2 text-sm">
+                  <TruckIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+                  {orders.waiting
+                    ? `${orders.waiting === 1 ? "1 pedido espera" : `${orders.waiting} pedidos esperam`} você confirmar o pagamento e o frete com o cliente${
+                        orders.waitingFromSite ? ` (${orders.waitingFromSite} pelo site)` : ""
+                      }.`
+                    : "Nenhum pedido esperando confirmação."}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted">Não foi possível carregar os pedidos agora. Abra a página de pedidos para tentar de novo.</p>
+            )}
+          </Card>
+
           <Card title="Cadastrar com o celular">
             <Link href="/admin/produtos/novo" className="flex items-center gap-4 rounded-xl bg-pale-blue p-4 hover:bg-sky-mist">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-deep-fjord text-white">

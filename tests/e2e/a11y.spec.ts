@@ -9,6 +9,8 @@ const PAGES = [
   "/categorias/cadeiras",
   "/busca?q=poltrona",
   "/carrinho",
+  "/finalizar",
+  "/pedido/PED-1001",
   "/atendimento",
   "/conta",
   "/politicas/privacidade",
