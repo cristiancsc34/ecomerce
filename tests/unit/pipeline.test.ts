@@ -19,6 +19,7 @@ function job(kind: AiJobView["kind"], status: AiJobView["status"], extra: Partia
     error: null,
     seconds: null,
     droppedBackgroundObject: false,
+    ar: null,
     createdAt: ago(120),
     startedAt: status === "queued" ? null : ago(10),
     finishedAt: status === "succeeded" || status === "failed" ? ago(5) : null,

@@ -337,6 +337,7 @@ export function AiStudio({
   copyEnabled,
   hasCopy,
   initial,
+  arPanel = null,
 }: {
   productId: string;
   productName: string;
@@ -351,6 +352,8 @@ export function AiStudio({
   /** O produto já tem descrição (textos aplicados ou escritos à mão). */
   hasCopy: boolean;
   initial: AiStudioSnapshot;
+  /** Conferência de tamanho real e arquivo do iPhone (quando o produto tem 3D). */
+  arPanel?: React.ReactNode;
 }) {
   const router = useRouter();
   const hydrated = useHydrated();
@@ -805,6 +808,7 @@ export function AiStudio({
           ) : null}
         </div>
       ) : null}
+      {arPanel}
 
       {/* 4. Textos */}
       <h3 id="estudio-textos" className="mt-6 flex scroll-mt-32 items-center gap-2 font-bold">

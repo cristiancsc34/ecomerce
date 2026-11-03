@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { siteUrl } from "@/config/site";
-import { galleryMedia, hasConfirmedSpecs, model3d, primaryImage } from "@/lib/catalog/product-helpers";
+import { arFiles, galleryMedia, hasConfirmedSpecs, model3d, primaryImage } from "@/lib/catalog/product-helpers";
 import type { Product } from "@/lib/catalog/types";
 import { breadcrumbJsonLd, productJsonLd } from "@/lib/seo/structured-data";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -45,6 +45,7 @@ function Block({ id, title, children }: { id: string; title: string; children: R
 export function ProductView({ product, preview = false }: { product: Product; preview?: boolean }) {
   const media = galleryMedia(product);
   const model = model3d(product);
+  const ar = arFiles(product, model);
   const base = siteUrl();
   const productLd = preview ? null : productJsonLd(product, base);
   const panelProduct = {
@@ -85,6 +86,8 @@ export function ProductView({ product, preview = false }: { product: Product; pr
             productId={product.id}
             productName={product.name}
             productSlug={product.slug}
+            usdzUrl={ar.usdzUrl}
+            realScale={ar.realScale}
           />
         </div>
 

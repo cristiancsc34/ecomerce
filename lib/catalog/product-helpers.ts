@@ -107,3 +107,25 @@ export function nameWithArticle(name: string): string {
   if (MASCULINE.test(first)) return `o ${name}`;
   return name;
 }
+
+/** Tolerância da conferência de escala do AR (a mesma do estúdio, scripts/ar-files.mjs). */
+export const AR_SCALE_TOLERANCE_CM = 2;
+
+/**
+ * Arquivos do AR prontos para a loja. "Tamanho real" só vale se o modelo foi
+ * conferido E a caixa conferida ainda bate com as medidas atuais do catálogo
+ * (se alguém mudar as medidas depois, a loja volta a dizer "tamanho aproximado"
+ * até o estúdio conferir de novo).
+ */
+export function arFiles(
+  product: Pick<Product, "dimensions">,
+  model: ProductMedia | null,
+): { usdzUrl: string | null; realScale: boolean } {
+  const box = model?.boundsCm;
+  const d = product.dimensions;
+  const close = (a: number | undefined, b: number) => a !== undefined && Math.abs(a - b) <= AR_SCALE_TOLERANCE_CM + 1e-6;
+  const realScale = Boolean(
+    model?.realScale && model.usdzUrl && box && close(d.widthCm, box.widthCm) && close(d.lengthCm, box.depthCm) && close(d.heightCm, box.heightCm),
+  );
+  return { usdzUrl: realScale ? model!.usdzUrl : null, realScale };
+}

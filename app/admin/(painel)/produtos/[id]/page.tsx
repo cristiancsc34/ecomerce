@@ -6,8 +6,10 @@ import { getAiStudioSnapshot } from "@/lib/admin/ai";
 import { getAdminProduct, listAdminCategories, listAuditEvents } from "@/lib/admin/data";
 import { isProductTab, readiness } from "@/lib/admin/readiness";
 import { requireStaffPage } from "@/lib/auth/staff";
+import { arFiles, model3d } from "@/lib/catalog/product-helpers";
 import { publishIssues } from "@/lib/validation/product";
 import { AiStudio } from "@/components/admin/ai-studio";
+import { ArScalePanel } from "@/components/admin/ar-scale-panel";
 import { AuditList } from "@/components/admin/audit-list";
 import { MediaManager } from "@/components/admin/media-manager";
 import { ProductEditor } from "@/components/admin/product-editor";
@@ -36,6 +38,8 @@ export default async function EditProductPage({ params, searchParams }: PageProp
   const canEdit = staff.role === "admin" || product.status === "draft" || product.status === "review";
   const issues = publishIssues(product).map((i) => i.message);
   const initialTab = isProductTab(sp.aba) ? sp.aba : "fotos";
+  const model = model3d(product);
+  const ar = arFiles(product, model);
 
   return (
     <div>
@@ -103,6 +107,18 @@ export default async function EditProductPage({ params, searchParams }: PageProp
                 copyEnabled={Boolean(process.env.OPENAI_API_KEY)}
                 hasCopy={Boolean(product.shortDescription?.trim() || product.description?.trim())}
                 initial={studio}
+                arPanel={
+                  model ? (
+                    <ArScalePanel
+                      productId={product.id}
+                      canEdit={canEdit}
+                      realScale={ar.realScale}
+                      boundsCm={model.boundsCm}
+                      dimensions={product.dimensions}
+                      lastCheck={studio.jobs.filter((j) => j.kind === "model_3d" && j.ar).at(-1)?.ar ?? null}
+                    />
+                  ) : null
+                }
               />
               <MediaManager productId={product.id} media={product.media} canEdit={canEdit} />
             </>

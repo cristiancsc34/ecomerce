@@ -153,7 +153,7 @@ export async function deleteMediaAction(mediaId: string): Promise<ActionResult> 
 
   const { data: media, error } = await supabase
     .from("product_media")
-    .select("id,storage_path,is_primary,product:products(status)")
+    .select("id,storage_path,usdz_storage_path,is_primary,product:products(status)")
     .eq("id", mediaId)
     .maybeSingle();
   if (error || !media) return { ok: false, error: "Mídia não encontrada." };
@@ -167,7 +167,8 @@ export async function deleteMediaAction(mediaId: string): Promise<ActionResult> 
   if (deleteError) return { ok: false, error: friendlyDbError(deleteError) };
   if (!deleted?.length) return { ok: false, error: "Sem permissão para remover esta mídia." };
 
-  await removeOrphanFiles([media.storage_path as string]);
+  // O .usdz (arquivo do iPhone) sai junto com o modelo 3D.
+  await removeOrphanFiles([media.storage_path as string, ...(media.usdz_storage_path ? [media.usdz_storage_path as string] : [])]);
   updateTag(CATALOG_TAG);
   return { ok: true };
 }

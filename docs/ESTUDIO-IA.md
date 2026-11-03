@@ -126,6 +126,10 @@ pré-pagos a partir de US$ 1). Modelo padrão `v3.1-20260211` (troque com `TRIPO
 - **Medido com a poltrona azul (28/10/2026):** 30 créditos (**US$ 0,30**) por modelo, ~2 min 15 s, arquivo de 4,6 MB →
   2,2 MB depois da compressão em WebP (2,75 MB na versão em JPEG, que abre no AR do Android).
 - O 3D entra marcado como **ilustrativo** até alguém conferir com as fotos reais.
+- **Tamanho real e arquivo do iPhone:** com largura, profundidade e altura no catálogo, o processador ajusta a escala
+  do `.glb`, confere (±2 cm) e grava também o `.usdz` (`products/<id>/<uuid>.usdz`). Sem medidas ou fora da
+  tolerância, o 3D é gravado como está e o Estúdio mostra o aviso; o botão “Conferir medidas e gerar o arquivo do
+  iPhone” refaz a conferência depois de corrigir as medidas. Ver [`IA-E-3D.md`](IA-E-3D.md).
 
 Alternativa local (TripoSR, grátis, qualidade menor): `AI_3D_ENGINE=triposr` com o código em `ai/vendor/TripoSR`
 (ainda não validado neste ambiente — a execução de código de terceiros precisa de autorização).

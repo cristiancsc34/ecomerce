@@ -18,6 +18,7 @@
     "admin:create": "node --env-file=.env.local scripts/create-admin.mjs",
     "ai:setup": "bash scripts/ai-setup.sh",
     "ai:worker": "node --env-file=.env.local scripts/ai-worker.mjs",
+    "ar:usdz": "node --env-file-if-exists=.env.local scripts/gerar-usdz.mjs",
     "test:integration": "SUPABASE_INTEGRATION=1 vitest run tests/integration",
     "test:assistente": "ASSISTANT_LIVE=1 vitest run tests/live",
     "test:e2e:supabase": "playwright test -c playwright.supabase.config.ts",

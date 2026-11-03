@@ -20,6 +20,8 @@ export type AiJobView = {
   seconds: number | null;
   /** O motor tirou um móvel que estava atrás do produto. */
   droppedBackgroundObject: boolean;
+  /** 3D: resultado da conferência de tamanho real (arquivo do iPhone). */
+  ar: { status: "ok" | "sem-medidas" | "fora-da-escala" | "invalido"; message: string } | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;

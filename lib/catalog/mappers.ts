@@ -5,6 +5,7 @@ import {
   SIZE_KEYS,
   type Category,
   type MediaType,
+  type ModelBoundsCm,
   type Product,
   type ProductMedia,
   type ProductStatus,
@@ -37,7 +38,7 @@ export const PUBLIC_PRODUCT_COLUMNS = [
   "updated_at",
   "published_at",
   "category:categories(id,slug,name,requires_3d)",
-  "media:product_media(id,storage_path,media_type,alt_text,sort_order,is_primary,is_illustrative,ai_generated,width,height)",
+  "media:product_media(id,storage_path,media_type,alt_text,sort_order,is_primary,is_illustrative,ai_generated,width,height,usdz_storage_path,real_scale,bounds_cm)",
   "variants:product_variants(id,name,sku,price_cents,stock_quantity,attributes,sort_order)",
 ].join(",");
 
@@ -80,6 +81,9 @@ export type MediaRow = {
   approved_at?: string | null;
   width: number | null;
   height: number | null;
+  usdz_storage_path?: string | null;
+  real_scale?: boolean;
+  bounds_cm?: unknown;
 };
 
 export type VariantRow = {
@@ -120,7 +124,17 @@ function asMediaType(value: string): MediaType {
   return (MEDIA_TYPES as readonly string[]).includes(value) ? (value as MediaType) : "image";
 }
 
+function asBounds(value: unknown): ModelBoundsCm | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const ok = (n: unknown) => typeof n === "number" && Number.isFinite(n) && n > 0;
+  return ok(v.widthCm) && ok(v.depthCm) && ok(v.heightCm)
+    ? { widthCm: v.widthCm as number, depthCm: v.depthCm as number, heightCm: v.heightCm as number }
+    : null;
+}
+
 export function mapMedia(row: MediaRow): ProductMedia {
+  const boundsCm = asBounds(row.bounds_cm);
   return {
     id: row.id,
     type: asMediaType(row.media_type),
@@ -134,6 +148,9 @@ export function mapMedia(row: MediaRow): ProductMedia {
     pendingReview: Boolean(row.ai_generated) && row.approved_at === null,
     width: row.width,
     height: row.height,
+    usdzUrl: row.usdz_storage_path ? mediaPublicUrl(row.usdz_storage_path) : null,
+    realScale: Boolean(row.real_scale && row.usdz_storage_path && boundsCm),
+    boundsCm,
   };
 }
 

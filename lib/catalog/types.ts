@@ -68,7 +68,16 @@ export type ProductMedia = {
   pendingReview: boolean;
   width: number | null;
   height: number | null;
+  /** Modelo 3D: arquivo do iPhone (.usdz, AR Quick Look) em tamanho real. */
+  usdzUrl: string | null;
+  /** Modelo 3D conferido com as medidas do catálogo (±2 cm). Ver `arFiles()`. */
+  realScale: boolean;
+  /** Caixa do modelo conferido, em cm. */
+  boundsCm: ModelBoundsCm | null;
 };
+
+/** Caixa de um modelo 3D em cm: largura (x), profundidade (z) e altura (y). */
+export type ModelBoundsCm = { widthCm: number; depthCm: number; heightCm: number };
 
 export type ProductVariant = {
   id: string;

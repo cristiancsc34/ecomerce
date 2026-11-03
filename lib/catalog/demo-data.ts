@@ -49,6 +49,9 @@ function catalogPhotos(file: string, label: string, ids: string[]): ProductMedia
     pendingReview: false,
     width: 1600,
     height: 1200,
+    usdzUrl: null,
+    realScale: false,
+    boundsCm: null,
   }));
 }
 
@@ -109,6 +112,10 @@ export const DEMO_PRODUCTS: Product[] = [
         pendingReview: false,
         width: null,
         height: null,
+        // Sem medidas confirmadas no catálogo: sem .usdz em tamanho real (o AR mostra o tamanho aproximado).
+        usdzUrl: null,
+        realScale: false,
+        boundsCm: null,
       },
     ],
   },

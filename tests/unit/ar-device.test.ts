@@ -70,3 +70,25 @@ describe("texto do código QR", () => {
     expect(nameWithArticle("Kit Jardim")).toBe("Kit Jardim");
   });
 });
+
+describe("atributos de AR do visualizador", () => {
+  it("tamanho real conferido: .usdz no iPhone e peça fixa", async () => {
+    const { arViewerAttributes } = await import("@/lib/ar/device");
+    expect(arViewerAttributes({ usdzUrl: "https://x/m.usdz", realScale: true })).toEqual({
+      "ios-src": "https://x/m.usdz",
+      "ar-modes": "webxr scene-viewer quick-look",
+      "ar-scale": "fixed",
+    });
+  });
+
+  it("sem conferência: sem .usdz (o model-viewer gera na hora) e o cliente ajusta o tamanho", async () => {
+    const { arViewerAttributes } = await import("@/lib/ar/device");
+    expect(arViewerAttributes({ usdzUrl: null, realScale: false })).toEqual({
+      "ios-src": undefined,
+      "ar-modes": "webxr scene-viewer quick-look",
+      "ar-scale": "auto",
+    });
+    // .usdz sem a marcação de tamanho real não é usado.
+    expect(arViewerAttributes({ usdzUrl: "https://x/m.usdz", realScale: false })["ios-src"]).toBeUndefined();
+  });
+});

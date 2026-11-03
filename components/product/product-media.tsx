@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ModelViewerElement } from "@google/model-viewer";
 import { track } from "@/lib/analytics";
-import { arLink, currentDevice, detectArSupport, hasArParam, AR_PARAM, LEGACY_AR_PARAM, SERVER_AR_SUPPORT, type ArSupport } from "@/lib/ar/device";
+import { arLink, arViewerAttributes, currentDevice, detectArSupport, hasArParam, AR_PARAM, LEGACY_AR_PARAM, SERVER_AR_SUPPORT, type ArSupport } from "@/lib/ar/device";
 import { nameWithArticle } from "@/lib/catalog/product-helpers";
 import type { ProductMedia as Media } from "@/lib/catalog/types";
 import { Button } from "@/components/ui/button";
@@ -106,9 +106,15 @@ export function ProductMedia({
   productName,
   productSlug,
   colorSlug = null,
+  usdzUrl = null,
+  realScale = false,
 }: {
   media: Media[];
   model: Media | null;
+  /** Arquivo do iPhone em tamanho real (só quando a escala foi conferida). */
+  usdzUrl?: string | null;
+  /** Modelo conferido com as medidas do catálogo: no AR o cliente não redimensiona a peça. */
+  realScale?: boolean;
   poster: Media | null;
   productId: string;
   productName: string;
@@ -315,9 +321,9 @@ export function ProductMedia({
           exposure="1"
           interaction-prompt="auto"
           ar
-          ar-modes="scene-viewer webxr quick-look"
+          // .usdz conferido no iPhone e tamanho fixo quando a escala bate com o catálogo.
+          {...arViewerAttributes({ usdzUrl, realScale })}
           ar-placement="floor"
-          ar-scale="auto"
           xr-environment
           quick-look-browsers="safari chrome"
           style={{ width: "100%", height: "100%", backgroundColor: "transparent" }}
@@ -372,8 +378,6 @@ export function ProductMedia({
       </button>
     </div>
   ) : null;
-
-  const realScale = false;
 
   return (
     <section

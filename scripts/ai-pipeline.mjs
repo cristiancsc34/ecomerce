@@ -20,6 +20,7 @@ import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, prune, textureCompress } from "@gltf-transform/functions";
 import sharp from "sharp";
 import { cleanWith } from "./ai-background.mjs";
+import { prepareArFiles, USDZ_MIME } from "./ar-files.mjs";
 
 export const BUCKET = "product-media";
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // limite do bucket
@@ -443,8 +444,20 @@ async function model3d(supabase, job, product, inputFile, dir, engines, uploaded
     meta.textureSize = optimized.textureSize;
     bytes = optimized.bytes;
   }
-  const glbPath = await upload(supabase, `products/${product.id}/${randomUUID()}.glb`, bytes, "model/gltf-binary");
+  // Tamanho real: com as medidas do catálogo, o .glb é ajustado e o .usdz (iPhone) é
+  // gerado e conferido (±2 cm). Sem medidas ou fora da tolerância, o 3D segue como
+  // está (tamanho aproximado) e o painel mostra o aviso; nada é prometido na loja.
+  const ar = await prepareArFiles(bytes, product.dimensions);
+  meta.ar = { status: ar.status, message: ar.message, ...(ar.status === "ok" ? { boundsCm: ar.boundsCm, scale: ar.scale } : {}) };
+  if (ar.status === "ok") bytes = ar.glb;
+  const fileId = randomUUID();
+  const glbPath = await upload(supabase, `products/${product.id}/${fileId}.glb`, bytes, "model/gltf-binary");
   uploaded.push(glbPath);
+  let usdzPath = null;
+  if (ar.status === "ok") {
+    usdzPath = await upload(supabase, `products/${product.id}/${fileId}.usdz`, ar.usdz, USDZ_MIME);
+    uploaded.push(usdzPath);
+  }
 
   // Um 3D novo substitui o anterior gerado pela IA (arquivos enviados à mão ficam).
   const { data: previous } = await supabase
@@ -468,14 +481,17 @@ async function model3d(supabase, job, product, inputFile, dir, engines, uploaded
       sort_order: slot.sortOrder,
       mime_type: "model/gltf-binary",
       size_bytes: bytes.length,
+      usdz_storage_path: usdzPath,
+      real_scale: ar.status === "ok",
+      bounds_cm: ar.status === "ok" ? ar.boundsCm : null,
     })
     .select("id")
     .single();
   if (error) throw new Error(error.message);
 
   if (previousIds.length) {
-    const { data: removed } = await supabase.from("product_media").delete().in("id", previousIds).select("storage_path");
-    const paths = (removed ?? []).map((m) => m.storage_path);
+    const { data: removed } = await supabase.from("product_media").delete().in("id", previousIds).select("storage_path,usdz_storage_path");
+    const paths = (removed ?? []).flatMap((m) => [m.storage_path, m.usdz_storage_path].filter(Boolean));
     if (paths.length) await supabase.storage.from(BUCKET).remove(paths);
   }
   return { output_media_id: media.id, details: meta };

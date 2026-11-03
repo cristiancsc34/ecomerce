@@ -35,6 +35,9 @@ export function makeMedia(partial: Partial<ProductMedia> = {}): ProductMedia {
     pendingReview: false,
     width: 1200,
     height: 900,
+    usdzUrl: null,
+    realScale: false,
+    boundsCm: null,
     ...partial,
   };
 }

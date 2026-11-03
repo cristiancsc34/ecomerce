@@ -72,3 +72,17 @@ export function arLink(origin: string, slug: string, colorSlug?: string | null):
   if (colorSlug) url.searchParams.set("cor", colorSlug);
   return url.toString();
 }
+
+/**
+ * Atributos de AR do <model-viewer>. Com o .usdz conferido, o iPhone abre o
+ * arquivo pronto (AR Quick Look) e a peça fica fixa em tamanho real; sem ele, o
+ * próprio model-viewer gera um .usdz na hora a partir do .glb e o cliente pode
+ * ajustar o tamanho (a loja avisa que é aproximado).
+ */
+export function arViewerAttributes({ usdzUrl, realScale }: { usdzUrl: string | null; realScale: boolean }) {
+  return {
+    "ios-src": realScale && usdzUrl ? usdzUrl : undefined,
+    "ar-modes": "webxr scene-viewer quick-look",
+    "ar-scale": realScale && usdzUrl ? "fixed" : "auto",
+  } as const;
+}

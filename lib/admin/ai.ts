@@ -27,6 +27,15 @@ type JobRow = {
   output: { storage_path: string } | null;
 };
 
+const AR_STATUSES = ["ok", "sem-medidas", "fora-da-escala", "invalido"] as const;
+function parseArDetails(value: unknown): AiJobView["ar"] {
+  if (!value || typeof value !== "object") return null;
+  const v = value as { status?: unknown; message?: unknown };
+  return (AR_STATUSES as readonly unknown[]).includes(v.status) && typeof v.message === "string"
+    ? { status: v.status as (typeof AR_STATUSES)[number], message: v.message }
+    : null;
+}
+
 /** Quem processa: a IA na nuvem (pelas chaves cadastradas) e/ou processadores locais ligados. */
 function workerStatus(local: { capabilities: string[]; engines: Record<string, string> }[]): AiStudioSnapshot["worker"] {
   const cloud = cloudAiConfig();
@@ -82,6 +91,7 @@ export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSn
       error: j.error,
       seconds: typeof j.details?.seconds === "number" ? j.details.seconds : null,
       droppedBackgroundObject: j.details?.droppedBackgroundObject === true,
+      ar: parseArDetails(j.details?.ar),
       createdAt: j.created_at,
       startedAt: j.started_at,
       finishedAt: j.finished_at,

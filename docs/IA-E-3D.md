@@ -29,9 +29,21 @@ encaixar quando o provedor for escolhido.
   cliente. Android usa o **Scene Viewer** (app de AR do Google; WebXR como reserva) e iPhone/iPad usa o **AR Quick
   Look** (o `.usdz` é gerado na hora a partir do `.glb`). No computador, a página orienta a abrir no celular. Só
   funciona em HTTPS (Vercel).
-- **Tamanho no AR é aproximado**: o Tripo entrega o modelo com 1 m de altura e nenhum produto tem medidas
-  confirmadas, então o cliente pode ajustar o tamanho com dois dedos (a página avisa). Para mostrar em tamanho real é
-  preciso escalar o `.glb` pelas medidas confirmadas do fabricante.
+- **Tamanho real no AR (só com medidas conferidas)**: o Tripo entrega o modelo com 1 m de altura. Quando o produto
+  tem **largura, profundidade e altura** no catálogo, o estúdio (`scripts/ar-files.mjs`) escolhe a escala uniforme
+  que mais aproxima o modelo das medidas, **confere cada medida com tolerância de 2 cm**, grava o `.glb` em escala
+  real e gera o **`.usdz`** (iPhone/AR Quick Look) no mesmo lugar do Storage, e confere de novo a caixa dos arquivos
+  gerados. Na loja: `ios-src` com o `.usdz`, `ar-modes="webxr scene-viewer quick-look"` e `ar-scale="fixed"` (o
+  cliente não redimensiona), e os textos dizem “tamanho real”.
+- **Sem medidas, ou fora da tolerância**: nada é publicado como tamanho real. O painel mostra o aviso com o motivo
+  (“Faltam largura e profundidade…”, “largura 69 cm no modelo × 80 cm no catálogo”), o AR continua com o tamanho
+  aproximado (`ar-scale="auto"`, o model-viewer gera o `.usdz` na hora) e a página avisa. Se as medidas mudarem
+  depois da conferência, a loja volta sozinha para “aproximado” até conferir de novo.
+- **Produtos que já têm 3D**: botão **“Conferir medidas e gerar o arquivo do iPhone”** no Estúdio (Modelo 3D), ou
+  `npm run ar:usdz -- --supabase` (simula) / `--supabase --aplicar` (grava). Para um arquivo solto:
+  `npm run ar:usdz -- --glb arquivo.glb --medidas 78x90x100`.
+- Banco: colunas `usdz_storage_path`, `real_scale` e `bounds_cm` em `product_media` e o tipo `model/vnd.usdz+zip`
+  no bucket (migração `20261103000300_ar_real_scale.sql`).
 - Checklist de revisão de um modelo: proporções conferidas com as medidas reais, cor e textura comparadas com a foto,
   costuras/faixas presentes, arquivo < 4 MB (comprimir texturas), orientação e escala (metros). Para o AR do Android:
   texturas JPEG/PNG (nada de WebP), até 2048 px, até 100 mil triângulos e a base do modelo apoiada em y = 0 — o

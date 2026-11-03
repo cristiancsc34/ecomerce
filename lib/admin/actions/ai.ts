@@ -14,6 +14,7 @@ import { validateMediaUpload } from "@/lib/media/validate";
 import { createSessionClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { z } from "zod";
+import { prepareArFiles, USDZ_MIME } from "@/scripts/ar-files.mjs";
 import { getAiStudioSnapshot } from "../ai";
 import { getAdminProduct } from "../data";
 import type { AiStudioSnapshot } from "../ai-types";
@@ -225,7 +226,7 @@ export async function discardAiJobAction(jobId: string): Promise<ActionResult> {
   if (job.output_media_id) {
     const { data: media } = await supabase
       .from("product_media")
-      .select("id,storage_path,is_primary,product:products(status)")
+      .select("id,storage_path,usdz_storage_path,is_primary,product:products(status)")
       .eq("id", job.output_media_id)
       .maybeSingle();
     if (media) {
@@ -237,6 +238,7 @@ export async function discardAiJobAction(jobId: string): Promise<ActionResult> {
       if (error) return { ok: false, error: friendlyDbError(error) };
       if (!removed?.length) return { ok: false, error: "Sem permissão para remover esta mídia." };
       paths.push(media.storage_path as string);
+      if (media.usdz_storage_path) paths.push(media.usdz_storage_path as string);
     }
   }
 
@@ -361,4 +363,73 @@ export async function applyCopyAction(productId: string, input: z.input<typeof a
   if (!data?.length) return { ok: false, error: "Sem permissão para alterar este produto." };
   updateTag(CATALOG_TAG);
   return { ok: true };
+}
+
+export type ArCheckResult = { status: "ok" | "sem-medidas" | "fora-da-escala" | "invalido"; message: string };
+
+/**
+ * "Conferir medidas e gerar o arquivo do iPhone": mede o modelo 3D atual, ajusta
+ * a escala pelas medidas do catálogo, confere (±2 cm) e grava o .glb em escala
+ * real e o .usdz. Serve para modelos gerados antes das medidas, enviados à mão
+ * ou depois de corrigir as medidas. Se não conferir, tira a marcação antiga de
+ * "tamanho real" (a loja volta a dizer "tamanho aproximado").
+ */
+export async function prepareArAction(productId: string): Promise<ActionResult<ArCheckResult>> {
+  const denied = await guard();
+  if (denied) return denied;
+  if (!isUuid(productId)) return { ok: false, error: "Produto inválido." };
+  const supabase = await createSessionClient();
+
+  const { data: product } = await supabase.from("products").select("id,dimensions").eq("id", productId).maybeSingle();
+  if (!product) return { ok: false, error: "Produto não encontrado." };
+  const { data: media } = await supabase
+    .from("product_media")
+    .select("id,storage_path,usdz_storage_path")
+    .eq("product_id", productId)
+    .eq("media_type", "model_3d")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!media) return { ok: false, error: "Este produto ainda não tem modelo 3D." };
+
+  const { data: blob } = await supabase.storage.from(MEDIA_BUCKET).download(media.storage_path as string);
+  if (!blob) return { ok: false, error: "Não foi possível ler o modelo 3D." };
+  const ar = await prepareArFiles(Buffer.from(await blob.arrayBuffer()), product.dimensions);
+  const oldPaths = [media.storage_path as string, ...(media.usdz_storage_path ? [media.usdz_storage_path as string] : [])];
+
+  if (ar.status !== "ok") {
+    const { error } = await supabase
+      .from("product_media")
+      .update({ usdz_storage_path: null, real_scale: false, bounds_cm: null })
+      .eq("id", media.id);
+    if (error) return { ok: false, error: friendlyDbError(error) };
+    if (media.usdz_storage_path) await removeOrphanFiles([media.usdz_storage_path as string]);
+    updateTag(CATALOG_TAG);
+    return { ok: true, data: { status: ar.status, message: ar.message } };
+  }
+
+  const base = `products/${productId}/${crypto.randomUUID()}`;
+  const glbPath = `${base}.glb`;
+  const usdzPath = `${base}.usdz`;
+  const options = { cacheControl: "31536000", upsert: false };
+  const { error: glbError } = await supabase.storage.from(MEDIA_BUCKET).upload(glbPath, ar.glb, { ...options, contentType: "model/gltf-binary" });
+  const { error: usdzError } = glbError
+    ? { error: glbError }
+    : await supabase.storage.from(MEDIA_BUCKET).upload(usdzPath, ar.usdz, { ...options, contentType: USDZ_MIME });
+  if (glbError || usdzError) {
+    await supabase.storage.from(MEDIA_BUCKET).remove([glbPath, usdzPath]);
+    return { ok: false, error: "Não foi possível gravar os arquivos. Verifique sua permissão e tente de novo." };
+  }
+
+  const { error } = await supabase
+    .from("product_media")
+    .update({ storage_path: glbPath, size_bytes: ar.glb.length, usdz_storage_path: usdzPath, real_scale: true, bounds_cm: ar.boundsCm })
+    .eq("id", media.id);
+  if (error) {
+    await supabase.storage.from(MEDIA_BUCKET).remove([glbPath, usdzPath]);
+    return { ok: false, error: friendlyDbError(error) };
+  }
+  await removeOrphanFiles(oldPaths);
+  updateTag(CATALOG_TAG);
+  return { ok: true, data: { status: "ok", message: ar.message } };
 }
