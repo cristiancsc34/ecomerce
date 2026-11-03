@@ -2,6 +2,7 @@
 
 import { AuthorizationError, requireStaffAction } from "@/lib/auth/staff";
 import { isUuid } from "@/lib/catalog/slug";
+import { kickOrderNotifications } from "@/lib/notifications/order-dispatch";
 import { createSessionClient } from "@/lib/supabase/server";
 import { orderInputSchema, orderStatusInputSchema, orderToRpc, type OrderInput, type OrderStatusInput } from "@/lib/validation/order";
 import { friendlyDbError } from "../errors";
@@ -34,6 +35,8 @@ export async function createOrderAction(input: OrderInput): Promise<ActionResult
   const supabase = await createSessionClient();
   const { data, error } = await supabase.rpc("create_order", { p_data: orderToRpc(parsed.data) });
   if (error || !data) return { ok: false, error: friendlyDbError(error, "Não foi possível registrar o pedido.") };
+  // Avisos automáticos da etapa (só se o dono ligou e há provedor configurado).
+  kickOrderNotifications();
   return { ok: true, data: { id: data as string } };
 }
 
@@ -70,6 +73,7 @@ export async function setOrderStatusAction(orderId: string, input: OrderStatusIn
     p_delivery: delivery,
   });
   if (error) return { ok: false, error: friendlyDbError(error, "Não foi possível mudar a etapa.") };
+  kickOrderNotifications();
   return { ok: true };
 }
 

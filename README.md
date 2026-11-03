@@ -191,6 +191,7 @@ docs/                 segurança, decisões, referências de UX, IA e 3D
 
 ## Documentação
 
+- [Frete por região e avisos automáticos (WhatsApp e e-mail)](docs/FRETE-E-AVISOS.md)
 - [Painel da loja: acesso por PIN, telas e cadastro](docs/PAINEL.md)
 - [Checklist de segurança](docs/SEGURANCA.md)
 - [Decisões, integrações pendentes e limitações conhecidas](docs/DECISOES.md)

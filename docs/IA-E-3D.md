@@ -43,7 +43,7 @@ encaixar quando o provedor for escolhido.
   `npm run ar:usdz -- --supabase` (simula) / `--supabase --aplicar` (grava). Para um arquivo solto:
   `npm run ar:usdz -- --glb arquivo.glb --medidas 78x90x100`.
 - Banco: colunas `usdz_storage_path`, `real_scale` e `bounds_cm` em `product_media` e o tipo `model/vnd.usdz+zip`
-  no bucket (migração `20261103000300_ar_real_scale.sql`).
+  no bucket (migração `20261103000400_ar_real_scale.sql`).
 - **Variantes de cor ou tecido**: cada variação pode ter uma cor (`#RRGGBB`, campo “Cor (hex)” da variação no painel)
   e mídias próprias (`product_media.variant_id`: fotos e, se existir, um modelo 3D próprio). Na página, as variações
   com cor viram o seletor **“Cor”** (amostras redondas). A cor escolhida troca as fotos (as da cor ou, sem elas, as do

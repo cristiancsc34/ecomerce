@@ -17,6 +17,8 @@ const state = {
 };
 
 vi.mock("server-only", () => ({}));
+// Avisos automáticos rodam em segundo plano (after); aqui só não podem atrapalhar o pedido.
+vi.mock("@/lib/notifications/order-dispatch", () => ({ kickOrderNotifications: vi.fn() }));
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ "x-forwarded-for": `${state.ip}, 10.0.0.1` }),
 }));

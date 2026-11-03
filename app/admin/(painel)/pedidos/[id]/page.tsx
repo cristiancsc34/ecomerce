@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { brand } from "@/config/brand";
 import { siteUrl } from "@/config/site";
 import { getOrder, orderProductOptions } from "@/lib/admin/orders";
+import { listOrderNotifications } from "@/lib/admin/shipping";
 import { requireStaffPage } from "@/lib/auth/staff";
 import { formatPrice } from "@/lib/catalog/money";
 import { formatDeliveryDate, trackingLink } from "@/lib/orders/messages";
@@ -11,6 +12,7 @@ import { DELIVERY_LABEL, formatAddress, formatPhone, PAYMENT_LABEL, STATUS_LABEL
 import { OrderForm } from "@/components/admin/order-form";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { OrderSteps } from "@/components/admin/order-steps";
+import { OrderNotificationsList } from "@/components/admin/order-notifications";
 import { Card } from "@/components/admin/ui";
 import { ExternalIcon } from "@/components/ui/icons";
 
@@ -23,7 +25,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/pedidos/[i
   const { id } = await params;
   const order = await getOrder(id);
   if (!order) notFound();
-  const products = await orderProductOptions();
+  const [products, notifications] = await Promise.all([orderProductOptions(), listOrderNotifications(order.id)]);
   const link = trackingLink(siteUrl(), order.code, order.publicToken);
   const lastNote = [...order.events].reverse().find((e) => e.status === order.status)?.publicNote ?? null;
   const itemsLocked = !["recebido", "pago", "em_preparacao"].includes(order.status);
@@ -184,6 +186,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/pedidos/[i
               Abrir a página do cliente <ExternalIcon className="h-4 w-4 shrink-0" />
             </a>
           </Card>
+          <OrderNotificationsList notifications={notifications} />
           {order.internalNotes ? (
             <Card title="Observações internas">
               <p className="whitespace-pre-line text-sm">{order.internalNotes}</p>

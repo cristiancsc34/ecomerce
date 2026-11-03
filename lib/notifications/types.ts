@@ -36,11 +36,15 @@ export type OrderForNotification = {
  */
 export type OutgoingMessage = {
   channel: NotificationChannel;
-  event: OrderEvent;
+  /** Evento do aviso (ex.: pedido_pago). */
+  event: string;
   to: string;
   text: string;
   email?: { subject: string; html: string };
-  template?: { name: OrderEvent; language: "pt_BR"; params: string[] };
+  /** Nome do modelo aprovado na Meta (= evento), idioma e os campos {{1}}, {{2}}… */
+  template?: { name: string; language: "pt_BR"; params: string[] };
+  /** Mesmo aviso, mesma chave: o provedor não envia duas vezes. */
+  idempotencyKey?: string;
 };
 
 export interface NotificationProvider {

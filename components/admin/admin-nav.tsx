@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BoxIcon, ClockIcon, HomeIcon, PlusIcon, TagIcon, TruckIcon } from "@/components/ui/icons";
+import { BoxIcon, ClockIcon, HomeIcon, MapPinIcon, PlusIcon, TagIcon, TruckIcon } from "@/components/ui/icons";
 
 const ITEMS = [
   { href: "/admin", label: "Início", icon: HomeIcon, exact: true },
@@ -10,6 +10,7 @@ const ITEMS = [
   { href: "/admin/produtos", label: "Produtos", icon: BoxIcon },
   { href: "/admin/categorias", label: "Categorias", icon: TagIcon },
   { href: "/admin/atividade", label: "Atividade", icon: ClockIcon },
+  { href: "/admin/entrega", label: "Entrega e avisos", icon: MapPinIcon },
 ] as const;
 
 function isActive(pathname: string, href: string, exact = false) {

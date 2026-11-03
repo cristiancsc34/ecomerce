@@ -12,7 +12,7 @@
  *    <nome>-escala-real.glb na pasta de saída (padrão: a pasta do .glb).
  *
  * 2) Os produtos do Supabase (requer NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY
- *    em .env.local, e a migração 20261103000300_ar_real_scale aplicada):
+ *    em .env.local, e a migração 20261103000400_ar_real_scale aplicada):
  *
  *      npm run ar:usdz -- --supabase            # só mostra o que faria
  *      npm run ar:usdz -- --supabase --aplicar  # grava os arquivos e marca "tamanho real"
