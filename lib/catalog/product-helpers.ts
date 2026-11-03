@@ -96,3 +96,14 @@ export function hasConfirmedSpecs(product: Pick<Product, "attributes" | "dimensi
       product.dimensions.weightKg,
   );
 }
+
+const FEMININE = /^(poltrona|cadeira|mesa|estante|cama|c[oô]moda|banqueta|lumin[aá]ria|prateleira|escrivaninha|cristaleira|sapateira|penteadeira|namoradeira|chaise|bancada)$/i;
+const MASCULINE = /^(sof[aá]|banco|rack|puff|pufe|colch[aã]o|arm[aá]rio|aparador|buffet|balc[aã]o|criado|painel|guarda|recamier|nicho|tapete|espelho|banquinho)$/i;
+
+/** Nome com artigo para frases ("veja a Poltrona Azul"); sem palpite quando a palavra é desconhecida. */
+export function nameWithArticle(name: string): string {
+  const first = name.trim().split(/[\s-]+/)[0] ?? "";
+  if (FEMININE.test(first)) return `a ${name}`;
+  if (MASCULINE.test(first)) return `o ${name}`;
+  return name;
+}

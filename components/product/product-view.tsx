@@ -84,6 +84,7 @@ export function ProductView({ product, preview = false }: { product: Product; pr
             poster={primaryImage(product)}
             productId={product.id}
             productName={product.name}
+            productSlug={product.slug}
           />
         </div>
 

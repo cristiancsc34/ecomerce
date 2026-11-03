@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ModelViewerElement } from "@google/model-viewer";
 import { track } from "@/lib/analytics";
-import { currentDevice, detectArSupport, hasArParam, AR_PARAM, LEGACY_AR_PARAM, SERVER_AR_SUPPORT, type ArSupport } from "@/lib/ar/device";
+import { arLink, currentDevice, detectArSupport, hasArParam, AR_PARAM, LEGACY_AR_PARAM, SERVER_AR_SUPPORT, type ArSupport } from "@/lib/ar/device";
+import { nameWithArticle } from "@/lib/catalog/product-helpers";
 import type { ProductMedia as Media } from "@/lib/catalog/types";
 import { Button } from "@/components/ui/button";
 import { ArIcon, CopyIcon, CubeIcon, ImageIcon } from "@/components/ui/icons";
 import { Notice } from "@/components/ui/notice";
 import { Spinner } from "@/components/ui/button";
+import { ArQrDialog } from "./ar-qr-dialog";
 import { Gallery } from "./gallery";
 import { ProductImage } from "./product-image";
 
@@ -94,7 +96,7 @@ const overlaySecondary = `${overlayButton} bg-white text-deep-fjord ring-1 ring-
  * - celular com AR: abre a câmera com o produto (WebXR/Scene Viewer no Android,
  *   AR Quick Look no iPhone/iPad);
  * - navegador de dentro de app: abre a mesma página no Safari/Chrome;
- * - computador ou celular sem AR: orienta a usar o celular.
+ * - computador ou celular sem AR: código QR que abre a página pronta para o AR no celular.
  */
 export function ProductMedia({
   media,
@@ -102,12 +104,17 @@ export function ProductMedia({
   poster,
   productId,
   productName,
+  productSlug,
+  colorSlug = null,
 }: {
   media: Media[];
   model: Media | null;
   poster: Media | null;
   productId: string;
   productName: string;
+  productSlug: string;
+  /** Cor/variante escolhida: vai junto no link do código QR. */
+  colorSlug?: string | null;
 }) {
   const [mode, setMode] = useState<"fotos" | "3d">("fotos");
   const [state, setState] = useState<State>("idle");
@@ -116,8 +123,10 @@ export function ProductMedia({
   const [leaving, setLeaving] = useState(false);
   const [jumpFailed, setJumpFailed] = useState(false);
   const [arrived, setArrived] = useState(false);
-  const [hint, setHint] = useState<string | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
+  const [origin, setOrigin] = useState<string | null>(null);
   const viewerRef = useRef<HTMLElement>(null);
+  const arButtonRef = useRef<HTMLButtonElement>(null);
   const wantsAr = useRef(false);
   const arrivalHandled = useRef(false);
   const support = useSyncExternalStore(subscribeNever, arSupportSnapshot, serverSupport);
@@ -185,13 +194,14 @@ export function ProductMedia({
     } else if (support.mode === "abrir-safari" || support.mode === "abrir-chrome") {
       openInCameraBrowser();
     } else {
-      void load("3d");
-      setHint(
-        support.phone
-          ? "Este celular não abre a realidade aumentada. Abra esta página em outro celular para ver no seu ambiente."
-          : "Para ver no seu ambiente, abra esta página no celular.",
-      );
+      openQr();
     }
+  }
+
+  function openQr() {
+    setOrigin(window.location.origin);
+    setQrOpen(true);
+    track("ar_qr_open", event);
   }
 
   function on3dClick() {
@@ -216,8 +226,15 @@ export function ProductMedia({
         url.searchParams.delete(AR_PARAM);
         url.searchParams.delete(LEGACY_AR_PARAM);
         window.history.replaceState(window.history.state, "", url);
-        if (support.mode === "camera") setArrived(true);
-        void load("3d");
+        if (support.mode === "camera") {
+          setArrived(true);
+          void load("3d");
+        } else if (support.mode === "sem-ar") {
+          // No computador, o link "Ver no seu ambiente" (ex.: do assistente) abre o código QR.
+          openQr();
+        } else {
+          void load("3d");
+        }
       } else if (window.location.hash === "#visualizador-3d") {
         void load("3d");
       }
@@ -333,6 +350,7 @@ export function ProductMedia({
   const actions = model ? (
     <div className="pointer-events-none absolute inset-x-3 bottom-3 flex flex-wrap items-end gap-2" data-acoes-3d>
       <button
+        ref={arButtonRef}
         type="button"
         onClick={onArClick}
         disabled={busy}
@@ -375,7 +393,9 @@ export function ProductMedia({
               ? realScale
                 ? " Na câmera, a peça aparece em tamanho real."
                 : " Na câmera, o tamanho é aproximado: use dois dedos para ajustar e arraste para posicionar."
-              : null}
+              : support.mode === "sem-ar"
+                ? " Para ver no seu ambiente, use o celular: toque em “Ver no seu ambiente” para abrir o código QR."
+                : null}
           </p>
         ) : null}
         {arrived && ready3d ? (
@@ -383,11 +403,7 @@ export function ProductMedia({
             Toque em “Abrir no seu ambiente”, sobre o 3D, para abrir a câmera.
           </Notice>
         ) : null}
-        {hint && mode === "3d" ? (
-          <Notice tone="info" role="status" className="mt-3" title="Ver no seu ambiente">
-            {hint}
-          </Notice>
-        ) : null}
+
         {jumpFailed ? <CopyLinkFallback browser={cameraBrowser} /> : null}
         {arProblem ? (
           <Notice tone="warning" role="status" className="mt-3" title="Realidade aumentada indisponível">
@@ -400,6 +416,18 @@ export function ProductMedia({
           </Notice>
         ) : null}
       </div>
+
+      {model && origin ? (
+        <ArQrDialog
+          open={qrOpen}
+          onClose={() => setQrOpen(false)}
+          link={arLink(origin, productSlug, colorSlug)}
+          productLabel={nameWithArticle(productName)}
+          realScale={realScale}
+          phone={support.phone}
+          returnFocusRef={arButtonRef}
+        />
+      ) : null}
     </section>
   );
 }

@@ -60,3 +60,13 @@ describe("realidade aumentada: link pronto para o AR", () => {
     );
   });
 });
+
+describe("texto do código QR", () => {
+  it("põe o artigo certo só quando conhece a palavra", async () => {
+    const { nameWithArticle } = await import("@/lib/catalog/product-helpers");
+    expect(nameWithArticle("Poltrona Azul Estrutura Clara")).toBe("a Poltrona Azul Estrutura Clara");
+    expect(nameWithArticle("Cadeira Cinza Trama")).toBe("a Cadeira Cinza Trama");
+    expect(nameWithArticle("Sofá Retrô")).toBe("o Sofá Retrô");
+    expect(nameWithArticle("Kit Jardim")).toBe("Kit Jardim");
+  });
+});

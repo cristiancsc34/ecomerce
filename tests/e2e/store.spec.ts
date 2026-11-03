@@ -256,9 +256,10 @@ test.describe("vitrine em modo demonstração", () => {
     const arButton = region.getByRole("button", { name: "Ver no seu ambiente" });
 
     if (!isMobile(page)) {
+      // No computador, abre o código QR (o 3D nem é baixado).
       await arButton.click();
-      await expect(page.locator("model-viewer")).toBeVisible();
-      await expect(region.getByText("Para ver no seu ambiente, abra esta página no celular.")).toBeVisible();
+      await expect(page.getByRole("dialog", { name: "Ver no seu ambiente" })).toBeVisible();
+      await expect(page.locator("model-viewer")).toHaveCount(0);
       return;
     }
 
@@ -282,6 +283,55 @@ test.describe("vitrine em modo demonstração", () => {
     expect(intent).toContain("mode=ar_preferred");
     expect(intent).not.toContain("resizable=false"); // tamanho aproximado: a pessoa pode ajustar
     await expect(region.getByText("Na câmera, o tamanho é aproximado", { exact: false })).toBeVisible();
+  });
+
+  test("computador: código QR leva o produto para o celular em um passo", async ({ page, context }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "o QR é do computador");
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/produtos/poltrona-azul");
+    const arButton = page.getByRole("button", { name: "Ver no seu ambiente" });
+    await arButton.click();
+    const dialog = page.getByRole("dialog", { name: "Ver no seu ambiente" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("img", { name: "Código QR para abrir esta página no celular" })).toBeVisible();
+    await expect(dialog).toContainText(
+      "Aponte a câmera do celular para o código e veja a Poltrona Azul Estrutura Clara no seu cômodo.",
+    );
+    // Sem escala conferida com o catálogo, não promete tamanho real.
+    await expect(dialog).toContainText("O tamanho na câmera é aproximado.");
+    const link = dialog.getByTestId("link-ar");
+    await expect(link).toHaveText(/^http:\/\/localhost:\d+\/produtos\/poltrona-azul\?ar=1$/);
+    await dialog.getByRole("button", { name: "Copiar link" }).click();
+    await expect(dialog.getByRole("status").filter({ hasText: "Link copiado" })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await link.textContent());
+
+    // Esc fecha e devolve o foco ao botão.
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(arButton).toBeFocused();
+    // Clique fora fecha; botão de fechar também.
+    await arButton.click();
+    await expect(dialog).toBeVisible();
+    await page.mouse.click(5, 5);
+    await expect(dialog).toBeHidden();
+    await arButton.click();
+    await dialog.getByRole("button", { name: "Fechar" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(arButton).toBeFocused();
+
+    // O link do QR (?ar=1) aberto no computador já mostra o código.
+    await page.goto("/produtos/poltrona-azul?ar=1");
+    await expect(dialog).toBeVisible();
+  });
+
+  test("celular: o link do código QR (?ar=1) abre o 3D pronto e pede um toque para a câmera", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "chegada no celular");
+    await page.goto("/produtos/poltrona-azul?ar=1");
+    await expect(page.locator("model-viewer")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Abrir no seu ambiente" })).toBeVisible();
+    await expect(page.getByText("Pronto para ver no seu ambiente")).toBeVisible();
+    // A câmera não abre sozinha: nada de diálogo de QR no celular com AR.
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
   test("galeria: miniaturas, contador e zoom acessível", async ({ page }) => {
