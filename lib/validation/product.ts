@@ -56,6 +56,8 @@ export const faqSchema = z
   .max(20);
 
 const cents = z.number().int().min(0).max(100_000_000);
+/** Cor no formato #RRGGBB. */
+export const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/;
 
 export const variantSaveSchema = z.object({
   id: z.uuid().optional(),
@@ -66,6 +68,8 @@ export const variantSaveSchema = z.object({
   size: z.enum(SIZE_KEYS).nullable(),
   widthCm: z.number().positive().max(400).nullable(),
   lengthCm: z.number().positive().max(400).nullable(),
+  /** Cor ou tecido da variação, #RRGGBB (opcional). */
+  colorHex: z.string().regex(HEX_COLOR).nullable().optional(),
 });
 
 /** Formato que a Server Action de salvar produto aceita (já em centavos). */
@@ -219,6 +223,12 @@ export const productFormSchema = z.object({
           .pipe(z.enum(SIZE_KEYS).nullable()),
         widthCm: optionalNumber("Largura", 400).transform((v) => v ?? null),
         lengthCm: optionalNumber("Comprimento", 400).transform((v) => v ?? null),
+        colorHex: z
+          .string()
+          .trim()
+          .optional()
+          .transform((v) => (v ? (v.startsWith("#") ? v : `#${v}`).toUpperCase() : null))
+          .pipe(z.string().regex(HEX_COLOR, "Use o formato #RRGGBB (ex.: #6B4A35).").nullable()),
       }),
     )
     .max(20),
@@ -268,6 +278,7 @@ export function formOutputToSaveInput(out: ProductFormOutput): ProductSaveInput 
       size: v.size,
       widthCm: v.widthCm,
       lengthCm: v.lengthCm,
+      colorHex: v.colorHex,
     })),
   };
 }

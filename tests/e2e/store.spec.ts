@@ -334,6 +334,31 @@ test.describe("vitrine em modo demonstração", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
+  test("arquitetos e designers: baixa o 3D com nome legível e a ficha técnica só com dados do catálogo", async ({ page }) => {
+    await page.goto("/produtos/poltrona-azul");
+    const section = page.getByTestId("arquitetos");
+    // Discreta: recolhida até a pessoa abrir.
+    const glb = section.getByRole("link", { name: "Baixar .glb" });
+    await expect(glb).toBeHidden();
+    await section.getByText("Para arquitetos e designers").click();
+    await expect(glb).toHaveAttribute("download", "cuxoes-poltrona-azul.glb");
+    await expect(glb).toHaveAttribute("href", "/demo/poltrona-azul.glb");
+    const download = page.waitForEvent("download");
+    await glb.click();
+    expect((await download).suggestedFilename()).toBe("cuxoes-poltrona-azul.glb");
+    // Sem medidas conferidas: sem .usdz em tamanho real e sem número inventado.
+    await expect(section.getByRole("link", { name: "Baixar .usdz" })).toHaveCount(0);
+    await expect(section.getByText(".usdz em tamanho real: disponível quando as medidas forem conferidas.")).toBeVisible();
+    await expect(section.getByText("Escala aproximada", { exact: false })).toBeVisible();
+    await expect(section.locator("dd").filter({ hasText: "Ainda não informado pela loja" })).toHaveCount(3);
+    // Sem cor cadastrada, o seletor de cor fica escondido.
+    await expect(page.getByTestId("seletor-cor")).toHaveCount(0);
+
+    // Produto sem 3D: sem a seção.
+    await page.goto("/produtos/cadeira-cinza-trama");
+    await expect(page.getByTestId("arquitetos")).toHaveCount(0);
+  });
+
   test("galeria: miniaturas, contador e zoom acessível", async ({ page }) => {
     await page.goto("/produtos/cadeira-cinza-trama");
     await page.getByRole("button", { name: "Mostrar mídia 2 de 4" }).click();

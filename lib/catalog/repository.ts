@@ -2,6 +2,7 @@ import "server-only";
 import { catalogSource } from "@/config/site";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { DEMO_CATEGORIES, DEMO_PRODUCTS } from "./demo-data";
+import { devExamplesEnabled, withDevExamples } from "./dev-examples";
 import { mapCategory, mapProduct, PUBLIC_PRODUCT_COLUMNS, type CategoryRow, type ProductRow } from "./mappers";
 import type { Category, Product } from "./types";
 
@@ -18,7 +19,8 @@ export interface CatalogRepository {
  */
 const demoRepository: CatalogRepository = {
   async listVisibleProducts() {
-    return DEMO_PRODUCTS;
+    // Cores de exemplo: só com CATALOG_DEV_EXAMPLES=1, fora da Vercel (ver dev-examples.ts).
+    return devExamplesEnabled() ? withDevExamples(DEMO_PRODUCTS) : DEMO_PRODUCTS;
   },
   async listCategories() {
     return DEMO_CATEGORIES;

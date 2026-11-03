@@ -9,7 +9,8 @@ function formatCm(n: number) {
 
 /** Tabela de medidas por tamanho, com altura do produto quando confirmada. */
 export function SizeTable({ product }: { product: Product }) {
-  const variants = sortedVariants(product);
+  // Só variações de tamanho (as de cor aparecem no seletor "Cor").
+  const variants = sortedVariants(product).filter((v) => !v.colorHex);
   if (!variants.length) return null;
   const height = product.dimensions.heightCm;
   return (
@@ -37,7 +38,7 @@ export function SizeTable({ product }: { product: Product }) {
                   </th>
                   <td className="px-4 py-3">{w && l ? `${w} × ${l} cm` : "—"}</td>
                   <td className="px-4 py-3">{height ? formatCm(height) : "—"}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-deep-fjord">{formatPrice(v.priceCents)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-deep-fjord">{v.priceCents === null ? "—" : formatPrice(v.priceCents)}</td>
                 </tr>
               );
             })}

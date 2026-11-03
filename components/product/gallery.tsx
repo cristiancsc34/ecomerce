@@ -18,6 +18,7 @@ export function Gallery({
   stage = null,
   actions = null,
   onSelectPhoto,
+  resetKey = null,
 }: {
   media: ProductMedia[];
   productName: string;
@@ -25,8 +26,15 @@ export function Gallery({
   actions?: ReactNode;
   /** Escolheu uma miniatura: quem mostra o `stage` volta para as fotos. */
   onSelectPhoto?: () => void;
+  /** Mudou (ex.: outra cor): volta para a primeira foto, sem remontar o `stage` (o 3D não recarrega). */
+  resetKey?: string | null;
 }) {
   const [index, setIndex] = useState(0);
+  const [seenKey, setSeenKey] = useState(resetKey);
+  if (seenKey !== resetKey) {
+    setSeenKey(resetKey);
+    setIndex(0);
+  }
   const [zoomed, setZoomed] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const touchX = useRef<number | null>(null);

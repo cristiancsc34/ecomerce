@@ -1,15 +1,18 @@
 import { Suspense } from "react";
 import { siteUrl } from "@/config/site";
-import { arFiles, galleryMedia, hasConfirmedSpecs, model3d, primaryImage } from "@/lib/catalog/product-helpers";
+import { arFiles, hasConfirmedSpecs, model3d, primaryImage } from "@/lib/catalog/product-helpers";
+import { colorOptions, colorVariants, galleryFor } from "@/lib/catalog/variants";
 import type { Product } from "@/lib/catalog/types";
 import { breadcrumbJsonLd, productJsonLd } from "@/lib/seo/structured-data";
 import { JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { FaqList } from "@/components/ui/faq-list";
 import { FirmnessScale } from "./firmness-scale";
+import { ArchitectsSection } from "./architects";
 import { ProductMedia } from "./product-media";
 import { PurchasePanel, PurchasePanelWithParams } from "./purchase-panel";
 import { SizeTable, SpecsList } from "./specs";
+import { VariantSelectionProvider } from "./variant-selection";
 
 /** Texto simples em parágrafos (sem HTML vindo do banco). */
 function Paragraphs({ text }: { text: string }) {
@@ -43,9 +46,14 @@ function Block({ id, title, children }: { id: string; title: string; children: R
  * (`preview`), que mostra rascunhos sem dados estruturados.
  */
 export function ProductView({ product, preview = false }: { product: Product; preview?: boolean }) {
-  const media = galleryMedia(product);
-  const model = model3d(product);
+  // Fotos e 3D do produto (sem variação); cada cor pode ter os seus.
+  const media = galleryFor(product, null);
+  const model = product.media.find((m) => m.type === "model_3d" && m.variantId === null) ?? model3d(product);
   const ar = arFiles(product, model);
+  const colors = colorOptions(product);
+  const firstColor = colorVariants(product)[0] ?? null;
+  // Com cores, a primeira (a das fotos do produto) já vem escolhida; com uma variação só, ela.
+  const initialVariantId = firstColor?.id ?? (product.variants.length === 1 ? product.variants[0].id : null);
   const base = siteUrl();
   const productLd = preview ? null : productJsonLd(product, base);
   const panelProduct = {
@@ -57,7 +65,7 @@ export function ProductView({ product, preview = false }: { product: Product; pr
     variants: product.variants,
     isDemo: product.isDemo,
   };
-  const showSpecs = hasConfirmedSpecs(product) || product.variants.length > 0;
+  const showSpecs = hasConfirmedSpecs(product) || product.variants.some((v) => v.size || v.widthCm);
 
   return (
     <article className="mx-auto w-full max-w-[80rem] sm:px-6 sm:pt-6 lg:px-8">
@@ -77,38 +85,41 @@ export function ProductView({ product, preview = false }: { product: Product; pr
         </>
       ) : null}
 
-      <div className="grid gap-2 bg-white sm:rounded-lg lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-10 lg:p-6">
-        <div className="min-w-0">
-          <ProductMedia
-            media={media}
-            model={model}
-            poster={primaryImage(product)}
-            productId={product.id}
-            productName={product.name}
-            productSlug={product.slug}
-            usdzUrl={ar.usdzUrl}
-            realScale={ar.realScale}
-          />
+      <VariantSelectionProvider initialVariantId={initialVariantId} colors={colors.map((c) => ({ id: c.id, slug: c.slug }))}>
+        <div className="grid gap-2 bg-white sm:rounded-lg lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-10 lg:p-6">
+          <div className="min-w-0">
+            <ProductMedia
+              media={media}
+              model={model}
+              poster={primaryImage(product)}
+              productId={product.id}
+              productName={product.name}
+              productSlug={product.slug}
+              usdzUrl={ar.usdzUrl}
+              realScale={ar.realScale}
+              colors={colors}
+            />
+          </div>
+
+          <div className="min-w-0 space-y-4 px-4 pb-5 pt-2 lg:px-0 lg:pt-0">
+            {preview ? <Badge tone="dark">Pré-visualização</Badge> : null}
+            <h1 className="text-xl font-semibold leading-snug text-ink sm:text-2xl">{product.name}</h1>
+            {product.shortDescription ? <p className="text-[0.9375rem] text-muted">{product.shortDescription}</p> : null}
+
+            {product.attributes.firmness ? (
+              <FirmnessScale value={product.attributes.firmness} illustrative={product.isDemo} />
+            ) : null}
+
+            {preview ? (
+              <PurchasePanel product={panelProduct} has3d={Boolean(model)} />
+            ) : (
+              <Suspense fallback={<PurchasePanel product={panelProduct} has3d={Boolean(model)} />}>
+                <PurchasePanelWithParams product={panelProduct} has3d={Boolean(model)} />
+              </Suspense>
+            )}
+          </div>
         </div>
-
-        <div className="min-w-0 space-y-4 px-4 pb-5 pt-2 lg:px-0 lg:pt-0">
-          {preview ? <Badge tone="dark">Pré-visualização</Badge> : null}
-          <h1 className="text-xl font-semibold leading-snug text-ink sm:text-2xl">{product.name}</h1>
-          {product.shortDescription ? <p className="text-[0.9375rem] text-muted">{product.shortDescription}</p> : null}
-
-          {product.attributes.firmness ? (
-            <FirmnessScale value={product.attributes.firmness} illustrative={product.isDemo} />
-          ) : null}
-
-          {preview ? (
-            <PurchasePanel product={panelProduct} has3d={Boolean(model)} />
-          ) : (
-            <Suspense fallback={<PurchasePanel product={panelProduct} has3d={Boolean(model)} />}>
-              <PurchasePanelWithParams product={panelProduct} has3d={Boolean(model)} />
-            </Suspense>
-          )}
-        </div>
-      </div>
+      </VariantSelectionProvider>
 
       <div className="mt-2 space-y-2 sm:mt-4 sm:space-y-4">
         {product.description ? (
@@ -125,6 +136,8 @@ export function ProductView({ product, preview = false }: { product: Product; pr
             </div>
           </Block>
         ) : null}
+
+        <ArchitectsSection product={product} />
 
         {product.faq.length ? (
           <Block id="faq-produto-titulo" title="Dúvidas sobre este produto">

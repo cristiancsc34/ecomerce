@@ -459,6 +459,16 @@ export function ProductForm({
                           </>
                         ) : null}
                         <TextField name={`${base}.sku`} label="SKU" optional register={register} errors={errors} className="sm:col-span-2" />
+                        {mattress ? null : (
+                          <TextField
+                            name={`${base}.colorHex`}
+                            label="Cor (hex)"
+                            optional
+                            placeholder="Ex.: #6B4A35"
+                            register={register}
+                            errors={errors}
+                          />
+                        )}
                       </div>
                     </li>
                   );
@@ -469,7 +479,7 @@ export function ProductForm({
             )}
             <Button
               variant="secondary"
-              onClick={() => variants.append({ name: "", sku: "", price: "", stockQuantity: "", size: "", widthCm: "", lengthCm: "" })}
+              onClick={() => variants.append({ name: "", sku: "", price: "", stockQuantity: "", size: "", widthCm: "", lengthCm: "", colorHex: "" })}
               disabled={variants.fields.length >= 20}
             >
               <PlusIcon className="h-4 w-4" /> {mattress ? "Adicionar tamanho" : "Adicionar variação"}

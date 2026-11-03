@@ -74,6 +74,8 @@ export type ProductMedia = {
   realScale: boolean;
   /** Caixa do modelo conferido, em cm. */
   boundsCm: ModelBoundsCm | null;
+  /** Foto ou modelo 3D de uma variação (cor/tecido); null = do produto. */
+  variantId: string | null;
 };
 
 /** Caixa de um modelo 3D em cm: largura (x), profundidade (z) e altura (y). */
@@ -83,11 +85,19 @@ export type ProductVariant = {
   id: string;
   name: string;
   sku: string | null;
-  priceCents: number;
+  /**
+   * Preço da variação. No banco é obrigatório; `null` só aparece em dados de
+   * demonstração/exemplo sem preço definido (a loja mostra "Preço em breve").
+   */
+  priceCents: number | null;
   stockQuantity: number | null;
   size: SizeKey | null;
   widthCm: number | null;
   lengthCm: number | null;
+  /** Cor ou tecido da variação (#RRGGBB). Variações com cor viram o seletor "Cor". */
+  colorHex: string | null;
+  /** Dado de exemplo do ambiente de desenvolvimento (nunca vem do banco). */
+  example?: boolean;
   sortOrder: number;
 };
 

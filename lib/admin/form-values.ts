@@ -71,6 +71,7 @@ export function productToFormValues(product: Product | null): ProductFormValues 
       size: v.size ?? "",
       widthCm: num(v.widthCm),
       lengthCm: num(v.lengthCm),
+      colorHex: v.colorHex ?? "",
     })),
   };
 }

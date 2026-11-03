@@ -16,7 +16,9 @@ const NOT_CONFIRMED = "não confirmado pela loja (não informe nenhum valor)";
 function priceLine(product: Product): string {
   const variants = sortedVariants(product);
   if (variants.length) {
-    return variants.map((v) => `${v.name}: ${formatPrice(v.priceCents)}`).join("; ");
+    return variants
+      .map((v) => `${v.name}: ${v.priceCents === null ? `ainda não definido — ${NOT_CONFIRMED}` : formatPrice(v.priceCents)}`)
+      .join("; ");
   }
   const from = fromPriceCents(product);
   return from === null ? `ainda não definido — ${NOT_CONFIRMED}` : formatPrice(from);

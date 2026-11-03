@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { cart } from "@/lib/cart/store";
 import { formatPrice } from "@/lib/catalog/money";
 import { availability, fromPriceCents, hasPriceRange, sortedVariants } from "@/lib/catalog/product-helpers";
@@ -10,6 +10,7 @@ import { SIZE_INFO, type Product, type ProductVariant } from "@/lib/catalog/type
 import { Button, buttonClasses } from "@/components/ui/button";
 import { BagIcon, CheckIcon, CubeIcon } from "@/components/ui/icons";
 import { NO_PRICE_LABEL } from "./price";
+import { useVariantSelection } from "./variant-selection";
 
 type PanelProduct = Pick<
   Product,
@@ -38,17 +39,30 @@ export function PurchasePanel({
   const router = useRouter();
   const variants = sortedVariants(product);
   const needsVariant = variants.length > 0;
-  const [variantId, setVariantId] = useState<string | null>(
+  // Variações de cor ou tecido viram o seletor "Cor" (com amostras); as demais, "Tamanho".
+  const byColor = needsVariant && variants.every((v) => v.colorHex);
+  const shared = useVariantSelection();
+  const [localId, setLocalId] = useState<string | null>(
     initialVariantId ?? (variants.length === 1 ? variants[0].id : null),
   );
+  const variantId = shared ? shared.variantId : localId;
+  const setVariantId = shared ? shared.setVariantId : setLocalId;
   const [feedback, setFeedback] = useState<"added" | "full" | null>(null);
   const groupId = useId();
+
+  // Tamanho vindo do link (?tamanho=): entra na seleção compartilhada.
+  useEffect(() => {
+    if (shared && initialVariantId && !shared.variantId) shared.setVariantId(initialVariantId);
+    // Só na chegada.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const variant: ProductVariant | null = variants.find((v) => v.id === variantId) ?? null;
   const price = variant ? variant.priceCents : needsVariant ? null : product.priceCents;
   const status = availability(product, variant);
   const outOfStock = status === "out_of_stock";
-  const noPrice = needsVariant ? false : product.priceCents === null;
+  // Sem preço: o produto (sem variações) ou a variação escolhida.
+  const noPrice = needsVariant ? variant !== null && variant.priceCents === null : product.priceCents === null;
   const mustChooseSize = needsVariant && !variant;
   const canAdd = !noPrice && !outOfStock && !mustChooseSize;
 
@@ -74,7 +88,7 @@ export function PurchasePanel({
   const priceText =
     price !== null
       ? formatPrice(price)
-      : fromPriceCents(product) !== null
+      : variant === null && fromPriceCents(product) !== null
         ? `${hasPriceRange(product) ? "a partir de " : ""}${formatPrice(fromPriceCents(product)!)}`
         : null;
 
@@ -89,7 +103,7 @@ export function PurchasePanel({
     if (mustChooseSize) {
       return (
         <Button size="lg" onClick={chooseSize} className={bar ? barButton : "flex-1"}>
-          Escolha um tamanho
+          {byColor ? "Escolha uma cor" : "Escolha um tamanho"}
         </Button>
       );
     }
@@ -127,7 +141,52 @@ export function PurchasePanel({
         {outOfStock ? <p className="mt-1 text-sm font-medium text-danger">Indisponível no momento</p> : null}
       </div>
 
-      {needsVariant ? (
+      {byColor ? (
+        <fieldset id={`${groupId}-sizes`} className="scroll-mt-28" data-testid="seletor-cor">
+          <legend className="mb-2 font-semibold text-deep-fjord">
+            Cor{variant ? <span className="font-normal text-ink">: {variant.name}</span> : null}
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {variants.map((v) => {
+              const vStatus = availability(product, v);
+              const selected = v.id === variantId;
+              return (
+                <label
+                  key={v.id}
+                  title={v.name}
+                  className={`relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border-2 transition-colors has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-air-blue ${
+                    selected ? "border-air-blue-ink" : "border-line hover:border-[#b9c9d6]"
+                  } ${vStatus === "out_of_stock" ? "opacity-50" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name={`${groupId}-variant`}
+                    value={v.id}
+                    checked={selected}
+                    onChange={() => {
+                      setVariantId(v.id);
+                      setFeedback(null);
+                    }}
+                    className="sr-only"
+                  />
+                  <span aria-hidden="true" className="h-9 w-9 rounded-full ring-1 ring-ink/15" style={{ backgroundColor: v.colorHex! }} />
+                  <span className="sr-only">
+                    {v.name}
+                    {v.priceCents !== null ? `, ${formatPrice(v.priceCents)}` : ""}
+                    {vStatus === "out_of_stock" ? ", indisponível" : ""}
+                  </span>
+                  {selected ? (
+                    <CheckIcon aria-hidden="true" className="absolute -right-1 -top-1 h-5 w-5 rounded-full bg-air-blue-ink p-0.5 text-white" />
+                  ) : null}
+                </label>
+              );
+            })}
+          </div>
+          {variants.some((v) => v.example) ? (
+            <p className="mt-2 text-xs text-muted">Cores de exemplo, só no ambiente de desenvolvimento (imagens recoloridas).</p>
+          ) : null}
+        </fieldset>
+      ) : needsVariant ? (
         <fieldset id={`${groupId}-sizes`} className="scroll-mt-28">
           <legend className="mb-2 font-semibold text-deep-fjord">Tamanho</legend>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -162,7 +221,7 @@ export function PurchasePanel({
                     {vStatus === "out_of_stock" ? <span className="block text-xs text-muted">Indisponível</span> : null}
                   </span>
                   <span className="flex items-center gap-2 text-[0.9375rem] font-semibold text-deep-fjord">
-                    {formatPrice(v.priceCents)}
+                    {v.priceCents === null ? NO_PRICE_LABEL : formatPrice(v.priceCents)}
                     {selected ? <CheckIcon className="h-5 w-5" /> : null}
                   </span>
                 </label>

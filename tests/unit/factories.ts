@@ -16,6 +16,7 @@ export function makeVariant(partial: Partial<ProductVariant> = {}): ProductVaria
     size: "casal",
     widthCm: 138,
     lengthCm: 188,
+    colorHex: null,
     sortOrder: 0,
     ...partial,
   };
@@ -38,6 +39,7 @@ export function makeMedia(partial: Partial<ProductMedia> = {}): ProductMedia {
     usdzUrl: null,
     realScale: false,
     boundsCm: null,
+    variantId: null,
     ...partial,
   };
 }

@@ -38,7 +38,7 @@ export const PUBLIC_PRODUCT_COLUMNS = [
   "updated_at",
   "published_at",
   "category:categories(id,slug,name,requires_3d)",
-  "media:product_media(id,storage_path,media_type,alt_text,sort_order,is_primary,is_illustrative,ai_generated,width,height,usdz_storage_path,real_scale,bounds_cm)",
+  "media:product_media(id,storage_path,media_type,alt_text,sort_order,is_primary,is_illustrative,ai_generated,width,height,usdz_storage_path,real_scale,bounds_cm,variant_id)",
   "variants:product_variants(id,name,sku,price_cents,stock_quantity,attributes,sort_order)",
 ].join(",");
 
@@ -84,6 +84,7 @@ export type MediaRow = {
   usdz_storage_path?: string | null;
   real_scale?: boolean;
   bounds_cm?: unknown;
+  variant_id?: string | null;
 };
 
 export type VariantRow = {
@@ -151,6 +152,7 @@ export function mapMedia(row: MediaRow): ProductMedia {
     usdzUrl: row.usdz_storage_path ? mediaPublicUrl(row.usdz_storage_path) : null,
     realScale: Boolean(row.real_scale && row.usdz_storage_path && boundsCm),
     boundsCm,
+    variantId: row.variant_id ?? null,
   };
 }
 
@@ -172,6 +174,7 @@ export function mapVariant(row: VariantRow): ProductVariant {
     size,
     widthCm: positiveNumberOrNull(attrs.widthCm),
     lengthCm: positiveNumberOrNull(attrs.lengthCm),
+    colorHex: typeof attrs.colorHex === "string" && /^#[0-9A-Fa-f]{6}$/.test(attrs.colorHex) ? attrs.colorHex.toUpperCase() : null,
     sortOrder: row.sort_order,
   };
 }

@@ -44,6 +44,26 @@ encaixar quando o provedor for escolhido.
   `npm run ar:usdz -- --glb arquivo.glb --medidas 78x90x100`.
 - Banco: colunas `usdz_storage_path`, `real_scale` e `bounds_cm` em `product_media` e o tipo `model/vnd.usdz+zip`
   no bucket (migração `20261103000300_ar_real_scale.sql`).
+- **Variantes de cor ou tecido**: cada variação pode ter uma cor (`#RRGGBB`, campo “Cor (hex)” da variação no painel)
+  e mídias próprias (`product_media.variant_id`: fotos e, se existir, um modelo 3D próprio). Na página, as variações
+  com cor viram o seletor **“Cor”** (amostras redondas). A cor escolhida troca as fotos (as da cor ou, sem elas, as do
+  produto), o 3D (modelo próprio → troca o arquivo, e o AR usa esse arquivo; sem ele → a variante do próprio `.glb`
+  com `KHR_materials_variants`, pelo nome da cor, ou a cor do material principal com `setBaseColorFactor`), o preço
+  (se a variação tiver outro) e vai para a URL (`?cor=marrom`) e para o link do código QR (`?ar=1&cor=marrom`). A
+  primeira cor da lista é a das fotos e do modelo do produto. Sem variação com cor, o seletor não aparece.
+  Limitação: cor pintada na hora (sem modelo próprio) não chega ao Scene Viewer do Android, que abre o arquivo
+  original; o WebXR (primeiro modo) e o AR Quick Look gerado na hora mostram a cor escolhida. Pendente no painel:
+  ligar uma foto ou um modelo a uma cor (hoje só pelo banco).
+- **Cores de exemplo (só desenvolvimento)**: `CATALOG_DEV_EXAMPLES=1` com `CATALOG_SOURCE=demo`, fora da Vercel, mostra
+  a Poltrona Azul em azul, marrom, branco, vermelho e bege. As fotos e o `.glb` com as 5 cores
+  (`public/demo/exemplo`, `npm run demo:variantes`) são a poltrona azul **recolorida por computador** (só o tecido muda;
+  madeira, fundo e sombras ficam), marcadas como ilustrativas e sem preço. Não aparecem na loja de verdade.
+- **Para arquitetos e designers**: seção recolhida na página de produto com 3D: download do `.glb` (e do `.usdz`
+  quando há tamanho real conferido) com nome legível (`cuxoes-<produto>.glb`; no Storage, via `?download=`) e ficha
+  técnica só com dados do catálogo (medidas L × P × A, peso, materiais, tecido, cores; o que falta aparece como
+  “Ainda não informado pela loja”). Sem escala conferida, a seção avisa que a escala é aproximada. O projeto ainda
+  não captura contatos: o download é livre e há um comentário em `components/product/architects.tsx` indicando onde
+  pedir nome e e-mail e salvar o lead do tipo “arquiteto”.
 - Checklist de revisão de um modelo: proporções conferidas com as medidas reais, cor e textura comparadas com a foto,
   costuras/faixas presentes, arquivo < 4 MB (comprimir texturas), orientação e escala (metros). Para o AR do Android:
   texturas JPEG/PNG (nada de WebP), até 2048 px, até 100 mil triângulos e a base do modelo apoiada em y = 0 — o

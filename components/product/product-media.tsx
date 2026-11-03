@@ -6,6 +6,7 @@ import { track } from "@/lib/analytics";
 import { arLink, arViewerAttributes, currentDevice, detectArSupport, hasArParam, AR_PARAM, LEGACY_AR_PARAM, SERVER_AR_SUPPORT, type ArSupport } from "@/lib/ar/device";
 import { nameWithArticle } from "@/lib/catalog/product-helpers";
 import type { ProductMedia as Media } from "@/lib/catalog/types";
+import type { ColorOption } from "@/lib/catalog/variants";
 import { Button } from "@/components/ui/button";
 import { ArIcon, CopyIcon, CubeIcon, ImageIcon } from "@/components/ui/icons";
 import { Notice } from "@/components/ui/notice";
@@ -13,6 +14,26 @@ import { Spinner } from "@/components/ui/button";
 import { ArQrDialog } from "./ar-qr-dialog";
 import { Gallery } from "./gallery";
 import { ProductImage } from "./product-image";
+import { useVariantSelection } from "./variant-selection";
+
+type RGBA = [number, number, number, number];
+
+/**
+ * Cor escolhida no visualizador: a variante do próprio .glb (KHR_materials_variants,
+ * pelo nome da cor) ou, sem ela, a cor do material principal. Volta à cor original
+ * quando a cor escolhida é a das fotos do produto.
+ */
+function applyColor(viewer: ModelViewerElement, slug: string | null, tint: string | null, original: { current: RGBA | null }) {
+  const names = viewer.availableVariants ?? [];
+  if (names.length) {
+    viewer.variantName = slug && names.includes(slug) ? slug : null;
+    if (slug && names.includes(slug)) return;
+  }
+  const material = viewer.model?.materials[0];
+  if (!material) return;
+  original.current ??= [...material.pbrMetallicRoughness.baseColorFactor] as RGBA;
+  material.pbrMetallicRoughness.setBaseColorFactor(tint ?? original.current);
+}
 
 declare module "react" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -105,9 +126,9 @@ export function ProductMedia({
   productId,
   productName,
   productSlug,
-  colorSlug = null,
   usdzUrl = null,
   realScale = false,
+  colors = [],
 }: {
   media: Media[];
   model: Media | null;
@@ -119,8 +140,8 @@ export function ProductMedia({
   productId: string;
   productName: string;
   productSlug: string;
-  /** Cor/variante escolhida: vai junto no link do código QR. */
-  colorSlug?: string | null;
+  /** Cores/tecidos (variações com cor): fotos, modelo e cor de cada uma. */
+  colors?: ColorOption[];
 }) {
   const [mode, setMode] = useState<"fotos" | "3d">("fotos");
   const [state, setState] = useState<State>("idle");
@@ -136,6 +157,15 @@ export function ProductMedia({
   const wantsAr = useRef(false);
   const arrivalHandled = useRef(false);
   const support = useSyncExternalStore(subscribeNever, arSupportSnapshot, serverSupport);
+  const selection = useVariantSelection();
+  const color = colors.find((c) => c.id === selection?.variantId) ?? null;
+  // A cor escolhida muda as fotos, o arquivo 3D (se a cor tiver modelo próprio),
+  // o arquivo que vai para o AR e o link do código QR.
+  const gallery = color?.gallery ?? media;
+  const current = color?.model ?? { model, own: false, tint: null, usdzUrl, realScale };
+  const activeModel = current.model;
+  const colorSlug = color?.slug ?? null;
+  const originalColor = useRef<RGBA | null>(null);
   const cameraBrowser = support.mode === "abrir-chrome" ? "Chrome" : "Safari";
   const event = { produto_id: productId };
 
@@ -308,13 +338,28 @@ export function ProductMedia({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, mode]);
 
+  // Cor no visualizador: ao carregar o arquivo e a cada troca de cor.
+  useEffect(() => {
+    const viewer = viewerRef.current as ModelViewerElement | null;
+    if (state !== "ready" || mode !== "3d" || !viewer) return;
+    const apply = () => applyColor(viewer, colorSlug, current.tint, originalColor);
+    if (viewer.loaded) apply();
+    viewer.addEventListener("load", apply);
+    return () => viewer.removeEventListener("load", apply);
+  }, [state, mode, colorSlug, current.tint, activeModel?.url]);
+
+  // Arquivo novo: a cor original é a dele.
+  useEffect(() => {
+    originalColor.current = null;
+  }, [activeModel?.url]);
+
   const stage =
-    model && mode === "3d" ? (
+    activeModel && mode === "3d" ? (
       state === "ready" ? (
         <model-viewer
           ref={viewerRef}
-          src={model.url}
-          alt={model.altText}
+          src={activeModel.url}
+          alt={color ? `${activeModel.altText} Cor: ${color.name}.` : activeModel.altText}
           camera-controls
           touch-action="pan-y"
           shadow-intensity="0.7"
@@ -322,7 +367,7 @@ export function ProductMedia({
           interaction-prompt="auto"
           ar
           // .usdz conferido no iPhone e tamanho fixo quando a escala bate com o catálogo.
-          {...arViewerAttributes({ usdzUrl, realScale })}
+          {...arViewerAttributes({ usdzUrl: current.usdzUrl, realScale: current.realScale })}
           ar-placement="floor"
           xr-environment
           quick-look-browsers="safari chrome"
@@ -353,7 +398,7 @@ export function ProductMedia({
 
   const busy = pending !== null || leaving;
   const ready3d = mode === "3d" && state === "ready";
-  const actions = model ? (
+  const actions = activeModel ? (
     <div className="pointer-events-none absolute inset-x-3 bottom-3 flex flex-wrap items-end gap-2" data-acoes-3d>
       <button
         ref={arButtonRef}
@@ -386,15 +431,22 @@ export function ProductMedia({
       className="scroll-mt-24"
       data-modo={mode}
     >
-      <Gallery media={media} productName={productName} stage={stage} actions={actions} onSelectPhoto={() => setMode("fotos")} />
+      <Gallery
+        resetKey={color?.id ?? "produto"}
+        media={gallery}
+        productName={productName}
+        stage={stage}
+        actions={actions}
+        onSelectPhoto={() => setMode("fotos")}
+      />
 
       <div className="space-y-3 px-4 lg:px-0">
         {ready3d ? (
           <p className="mt-3 text-sm text-muted">
             Arraste para girar e use pinça ou a roda do mouse para aproximar. Com o teclado, selecione o modelo e use as setas.
-            {model?.isIllustrative ? " Modelo ilustrativo: proporções e cores aproximadas." : null}
+            {activeModel?.isIllustrative ? " Modelo ilustrativo: proporções e cores aproximadas." : null}
             {support.mode === "camera"
-              ? realScale
+              ? current.realScale
                 ? " Na câmera, a peça aparece em tamanho real."
                 : " Na câmera, o tamanho é aproximado: use dois dedos para ajustar e arraste para posicionar."
               : support.mode === "sem-ar"
@@ -421,13 +473,13 @@ export function ProductMedia({
         ) : null}
       </div>
 
-      {model && origin ? (
+      {activeModel && origin ? (
         <ArQrDialog
           open={qrOpen}
           onClose={() => setQrOpen(false)}
           link={arLink(origin, productSlug, colorSlug)}
-          productLabel={nameWithArticle(productName)}
-          realScale={realScale}
+          productLabel={nameWithArticle(color ? `${productName} (${color.name.toLowerCase()})` : productName)}
+          realScale={current.realScale}
           phone={support.phone}
           returnFocusRef={arButtonRef}
         />

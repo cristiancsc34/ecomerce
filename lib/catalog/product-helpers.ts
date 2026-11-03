@@ -6,7 +6,7 @@ import type { Product, ProductMedia, ProductVariant, SizeKey } from "./types";
  * Nunca anunciar um "a partir de" que não pode ser comprado.
  */
 export function purchasablePrices(product: Pick<Product, "priceCents" | "variants">): number[] {
-  if (product.variants.length) return product.variants.map((v) => v.priceCents);
+  if (product.variants.length) return product.variants.flatMap((v) => (v.priceCents === null ? [] : [v.priceCents]));
   return product.priceCents !== null ? [product.priceCents] : [];
 }
 

@@ -52,6 +52,7 @@ function catalogPhotos(file: string, label: string, ids: string[]): ProductMedia
     usdzUrl: null,
     realScale: false,
     boundsCm: null,
+    variantId: null,
   }));
 }
 
@@ -116,6 +117,7 @@ export const DEMO_PRODUCTS: Product[] = [
         usdzUrl: null,
         realScale: false,
         boundsCm: null,
+        variantId: null,
       },
     ],
   },
