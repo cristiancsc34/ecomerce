@@ -13,6 +13,8 @@
     "test:e2e": "playwright test",
     "check": "npm run lint && npm run typecheck && npm run test",
     "demo:assets": "node scripts/generate-demo-assets.mjs",
+    "config:verificar": "node scripts/verificar-config.mjs",
+    "kit:montar": "node scripts/montar-kit.mjs",
     "admin:create": "node --env-file=.env.local scripts/create-admin.mjs",
     "ai:setup": "bash scripts/ai-setup.sh",
     "ai:worker": "node --env-file=.env.local scripts/ai-worker.mjs",

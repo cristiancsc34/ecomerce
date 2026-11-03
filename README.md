@@ -3,8 +3,10 @@
 Loja online responsiva para colchões e produtos de descanso, com painel administrativo seguro e base pronta para
 pagamento, frete, IA de imagens e visualização 3D (sem fingir que essas integrações já existem).
 
+<!-- kit:remover -->
 A especificação completa está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md). “Cuxões” é um nome provisório: troque em
 [`config/brand.ts`](config/brand.ts).
+<!-- /kit:remover -->
 
 ## Estado atual
 
@@ -18,7 +20,7 @@ A especificação completa está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md). 
 | Assistente de vendas (chat “Ajuda”) | ✅ Claude Haiku, só com dados do catálogo, com trava contra preço/medida/prazo inventados — liga com `ANTHROPIC_API_KEY` ([`docs/ASSISTENTE.md`](docs/ASSISTENTE.md)) |
 | Avisos de pedido (WhatsApp e e-mail) | 🧱 Estrutura pronta e testada (mensagens, fila idempotente, novas tentativas); falta checkout e provedor ([`docs/NOTIFICACOES.md`](docs/NOTIFICACOES.md)) |
 | Checkout, pagamento, frete | ⏳ Não implementado: depende da escolha dos provedores ([decisões pendentes](docs/DECISOES.md)) |
-| Estúdio de fotos e 3D no painel | ✅ Fotos do celular com limpeza de fundo automática (modelos abertos, locais) — [`docs/ESTUDIO-IA.md`](docs/ESTUDIO-IA.md). Fotos de catálogo recriadas por IA (4 ângulos padrão, com conferência humana) e nome/textos sugeridos pelo ChatGPT. 3D pela API do Tripo a partir das fotos de catálogo. |
+| Estúdio de fotos e 3D no painel | ✅ Tudo na nuvem (Vercel), sem computador ligado — [`docs/ESTUDIO-IA.md`](docs/ESTUDIO-IA.md). Fotos do celular com limpeza de fundo pelo ChatGPT (~20 s), 4 fotos de catálogo recriadas por IA (~45 s, com conferência humana), nome e descrição lidos das fotos uma vez e guardados (“Aprimorar descrição”), 3D pela API do Tripo. |
 
 **Nada aqui é dado comercial real.** Os produtos “Nuvem Essencial”, “Brisa Premium” e “Sereno Híbrido” são
 placeholders: preço, firmeza e altura são ilustrativos, materiais/garantia/cuidados estão vazios de propósito e o banco
@@ -113,6 +115,13 @@ revisão. As regras valem no banco (RLS + triggers), não só na interface.
 4. Siga o painel **Pronto para vender** (as mesmas regras que o banco usa) e confira a **pré-visualização**.
 5. Um administrador publica. Guia completo: [`docs/PAINEL.md`](docs/PAINEL.md).
 
+## Kit para outra loja
+
+`npm run kit:montar` gera um `.zip` com este projeto pronto para outra loja: o código (só o que está no Git, sem
+segredos nem dados das contas desta loja), um roteiro para o Codex ou o Claude adaptar marca, cores e textos
+([`kit/PLAYBOOK.md`](kit/PLAYBOOK.md)), o guia de onde pegar cada chave ([`kit/GUIA-DE-CHAVES.md`](kit/GUIA-DE-CHAVES.md))
+e o briefing que o lojista preenche. `npm run config:verificar` confere se cada chave existe e funciona.
+
 ## Comandos
 
 | Comando | O que faz |
@@ -128,11 +137,14 @@ revisão. As regras valem no banco (RLS + triggers), não só na interface.
 | `npm run db:start` / `db:reset` / `db:stop` | Supabase local |
 | `npm run admin:create -- email [admin\|editor]` | Cria/atualiza conta da equipe |
 | `npm run demo:assets` | Regera as ilustrações e o modelo 3D de demonstração |
+| `npm run config:verificar` | Confere as chaves do `.env.local` (só leituras, sem gastar créditos) |
+| `npm run kit:montar` | Gera o `.zip` do kit para outra loja (ver acima) |
 
 Na primeira vez em uma máquina nova, rode `npx playwright install chromium` antes dos testes E2E.
 
 ## Deploy (Vercel)
 
+<!-- kit:remover -->
 **No ar (modo demonstração):** https://cuxoes.vercel.app — projeto `cuxoes` na Vercel, ligado a este repositório;
 cada push na branch de produção (`claude/quirky-maxwell-xkyvq6`) publica sozinho. Sem Supabase, mostra só os dois
 produtos reais cadastrados pelo estúdio (Poltrona Azul com 3D e Cadeira Cinza Trama), com fotos de catálogo aprovadas e
@@ -142,6 +154,7 @@ produtos reais cadastrados pelo estúdio (Poltrona Azul com 3D e Cadeira Cinza T
 da conta do Cristian, com as migrações aplicadas, cadastro público desligado e os dois produtos copiados como rascunho.
 A vitrine continua com `CATALOG_SOURCE=demo` até os produtos terem preço e serem publicados; depois, troque para
 `supabase` na Vercel e faça um novo deploy.
+<!-- /kit:remover -->
 
 1. Importe o repositório na Vercel (framework Next.js detectado automaticamente).
 2. Variáveis: `NEXT_PUBLIC_SITE_URL` (URL final), `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
