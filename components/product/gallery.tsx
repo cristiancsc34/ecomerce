@@ -1,15 +1,31 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { ProductMedia } from "@/lib/catalog/types";
 import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, ImageIcon, ZoomIcon } from "@/components/ui/icons";
 
 /**
  * Galeria acessível: miniaturas são botões, há anterior/próxima, e o zoom
  * abre num <dialog> nativo (foco preso, Esc fecha). Sem rotação automática.
+ *
+ * `stage` ocupa o lugar da foto principal (ex.: o visualizador 3D) e `actions`
+ * fica sobre a foto, no canto inferior (botões de 3D e realidade aumentada).
  */
-export function Gallery({ media, productName }: { media: ProductMedia[]; productName: string }) {
+export function Gallery({
+  media,
+  productName,
+  stage = null,
+  actions = null,
+  onSelectPhoto,
+}: {
+  media: ProductMedia[];
+  productName: string;
+  stage?: ReactNode;
+  actions?: ReactNode;
+  /** Escolheu uma miniatura: quem mostra o `stage` volta para as fotos. */
+  onSelectPhoto?: () => void;
+}) {
   const [index, setIndex] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -26,19 +42,25 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
 
   if (!current) {
     return (
-      <div className="flex aspect-[4/3] flex-col items-center justify-center gap-2 bg-pale-blue text-muted lg:rounded-lg">
-        <ImageIcon className="h-12 w-12" />
-        <span>Fotos em breve</span>
+      <div className="relative aspect-[4/3] overflow-hidden bg-pale-blue lg:rounded-lg">
+        {stage ?? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-muted">
+            <ImageIcon className="h-12 w-12" />
+            <span>Fotos em breve</span>
+          </div>
+        )}
+        {actions}
       </div>
     );
   }
+  const showingPhoto = stage === null;
 
   return (
     <div>
       <div
         className="relative aspect-[4/3] touch-pan-y overflow-hidden bg-pale-blue lg:rounded-lg"
         onKeyDown={(e) => {
-          if (total < 2) return;
+          if (total < 2 || !showingPhoto) return;
           if (e.key === "ArrowRight") go(1);
           if (e.key === "ArrowLeft") go(-1);
         }}
@@ -50,11 +72,14 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
           const start = touchX.current;
           touchX.current = null;
           const end = e.changedTouches[0]?.clientX;
-          if (start === null || end === undefined || total < 2) return;
+          // No 3D, arrastar gira o modelo: não troca a foto.
+          if (start === null || end === undefined || total < 2 || !showingPhoto) return;
           if (Math.abs(end - start) > 40) go(end < start ? 1 : -1);
         }}
       >
-        {current.type === "video" ? (
+        {!showingPhoto ? (
+          stage
+        ) : current.type === "video" ? (
           <video
             key={current.id}
             src={current.url}
@@ -78,17 +103,18 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
           />
         )}
 
-        {current.isIllustrative ? (
+        {!showingPhoto ? null : current.isIllustrative ? (
           <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-semibold text-ink shadow-sm">
             Imagem ilustrativa
           </span>
         ) : current.aiGenerated ? (
-          <span className="absolute bottom-3 left-3 rounded bg-white/90 px-2 py-0.5 text-[0.6875rem] font-medium text-muted">
+          // No alto: o canto de baixo fica para os botões de 3D e realidade aumentada.
+          <span className="absolute left-3 top-3 rounded bg-white/90 px-2 py-0.5 text-[0.6875rem] font-medium text-muted">
             Cena recriada a partir das fotos reais
           </span>
         ) : null}
 
-        {current.type === "image" ? (
+        {showingPhoto && current.type === "image" ? (
           <button
             type="button"
             onClick={openZoom}
@@ -99,7 +125,7 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
           </button>
         ) : null}
 
-        {total > 1 ? (
+        {showingPhoto && total > 1 ? (
           <>
             <button
               type="button"
@@ -117,16 +143,24 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
               <ChevronRightIcon className="h-6 w-6" />
               <span className="sr-only">Próxima imagem</span>
             </button>
-            <span aria-hidden="true" className="absolute bottom-3 right-3 rounded-full bg-ink/60 px-2.5 py-0.5 text-xs font-semibold text-white">
+            <span
+              aria-hidden="true"
+              // Com os botões de 3D no canto, o contador some no celular (as miniaturas já mostram a posição).
+              className={`absolute bottom-3 right-3 rounded-full bg-ink/60 px-2.5 py-0.5 text-xs font-semibold text-white ${actions ? "max-sm:hidden" : ""}`}
+            >
               {index + 1}/{total}
             </span>
           </>
         ) : null}
+
+        {actions}
       </div>
 
-      <p className="sr-only" aria-live="polite">
-        Mostrando mídia {index + 1} de {total}: {current.altText}
-      </p>
+      {showingPhoto ? (
+        <p className="sr-only" aria-live="polite">
+          Mostrando mídia {index + 1} de {total}: {current.altText}
+        </p>
+      ) : null}
 
       {total > 1 ? (
         <ul className="mt-2 grid grid-cols-5 gap-2 px-4 lg:px-0" aria-label={`Fotos de ${productName}`}>
@@ -134,11 +168,14 @@ export function Gallery({ media, productName }: { media: ProductMedia[]; product
             <li key={m.id}>
               <button
                 type="button"
-                onClick={() => setIndex(i)}
-                aria-pressed={i === index}
+                onClick={() => {
+                  setIndex(i);
+                  onSelectPhoto?.();
+                }}
+                aria-pressed={showingPhoto && i === index}
                 aria-label={`Mostrar mídia ${i + 1} de ${total}${m.type === "video" ? " (vídeo)" : ""}`}
                 className={`relative block aspect-square w-full overflow-hidden rounded-md border-2 bg-pale-blue ${
-                  i === index ? "border-air-blue-ink" : "border-transparent hover:border-line"
+                  showingPhoto && i === index ? "border-air-blue-ink" : "border-transparent hover:border-line"
                 }`}
               >
                 {m.type === "image" ? (

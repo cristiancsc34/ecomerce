@@ -12,8 +12,15 @@ encaixar quando o provedor for escolhido.
 
 - Envie um `.glb` (glTF 2.0 binário) pelo painel, na seção de mídia, com texto alternativo. O tipo é validado pelo
   conteúdo (`glTF` versão 2).
-- A página do produto mostra a foto principal com o botão **“Carregar visualização 3D”**. Só então são baixados o
-  `<model-viewer>` (three.js) e o arquivo (teste E2E garante isso).
+- Na página do produto, **sobre a foto principal** (canto inferior), ficam **“Ver no seu ambiente”** e **“Girar em
+  3D”** — só nos produtos com modelo 3D. “Girar em 3D” troca a foto pelo visualizador no mesmo lugar (“Ver fotos”
+  volta). Só então são baixados o `<model-viewer>` (three.js) e o arquivo (teste E2E garante isso).
+- “Ver no seu ambiente” depende do aparelho (`lib/ar/device.ts`): celular com AR abre a câmera; navegador de dentro
+  de app (Instagram, WhatsApp, app do Google; Firefox no Android) abre a mesma página no Safari/Chrome; computador ou
+  celular sem AR orienta a usar o celular.
+- Eventos de uso `ar_click`, `ar_open` e `view3d_click` (com `produto_id`) saem por `lib/analytics.ts`: vão para o
+  `window.dataLayer`, se existir, e para o evento do navegador `cuxoes:evento`. O projeto ainda não tem provedor de
+  analytics; para ligar um, é só chamá-lo em `track()`.
 - Marque “ilustrativa” se o modelo não for fiel ao produto; a página avisa.
 - **Realidade aumentada (“Ver no seu ambiente”)**: no celular, um toque abre a câmera com o produto no chão do
   cliente. Android usa o **Scene Viewer** (app de AR do Google; WebXR como reserva) e iPhone/iPad usa o **AR Quick

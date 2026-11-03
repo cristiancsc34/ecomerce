@@ -45,13 +45,17 @@ test.describe("vitrine em modo demonstração", () => {
     const to3d = isMobile(page) ? page.getByRole("link", { name: "Girar em 3D" }) : page.getByRole("link", { name: "Ver em 3D" });
     await to3d.click();
     await expect(page).toHaveURL(/#visualizador-3d$/);
-    await expect(page.getByRole("region", { name: "Ver em 3D" })).toBeInViewport();
+    // O link leva ao topo e troca a foto principal pelo 3D.
+    await expect(page.getByRole("region", { name: "Fotos e 3D: Poltrona Azul Estrutura Clara" })).toBeInViewport();
+    await expect(page.locator("model-viewer")).toBeVisible();
   });
 
   test("produto sem preço e sem 3D não mostra barra de compra vazia", async ({ page }) => {
     await page.goto("/produtos/cadeira-cinza-trama");
     await expect(page.getByRole("heading", { level: 1, name: "Cadeira Cinza Trama" })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Ver em 3D" })).toHaveCount(0);
+    // Sem modelo 3D: nenhum botão de 3D ou de realidade aumentada (nada quebrado).
+    await expect(page.getByRole("button", { name: /Ver no seu ambiente|Girar em 3D/ })).toHaveCount(0);
+    await expect(page.locator("[data-acoes-3d]")).toHaveCount(0);
     await expect(page.getByRole("link", { name: /3D/ })).toHaveCount(0);
     // Sem "produtos relacionados": poltrona não é cadeira, cada produto é um.
     await expect(page.getByText("Você também pode gostar")).toHaveCount(0);
@@ -120,14 +124,62 @@ test.describe("vitrine em modo demonstração", () => {
       if (/\.glb($|\?)/.test(r.url()) || /model-viewer|three/i.test(r.url())) heavy.push(r.url());
     });
     await page.goto("/produtos/poltrona-azul");
-    await page.getByRole("heading", { name: "Ver em 3D" }).scrollIntoViewIfNeeded();
     await page.waitForLoadState("networkidle");
     expect(heavy).toEqual([]);
 
     const glb = page.waitForRequest(/poltrona-azul\.glb/);
-    await page.getByRole("region", { name: "Ver em 3D" }).getByRole("button", { name: "Girar em 3D" }).click();
+    await page.getByRole("button", { name: "Girar em 3D" }).click();
     await glb;
     await expect(page.locator("model-viewer")).toBeVisible();
+    // "Ver fotos" volta para a foto principal.
+    await page.getByRole("button", { name: "Ver fotos" }).click();
+    await expect(page.locator("model-viewer")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Girar em 3D" })).toBeVisible();
+  });
+
+  test("botões de 3D e AR ficam sobre a foto principal, sem cobrir o preço, com 44 px e nome acessível", async ({ page }) => {
+    await page.goto("/produtos/poltrona-azul");
+    const stage = page.getByRole("region", { name: "Fotos e 3D: Poltrona Azul Estrutura Clara" });
+    const photo = stage.getByRole("img", { name: /vista frontal/ }).first();
+    const ar = stage.getByRole("button", { name: "Ver no seu ambiente: Poltrona Azul Estrutura Clara" });
+    const turn = stage.getByRole("button", { name: "Girar em 3D: Poltrona Azul Estrutura Clara" });
+    await expect(ar).toBeVisible();
+    await expect(turn).toBeVisible();
+    // Sem rolar: aparecem na primeira tela.
+    await expect(ar).toBeInViewport();
+    const photoBox = (await photo.boundingBox())!;
+    const price = (await page.getByTestId("preco-atual").boundingBox())!;
+    for (const button of [ar, turn]) {
+      const box = (await button.boundingBox())!;
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.width).toBeGreaterThanOrEqual(44);
+      // Dentro da foto principal…
+      expect(box.y).toBeGreaterThanOrEqual(photoBox.y);
+      expect(box.y + box.height).toBeLessThanOrEqual(photoBox.y + photoBox.height + 1);
+      expect(box.x + box.width).toBeLessThanOrEqual(photoBox.x + photoBox.width + 1);
+      // …e longe do preço.
+      const overlaps = !(box.x + box.width <= price.x || price.x + price.width <= box.x || box.y + box.height <= price.y || price.y + price.height <= box.y);
+      expect(overlaps).toBe(false);
+    }
+    // Foco visível pelo teclado.
+    await turn.focus();
+    const outline = await turn.evaluate((el) => getComputedStyle(el).outlineStyle);
+    expect(outline).not.toBe("none");
+  });
+
+  test("eventos de uso: view3d_click e ar_click com o id do produto", async ({ page }) => {
+    await page.goto("/produtos/poltrona-azul");
+    await page.evaluate(() => {
+      const seen: unknown[] = [];
+      Object.assign(window, { seen });
+      window.addEventListener("cuxoes:evento", (e) => seen.push((e as CustomEvent).detail));
+    });
+    await page.getByRole("button", { name: "Girar em 3D" }).click();
+    await expect(page.locator("model-viewer")).toBeVisible();
+    const seen = () => page.evaluate(() => (window as unknown as { seen: { event: string; produto_id: string }[] }).seen);
+    await expect.poll(seen).toContainEqual(
+      expect.objectContaining({ event: "view3d_click", produto_id: "dcdaee90-64b9-4b91-832b-f5049a237cb9" }),
+    );
   });
 
   test("celular: a barra fixa não esconde o fim da página e a tela usa a área segura do iPhone", async ({ page }) => {
@@ -166,7 +218,7 @@ test.describe("vitrine em modo demonstração", () => {
       });
       await page.goto(path);
       const links = () => page.evaluate(() => (window as unknown as { appLinks: string[] }).appLinks);
-      return { context, page, links, region: page.getByRole("region", { name: "Ver em 3D" }) };
+      return { context, page, links, region: page.getByRole("region", { name: "Fotos e 3D: Poltrona Azul Estrutura Clara" }) };
     };
 
     // App do Google no iPhone: o botão aparece; o toque abre a mesma página no Safari, já no 3D.
@@ -174,7 +226,7 @@ test.describe("vitrine em modo demonstração", () => {
     await expect(google.region.getByRole("button", { name: "Copiar link" })).toHaveCount(0);
     await google.region.getByRole("button", { name: "Ver no seu ambiente" }).click();
     await expect.poll(google.links).toEqual([
-      expect.stringMatching(/^x-safari-http:\/\/localhost:\d+\/produtos\/poltrona-azul\?ver-no-ambiente=1#visualizador-3d$/),
+      expect.stringMatching(/^x-safari-http:\/\/localhost:\d+\/produtos\/poltrona-azul\?ar=1#visualizador-3d$/),
     ]);
     // Se o app não deixar sair, aparece a reserva de copiar o link.
     await expect(google.region.getByRole("button", { name: "Copiar link" })).toBeVisible({ timeout: 5000 });
@@ -184,25 +236,27 @@ test.describe("vitrine em modo demonstração", () => {
     const firefox = await open(devices["Pixel 7"], "Mozilla/5.0 (Android 15; Mobile; rv:144.0) Gecko/144.0 Firefox/144.0");
     await firefox.region.getByRole("button", { name: "Ver no seu ambiente" }).click();
     await expect.poll(firefox.links).toEqual([expect.stringContaining("package=com.android.chrome")]);
-    expect((await firefox.links())[0]).toContain("/produtos/poltrona-azul?ver-no-ambiente=1");
+    expect((await firefox.links())[0]).toContain("/produtos/poltrona-azul?ar=1");
     await firefox.context.close();
 
     // Chegando no Chrome/Safari do iPhone pelo link: o 3D já carrega e pede um toque para a câmera.
-    const chrome = await open(devices["iPhone 13"], iphone("CriOS/138.0.7204.156"), "/produtos/poltrona-azul?ver-no-ambiente=1");
-    await expect(chrome.page.locator("model-viewer")).toBeVisible();
-    await expect(chrome.region.getByText("Pronto para ver no seu ambiente")).toBeVisible();
-    await expect(chrome.page).toHaveURL(/\/produtos\/poltrona-azul$/);
-    await chrome.context.close();
+    for (const path of ["/produtos/poltrona-azul?ar=1", "/produtos/poltrona-azul?ver-no-ambiente=1"]) {
+      const chrome = await open(devices["iPhone 13"], iphone("CriOS/138.0.7204.156"), path);
+      await expect(chrome.page.locator("model-viewer")).toBeVisible();
+      await expect(chrome.region.getByText("Pronto para ver no seu ambiente")).toBeVisible();
+      await expect(chrome.region.getByRole("button", { name: "Abrir no seu ambiente" })).toBeVisible();
+      await expect(chrome.page).toHaveURL(/\/produtos\/poltrona-azul$/);
+      await chrome.context.close();
+    }
   });
 
   test("realidade aumentada: no celular abre a câmera, no computador orienta a usar o celular", async ({ page }) => {
     await page.goto("/produtos/poltrona-azul");
-    const region = page.getByRole("region", { name: "Ver em 3D" });
+    const region = page.getByRole("region", { name: "Fotos e 3D: Poltrona Azul Estrutura Clara" });
     const arButton = region.getByRole("button", { name: "Ver no seu ambiente" });
 
     if (!isMobile(page)) {
-      await expect(arButton).toHaveCount(0);
-      await region.getByRole("button", { name: "Girar em 3D" }).click();
+      await arButton.click();
       await expect(page.locator("model-viewer")).toBeVisible();
       await expect(region.getByText("Para ver no seu ambiente, abra esta página no celular.")).toBeVisible();
       return;

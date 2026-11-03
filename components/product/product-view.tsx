@@ -7,10 +7,9 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { FaqList } from "@/components/ui/faq-list";
 import { FirmnessScale } from "./firmness-scale";
-import { Gallery } from "./gallery";
+import { ProductMedia } from "./product-media";
 import { PurchasePanel, PurchasePanelWithParams } from "./purchase-panel";
 import { SizeTable, SpecsList } from "./specs";
-import { Viewer3D } from "./viewer-3d";
 
 /** Texto simples em parágrafos (sem HTML vindo do banco). */
 function Paragraphs({ text }: { text: string }) {
@@ -79,7 +78,13 @@ export function ProductView({ product, preview = false }: { product: Product; pr
 
       <div className="grid gap-2 bg-white sm:rounded-lg lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-10 lg:p-6">
         <div className="min-w-0">
-          <Gallery media={media} productName={product.name} />
+          <ProductMedia
+            media={media}
+            model={model}
+            poster={primaryImage(product)}
+            productId={product.id}
+            productName={product.name}
+          />
         </div>
 
         <div className="min-w-0 space-y-4 px-4 pb-5 pt-2 lg:px-0 lg:pt-0">
@@ -102,12 +107,6 @@ export function ProductView({ product, preview = false }: { product: Product; pr
       </div>
 
       <div className="mt-2 space-y-2 sm:mt-4 sm:space-y-4">
-        {model ? (
-          <div className="bg-white px-4 py-5 sm:rounded-lg sm:px-6">
-            <Viewer3D model={model} poster={primaryImage(product)} productName={product.name} />
-          </div>
-        ) : null}
-
         {product.description ? (
           <Block id="descricao-titulo" title="Descrição do produto">
             <Paragraphs text={product.description} />

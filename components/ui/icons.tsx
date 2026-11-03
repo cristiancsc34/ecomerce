@@ -102,6 +102,15 @@ export const CubeIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** Realidade aumentada: cubo dentro dos cantos de um visor. */
+export const ArIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" />
+    <path d="m12 7 4.5 2.5v5L12 17l-4.5-2.5v-5L12 7Z" />
+    <path d="m7.5 9.5 4.5 2.5 4.5-2.5M12 12v5" />
+  </Icon>
+);
+
 export const RulerIcon = (p: IconProps) => (
   <Icon {...p}>
     <rect x="3" y="8" width="18" height="8" rx="1.5" />
