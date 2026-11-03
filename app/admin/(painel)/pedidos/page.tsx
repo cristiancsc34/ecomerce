@@ -35,7 +35,14 @@ export default async function AdminOrdersPage({ searchParams }: PageProps<"/admi
       <PageHeader
         title="Pedidos"
         subtitle="Pedidos do site e do atendimento, do registro até a entrega, etapa por etapa."
-        actions={<ButtonLink href="/admin/pedidos/novo">Novo pedido</ButtonLink>}
+        actions={
+          <>
+            <ButtonLink href="/admin/entrega" variant="secondary">
+              Entrega e avisos
+            </ButtonLink>
+            <ButtonLink href="/admin/pedidos/novo">Novo pedido</ButtonLink>
+          </>
+        }
       />
       <nav aria-label="Filtrar pedidos" className="-mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <ul className="flex gap-2">

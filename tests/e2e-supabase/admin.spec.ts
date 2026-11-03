@@ -147,7 +147,7 @@ test("editor cria rascunho em um passo, preenche pelas abas e envia para revisã
   await expect(panel(page).getByRole("button", { name: /Fotos \(pronto\)/ })).toBeVisible();
 
   // Estúdio de IA: a foto do celular entra na fila de limpeza; sem IA configurada, espera.
-  await page.locator("#estudio-fotos").setInputFiles({ name: "celular.png", mimeType: "image/png", buffer: await photo(page) });
+  await page.locator("input#estudio-fotos").setInputFiles({ name: "celular.png", mimeType: "image/png", buffer: await photo(page) });
   await expect(page.getByText("Foto na fila de limpeza.")).toBeVisible();
   const studioPhoto = page.getByTestId("foto-estudio").first();
   await expect(studioPhoto).toHaveAttribute("data-status", "queued");
