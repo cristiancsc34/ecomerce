@@ -21,8 +21,18 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const NAME = "loja-ia-kit";
 const out = path.resolve(process.argv[2] ?? `${NAME}-${new Date().toISOString().slice(0, 10)}.zip`);
 
-/** Arquivos desta loja que não vão para o kit. */
-const REMOVE = ["CLAUDE.md", "SPEC-MVP-CUXOES.md", "kit/COMECE-AQUI.md", "kit/PROMPT-INICIAL.md", "kit/REGRAS-DA-IA.md"];
+/**
+ * Arquivos desta loja que não vão para o kit. O próprio montador fica de fora:
+ * ele lista os dados proibidos (nomes das contas desta loja).
+ */
+const REMOVE = [
+  "CLAUDE.md",
+  "SPEC-MVP-CUXOES.md",
+  "scripts/montar-kit.mjs",
+  "kit/COMECE-AQUI.md",
+  "kit/PROMPT-INICIAL.md",
+  "kit/REGRAS-DA-IA.md",
+];
 
 /** O que não pode aparecer no kit: chaves secretas e dados das contas desta loja. */
 const FORBIDDEN = [
@@ -57,8 +67,14 @@ try {
   writeFileSync(path.join(dir, "CLAUDE.md"), `${rules}\n\nVer também [\`AGENTS.md\`](AGENTS.md) (regras do Next.js deste projeto).\n`);
   writeFileSync(path.join(dir, "AGENTS.md"), `${rules}\n\n${agents}`);
 
-  // 4. README sem os trechos desta loja e com o caminho do kit no topo.
-  const readme = readFileSync(path.join(dir, "README.md"), "utf8").replace(/<!-- kit:remover -->[\s\S]*?<!-- \/kit:remover -->\n?/g, "");
+  // 4. README sem os trechos desta loja e com o caminho do kit no topo; sem o comando que monta o kit.
+  const withoutKitCommand = (text) => text.split("\n").filter((line) => !line.includes("kit:montar")).join("\n");
+  writeFileSync(path.join(dir, "package.json"), withoutKitCommand(readFileSync(path.join(dir, "package.json"), "utf8")));
+  JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8"));
+  const readme = withoutKitCommand(readFileSync(path.join(dir, "README.md"), "utf8")).replace(
+    /<!-- kit:remover -->[\s\S]*?<!-- \/kit:remover -->\n?/g,
+    "",
+  );
   const banner =
     "> **Kit de loja online com IA.** Comece por [`COMECE-AQUI.md`](COMECE-AQUI.md). Para a IA: " +
     "[`kit/PLAYBOOK.md`](kit/PLAYBOOK.md).\n\n";

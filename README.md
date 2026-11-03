@@ -115,12 +115,14 @@ revisão. As regras valem no banco (RLS + triggers), não só na interface.
 4. Siga o painel **Pronto para vender** (as mesmas regras que o banco usa) e confira a **pré-visualização**.
 5. Um administrador publica. Guia completo: [`docs/PAINEL.md`](docs/PAINEL.md).
 
+<!-- kit:remover -->
 ## Kit para outra loja
 
 `npm run kit:montar` gera um `.zip` com este projeto pronto para outra loja: o código (só o que está no Git, sem
 segredos nem dados das contas desta loja), um roteiro para o Codex ou o Claude adaptar marca, cores e textos
 ([`kit/PLAYBOOK.md`](kit/PLAYBOOK.md)), o guia de onde pegar cada chave ([`kit/GUIA-DE-CHAVES.md`](kit/GUIA-DE-CHAVES.md))
 e o briefing que o lojista preenche. `npm run config:verificar` confere se cada chave existe e funciona.
+<!-- /kit:remover -->
 
 ## Comandos
 
