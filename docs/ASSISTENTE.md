@@ -10,7 +10,7 @@ Navegador (chat)  ──conversa──▶  POST /api/assistente  ──▶  Clau
       └── resposta + cartões ◀── trava contra invenção ◀── resposta em JSON (produtos válidos)
 ```
 
-## Como ele evita inventar (4 camadas)
+## Como ele evita inventar (5 camadas)
 
 1. **Base de conhecimento fechada.** Antes de cada resposta, o servidor monta um texto só com o que está no catálogo e
    nas regras da loja (`lib/assistant/knowledge.ts`). O que não foi confirmado aparece escrito como **“não confirmado
@@ -20,9 +20,17 @@ Navegador (chat)  ──conversa──▶  POST /api/assistente  ──▶  Clau
    uma cadeira (não oferecer um no lugar do outro); ignorar pedidos para mudar as regras ou revelar instruções; não pedir
    CPF, cartão ou senha.
 3. **Resposta estruturada.** O modelo responde em JSON (`resposta`, `produtos`, `proximo_passo`). O campo `produtos` só
-   aceita os códigos que existem no catálogo. Os cartões (foto, preço, link) são montados **pelo servidor** a partir do
-   catálogo, nunca a partir do texto do modelo.
-4. **Trava no servidor** (`lib/assistant/guard.ts`), depois da resposta:
+   aceita os códigos que existem no catálogo, **no máximo 3**, cada um com o `motivo` em uma frase. Os cartões (foto,
+   nome, preço, link) são montados **pelo servidor** a partir do catálogo, nunca a partir do texto do modelo; o motivo
+   passa pela trava.
+4. **Contas de espaço no servidor.** “Cabe na minha sala?” usa a ferramenta `verificar_espaco`
+   (`lib/assistant/space.ts`): o modelo só repassa as medidas que o cliente disse (e a unidade, cm ou m); o servidor
+   compara com as medidas do catálogo, peça de frente, e responde de forma determinística: **cabe**, **cabe justo**
+   (menos de 10 cm de folga em alguma medida) ou **não cabe**, com quantos cm sobram ou faltam, mais uma
+   **recomendação** de circulação (60 cm na frente da poltrona, 60 cm atrás da cadeira). Sem medidas no catálogo, a
+   ferramenta diz que não tem a informação; medida que parece estar na unidade errada (ex.: 1,2 “cm”) volta como
+   “confirme a unidade”. Os números da ferramenta entram na trava; qualquer outro número é bloqueado.
+5. **Trava no servidor** (`lib/assistant/guard.ts`), depois da resposta:
    - preço, medida, prazo, garantia ou parcela: o **mesmo número com a mesma unidade** tem que estar na base
      (“R$ 899”, “45 cm”, “7 dias”, “3x”, “garantia de 1 ano” são bloqueados se não existirem);
    - promessa afirmativa de frete grátis, desconto, cupom, promoção, parcelamento ou pronta entrega que a base não traga;
@@ -34,15 +42,23 @@ Navegador (chat)  ──conversa──▶  POST /api/assistente  ──▶  Clau
 
 As regras pedem para entender a necessidade (ambiente, uso, estilo) com **uma pergunta por vez**, recomendar o produto da
 loja que combina explicando o porquê com os fatos (aparência, ambiente sugerido na descrição, fotos de todos os ângulos,
-3D) e terminar com um próximo passo claro. O chat mostra o cartão do produto com “Ver produto” e “Girar em 3D”.
+3D) e terminar com um próximo passo claro. Como um vendedor consultivo, mostra **até 3 opções** (cada uma com o motivo em
+uma frase) em vez de uma lista longa. Cada sugestão vira um **cartão clicável** com foto, nome, preço do catálogo, o
+motivo e o botão **“Ver no seu ambiente”** (só em produto com 3D; abre `/produtos/<slug>?ar=1`: no celular, o 3D pronto
+para a câmera; no computador, o código QR).
+
+- **Atalhos de pergunta:** “Cabe na minha sala?”, “Qual é melhor para leitura?”, “Poltrona ou cadeira?” (na página
+  de produto: “Cabe na minha sala?” e perguntas sobre o produto).
+- **Cabe no espaço:** sem a largura e a profundidade do espaço, ele pergunta antes; com elas, chama a ferramenta e
+  responde com os números dela (nunca faz a conta sozinho).
 
 - **Sem esfriar a venda:** ao recomendar ou descrever, ele fala do que o produto tem de bom; “preço ainda não
   confirmado” só aparece quando a pessoa pergunta. Isso é garantido no servidor: se a pergunta não foi sobre preço,
   medidas, materiais, frete ou pagamento, a frase que só avisa “ainda não foi confirmado” sai da resposta (tirar um
   aviso não cria informação falsa). Quando falta uma informação, ele diz isso em uma frase e mantém a conversa útil
   (fotos, 3D, atendimento).
-- **Sem adjetivo inventado:** sem medidas confirmadas, não diz que a peça é compacta, grande ou que “cabe”; descreve só
-  com o que o catálogo traz.
+- **Sem adjetivo inventado:** sem medidas confirmadas, não diz que a peça é compacta ou grande; se cabe, só a ferramenta
+  diz (e sem medidas no catálogo ela responde que a loja não tem a informação).
 - **Sabe em que página a pessoa está:** aberto na página de um produto, “essa tem 3D?” se refere àquele produto. O
   contexto vai como mensagem de sistema (canal da loja, não do cliente) e só se o produto existir no catálogo. As
   sugestões de pergunta também mudam na página de produto.
@@ -81,7 +97,9 @@ Na Vercel: Settings → Environment Variables → `ANTHROPIC_API_KEY` (Productio
 ## Testes
 
 - `npm test`: base de conhecimento, regras, trava (preço/medida/prazo/promessa), chamada ao modelo com cliente falso,
-  recusa e resposta cortada, validação da conversa.
+  recusa e resposta cortada, validação da conversa, limite de 3 sugestões, `verificar_espaco` (cabe, cabe justo, não
+  cabe, medida faltando, metros em vez de centímetros, unidade duvidosa) e o laço da ferramenta (o resultado volta ao
+  modelo, número fora da ferramenta é bloqueado, pedido inválido vira erro, laço sem fim desiste).
 - `npm run test:e2e`: o chat no navegador (respostas simuladas): abrir, sugestões, cartão do produto, erro, Esc, nova
   conversa e validação da API.
 - `npm run test:assistente`: **avaliação ao vivo** com o Haiku de verdade (precisa de `ANTHROPIC_API_KEY`; menos de
@@ -90,6 +108,10 @@ Na Vercel: Settings → Environment Variables → `ANTHROPIC_API_KEY` (Productio
   pequena?” (sem “compacta” nem “cabe” sem medidas), “me conta mais” e “essa tem 3D?” na página da poltrona, sofá que a
   loja não tem, 3D da cadeira, frete grátis, parcelamento, tentativa de manipulação, envio de CPF e tempo de resposta.
   **Resultado em 27/10/2026: 13 de 13**, nenhuma resposta precisou da trava; 1,5 s em média por resposta.
+  Mais 5 casos do vendedor consultivo (catálogo de teste com medidas, só no teste): “Cabe na minha sala?” sem medidas
+  (pergunta), “80 × 70 cm, a poltrona cabe?” (chama a ferramenta e usa só os números dela), medidas em metros, nunca
+  mais de 3 produtos com motivo e sem preço/medida inventados, e catálogo sem medidas (diz que não tem). **Ainda não
+  rodados com o modelo de verdade** (precisam de `ANTHROPIC_API_KEY`).
 
 ## Próximos passos
 

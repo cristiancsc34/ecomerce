@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import type { AssistantApiResponse, AssistantNextStep } from "@/lib/assistant/types";
 import { ASSISTANT_MAX_CHARS, ASSISTANT_MAX_MESSAGES } from "@/lib/assistant/types";
-import { ArrowUpIcon, ChatIcon, CloseIcon, CubeIcon, PlusIcon } from "@/components/ui/icons";
+import { ArIcon, ArrowUpIcon, ChatIcon, CloseIcon, PlusIcon } from "@/components/ui/icons";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -18,8 +18,9 @@ type ChatMessage = {
 const STORAGE_KEY = "cuxoes:assistente:v1";
 const GREETING =
   "Oi! Sou o assistente da loja. Posso te ajudar a escolher a peça ideal e tirar dúvidas sobre os produtos. O que você procura?";
-const SUGGESTIONS = ["Qual combina com a minha sala?", "Quanto custa?", "Posso ver em 3D?", "Como faço para comprar?"];
-const PRODUCT_SUGGESTIONS = ["Me conta mais sobre este produto", "Quanto custa?", "Quais são as medidas?", "Como faço para comprar?"];
+/** Atalhos de pergunta (vendedor consultivo). */
+const SUGGESTIONS = ["Cabe na minha sala?", "Qual é melhor para leitura?", "Poltrona ou cadeira?", "Quanto custa?"];
+const PRODUCT_SUGGESTIONS = ["Cabe na minha sala?", "Me conta mais sobre este produto", "Quais são as medidas?", "Quanto custa?"];
 
 /** Produto da página aberta (/produtos/<slug>), para o assistente entender "essa", "ela". */
 function productSlug(pathname: string | null): string | null {
@@ -285,27 +286,37 @@ function Bubble({ role, children }: { role: "user" | "assistant"; children: Reac
   );
 }
 
+/**
+ * Cartão de produto sugerido: o cartão inteiro abre a página do produto; o botão
+ * "Ver no seu ambiente" abre a página pronta para o AR (no computador, o código QR).
+ * Foto, nome e preço vêm do catálogo (montados no servidor), nunca do modelo.
+ */
 function ProductTile({ product, onNavigate }: { product: AssistantApiResponse["products"][number]; onNavigate: () => void }) {
   return (
-    <li className="flex max-w-[92%] items-center gap-3 rounded-xl bg-white p-2 shadow-[var(--shadow-soft)]">
+    <li className="relative flex max-w-[92%] gap-3 rounded-xl bg-white p-2 shadow-[var(--shadow-soft)] has-[a:hover]:ring-1 has-[a:hover]:ring-air-blue-ink/40">
       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-pale-blue">
-        {product.imageUrl ? (
-          <Image src={product.imageUrl} alt={product.imageAlt} fill sizes="64px" className="object-cover" />
-        ) : null}
+        {product.imageUrl ? <Image src={product.imageUrl} alt="" fill sizes="64px" className="object-cover" /> : null}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-ink">{product.name}</p>
+        <Link
+          href={product.url}
+          onClick={onNavigate}
+          className="text-sm font-semibold text-ink after:absolute after:inset-0 after:rounded-xl after:content-[''] focus-visible:outline-none focus-visible:after:outline-3 focus-visible:after:outline-air-blue"
+        >
+          {product.name}
+        </Link>
         <p className="text-sm font-bold text-air-blue-ink">{product.priceText ?? "Preço em breve"}</p>
-        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs font-semibold">
-          <Link href={product.url} onClick={onNavigate} className="link">
-            Ver produto
+        {product.reason ? <p className="mt-0.5 text-xs leading-snug text-muted">{product.reason}</p> : null}
+        {product.has3d ? (
+          <Link
+            href={`${product.url}?ar=1`}
+            onClick={onNavigate}
+            aria-label={`Ver no seu ambiente: ${product.name}`}
+            className="relative z-10 mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-full bg-deep-fjord px-3.5 text-xs font-semibold text-white hover:bg-[#1d3a58] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-air-blue"
+          >
+            <ArIcon className="h-4 w-4" /> Ver no seu ambiente
           </Link>
-          {product.has3d ? (
-            <Link href={`${product.url}#visualizador-3d`} onClick={onNavigate} className="link inline-flex items-center gap-1">
-              <CubeIcon className="h-3.5 w-3.5" /> Girar em 3D
-            </Link>
-          ) : null}
-        </div>
+        ) : null}
       </div>
     </li>
   );

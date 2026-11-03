@@ -9,16 +9,39 @@ import { makeProduct, makeVariant } from "./factories";
 
 const knowledge = buildKnowledge(DEMO_PRODUCTS);
 
-type FakeOutput = { resposta: string; produtos: string[]; proximo_passo: string };
+type FakeOutput = { resposta: string; produtos: { produto: string; motivo: string }[]; proximo_passo: string };
+type FakeTurn =
+  | { output: FakeOutput | null; stop_reason?: string }
+  | { tools: { name?: string; input: Record<string, unknown> }[] };
 
-function fakeClient(output: FakeOutput | null, stop_reason = "end_turn") {
-  const parse = vi.fn(async () => ({
-    stop_reason,
-    parsed_output: output,
-    usage: { input_tokens: 1200, output_tokens: 80, cache_read_input_tokens: 1000, cache_creation_input_tokens: 0 },
-  }));
-  return { client: { messages: { parse } } as unknown as AssistantClient, parse };
+const USAGE = { input_tokens: 1200, output_tokens: 80, cache_read_input_tokens: 1000, cache_creation_input_tokens: 0 };
+
+/** Cliente falso: devolve as rodadas em ordem (chamada de ferramenta e/ou resposta final em JSON). */
+function fakeClient(...turns: (FakeOutput | null | FakeTurn)[]) {
+  const queue = turns.map((t) => (t && ("output" in t || "tools" in t) ? t : { output: t as FakeOutput | null })) as FakeTurn[];
+  const create = vi.fn(async (...args: unknown[]) => {
+    void args;
+    const turn = queue.shift() ?? { output: null, stop_reason: "end_turn" };
+    if ("tools" in turn) {
+      return {
+        stop_reason: "tool_use",
+        content: [
+          { type: "thinking", thinking: "", signature: "sig" },
+          ...turn.tools.map((t, i) => ({ type: "tool_use", id: `toolu_${i}`, name: t.name ?? "verificar_espaco", input: t.input })),
+        ],
+        usage: USAGE,
+      };
+    }
+    return {
+      stop_reason: turn.stop_reason ?? "end_turn",
+      content: turn.output ? [{ type: "text", text: JSON.stringify(turn.output) }] : [],
+      usage: USAGE,
+    };
+  });
+  return { client: { messages: { create } } as unknown as AssistantClient, create };
 }
+
+const pick = (produto: string, motivo = "Combina com o que você procura.") => ({ produto, motivo });
 
 const ask = (client: AssistantClient, text = "Oi") =>
   askAssistant({ client, catalog: DEMO_PRODUCTS, history: [{ role: "user", content: text }] });
@@ -99,13 +122,14 @@ describe("assistente: trava contra números e promessas inventadas", () => {
 
 describe("assistente: chamada ao Claude Haiku", () => {
   it("usa o Haiku, esforço baixo, catálogo em bloco com cache e repassa a conversa", async () => {
-    const { client, parse } = fakeClient({ resposta: "Oi! Procura poltrona ou cadeira?", produtos: [], proximo_passo: "nenhum" });
+    const { client, create } = fakeClient({ resposta: "Oi! Procura poltrona ou cadeira?", produtos: [], proximo_passo: "nenhum" });
     await ask(client, "Oi");
-    const req = (parse.mock.calls[0] as unknown[])[0] as {
+    const req = (create.mock.calls[0] as unknown[])[0] as {
       model: string;
       output_config: { effort: string; format: unknown };
       system: { text: string; cache_control?: unknown }[];
       messages: unknown[];
+      tools: { name: string; strict?: boolean }[];
     };
     expect(req.model).toBe(DEFAULT_ASSISTANT_MODEL);
     expect(DEFAULT_ASSISTANT_MODEL).toBe("claude-haiku-5-5");
@@ -115,24 +139,32 @@ describe("assistente: chamada ao Claude Haiku", () => {
     expect(req.system[1].cache_control).toEqual({ type: "ephemeral" });
     expect(req.system[1].text).toContain(knowledge);
     expect(req.messages).toEqual([{ role: "user", content: "Oi" }]);
+    // A conta de espaço é uma ferramenta do servidor, com esquema estrito.
+    expect(req.tools.map((t) => [t.name, t.strict])).toEqual([["verificar_espaco", true]]);
   });
 
   it("monta os cartões dos produtos citados a partir do catálogo", async () => {
     const { client } = fakeClient({
       resposta: "A Poltrona Azul tem encosto alto e dá para girar em 3D.",
-      produtos: ["poltrona-azul"],
+      produtos: [pick("poltrona-azul", "Encosto alto e estrutura clara, ideal para o cantinho de leitura.")],
       proximo_passo: "girar_3d",
     });
     const reply = await ask(client, "Quero uma poltrona para a sala");
     expect(reply.guarded).toBe(false);
     expect(reply.nextStep).toBe("girar_3d");
     expect(reply.products).toEqual([
-      expect.objectContaining({ slug: "poltrona-azul", url: "/produtos/poltrona-azul", priceText: null, has3d: true }),
+      expect.objectContaining({
+        slug: "poltrona-azul",
+        url: "/produtos/poltrona-azul",
+        priceText: null,
+        has3d: true,
+        reason: "Encosto alto e estrutura clara, ideal para o cantinho de leitura.",
+      }),
     ]);
   });
 
   it("troca a resposta inventada pela resposta segura", async () => {
-    const { client } = fakeClient({ resposta: "Ela custa R$ 499 com frete grátis.", produtos: ["poltrona-azul"], proximo_passo: "adicionar_sacola" });
+    const { client } = fakeClient({ resposta: "Ela custa R$ 499 com frete grátis.", produtos: [pick("poltrona-azul")], proximo_passo: "adicionar_sacola" });
     const reply = await ask(client, "Quanto custa a poltrona?");
     expect(reply.guarded).toBe(true);
     expect(reply.answer).toBe(SAFE_FALLBACK_ANSWER);
@@ -141,32 +173,32 @@ describe("assistente: chamada ao Claude Haiku", () => {
   });
 
   it("não sugere 'adicionar à sacola' nem '3D' quando o produto não permite", async () => {
-    const { client } = fakeClient({ resposta: "A Cadeira Cinza Trama tem estofado em losangos.", produtos: ["cadeira-cinza-trama"], proximo_passo: "adicionar_sacola" });
+    const { client } = fakeClient({ resposta: "A Cadeira Cinza Trama tem estofado em losangos.", produtos: [pick("cadeira-cinza-trama")], proximo_passo: "adicionar_sacola" });
     expect((await ask(client)).nextStep).toBe("ver_produto");
-    const { client: c2 } = fakeClient({ resposta: "A Cadeira Cinza Trama tem estofado em losangos.", produtos: ["cadeira-cinza-trama"], proximo_passo: "girar_3d" });
+    const { client: c2 } = fakeClient({ resposta: "A Cadeira Cinza Trama tem estofado em losangos.", produtos: [pick("cadeira-cinza-trama")], proximo_passo: "girar_3d" });
     expect((await ask(c2)).nextStep).toBe("ver_produto");
   });
 
   it("trata recusa e resposta cortada sem ler o conteúdo", async () => {
-    const refused = await ask(fakeClient(null, "refusal").client);
+    const refused = await ask(fakeClient({ output: null, stop_reason: "refusal" }).client);
     expect(refused.guarded).toBe(true);
     expect(refused.answer).toMatch(/só consigo ajudar com os produtos/);
-    const cut = await ask(fakeClient(null, "max_tokens").client);
+    const cut = await ask(fakeClient({ output: null, stop_reason: "max_tokens" }).client);
     expect(cut.guarded).toBe(true);
     expect(cut.reasons[0]).toMatch(/max_tokens/);
   });
 
   it("produto da página vira mensagem de sistema (só se existir no catálogo)", async () => {
-    const out = { resposta: "Sim, ela tem 3D.", produtos: ["poltrona-azul"], proximo_passo: "girar_3d" };
-    const { client, parse } = fakeClient(out);
+    const out = { resposta: "Sim, ela tem 3D.", produtos: [pick("poltrona-azul")], proximo_passo: "girar_3d" };
+    const { client, create } = fakeClient(out);
     await askAssistant({ client, catalog: DEMO_PRODUCTS, history: [{ role: "user", content: "Essa tem 3D?" }], viewingSlug: "poltrona-azul" });
-    const msgs = ((parse.mock.calls[0] as unknown[])[0] as { messages: { role: string; content: string }[] }).messages;
+    const msgs = ((create.mock.calls[0] as unknown[])[0] as { messages: { role: string; content: string }[] }).messages;
     expect(msgs).toHaveLength(2);
     expect(msgs[1]).toEqual({
       role: "system",
       content: 'Contexto da página: o cliente está vendo agora o produto "Poltrona Azul Estrutura Clara" (código poltrona-azul).',
     });
-    const { client: c2, parse: p2 } = fakeClient(out);
+    const { client: c2, create: p2 } = fakeClient(out);
     await askAssistant({ client: c2, catalog: DEMO_PRODUCTS, history: [{ role: "user", content: "Oi" }], viewingSlug: "nao-existe" });
     expect(((p2.mock.calls[0] as unknown[])[0] as { messages: unknown[] }).messages).toHaveLength(1);
   });
@@ -188,9 +220,12 @@ describe("assistente: chamada ao Claude Haiku", () => {
 
   it("o formato da resposta só aceita produtos que existem", () => {
     const schema = replySchema(["poltrona-azul", "cadeira-cinza-trama"]);
-    expect(schema.safeParse({ resposta: "ok", produtos: ["poltrona-azul"], proximo_passo: "ver_produto" }).success).toBe(true);
-    expect(schema.safeParse({ resposta: "ok", produtos: ["sofa-inventado"], proximo_passo: "ver_produto" }).success).toBe(false);
-    expect(replySchema([]).safeParse({ resposta: "ok", produtos: ["x"], proximo_passo: "nenhum" }).success).toBe(false);
+    expect(schema.safeParse({ resposta: "ok", produtos: [pick("poltrona-azul")], proximo_passo: "ver_produto" }).success).toBe(true);
+    expect(schema.safeParse({ resposta: "ok", produtos: [pick("sofa-inventado")], proximo_passo: "ver_produto" }).success).toBe(false);
+    expect(replySchema([]).safeParse({ resposta: "ok", produtos: [pick("x")], proximo_passo: "nenhum" }).success).toBe(false);
+    // Nunca mais de 3 sugestões.
+    const four = ["a", "b", "c", "d"];
+    expect(replySchema(four).safeParse({ resposta: "ok", produtos: four.map((f) => pick(f)), proximo_passo: "nenhum" }).success).toBe(false);
   });
 });
 

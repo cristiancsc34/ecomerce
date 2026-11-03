@@ -126,9 +126,11 @@ export type AssistantProductCard = {
   imageAlt: string;
   priceText: string | null;
   has3d: boolean;
+  /** Por que o assistente sugeriu (uma frase, conferida pela trava). */
+  reason: string | null;
 };
 
-export function productCard(product: Product): AssistantProductCard {
+export function productCard(product: Product, reason: string | null = null): AssistantProductCard {
   const image = primaryImage(product);
   const from = fromPriceCents(product);
   return {
@@ -139,5 +141,6 @@ export function productCard(product: Product): AssistantProductCard {
     imageAlt: image?.altText ?? product.name,
     priceText: from === null ? null : formatPrice(from),
     has3d: Boolean(model3d(product)),
+    reason,
   };
 }

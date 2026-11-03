@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 
     // Só métricas, nunca o texto da conversa (privacidade).
     console.info(
-      JSON.stringify({ evento: "assistente", guardado: reply.guarded, motivos: reply.reasons, uso: reply.usage }),
+      JSON.stringify({ evento: "assistente", guardado: reply.guarded, motivos: reply.reasons, ferramenta: reply.toolCalls, uso: reply.usage }),
     );
 
     const payload: AssistantApiResponse = {

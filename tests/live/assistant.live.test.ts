@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { askAssistant, type AssistantReply } from "@/lib/assistant/service";
 import type { AssistantMessage } from "@/lib/assistant/types";
 import { DEMO_PRODUCTS } from "@/lib/catalog/demo-data";
+import type { Product } from "@/lib/catalog/types";
 
 /**
  * Avaliação AO VIVO do assistente com o Claude Haiku de verdade.
@@ -16,9 +17,9 @@ import { DEMO_PRODUCTS } from "@/lib/catalog/demo-data";
 const live = Boolean(process.env.ANTHROPIC_API_KEY) && process.env.ASSISTANT_LIVE === "1";
 const client = live ? new Anthropic({ maxRetries: 2 }) : null;
 const timings: number[] = [];
-async function run(history: AssistantMessage[], viewingSlug?: string): Promise<AssistantReply> {
+async function run(history: AssistantMessage[], viewingSlug?: string, catalog: Product[] = DEMO_PRODUCTS): Promise<AssistantReply> {
   const t0 = Date.now();
-  const r = await askAssistant({ client: client!, catalog: DEMO_PRODUCTS, history, viewingSlug });
+  const r = await askAssistant({ client: client!, catalog, history, viewingSlug });
   timings.push(Date.now() - t0);
   // Em nenhuma resposta: caminho de página no texto (os botões levam lá).
   expect(r.answer, r.answer).not.toMatch(/\s\/[a-z]/i);
@@ -137,5 +138,86 @@ describe.skipIf(!live)("assistente ao vivo (Claude Haiku)", { timeout: 60_000 },
     log(q, r);
     expect(r.answer).not.toContain("123.456.789-00");
     expect(r.nextStep === "falar_atendimento" || /atendimento/i.test(r.answer)).toBe(true);
+  });
+});
+
+/**
+ * Catálogo de TESTE com medidas e preços (só aqui, nunca na loja): para conferir a
+ * ferramenta "cabe no espaço" e o limite de 3 sugestões com mais produtos.
+ */
+const base = DEMO_PRODUCTS[0];
+const fixture = (slug: string, name: string, priceCents: number, dimensions: Product["dimensions"], shortDescription: string): Product => ({
+  ...base,
+  id: `00000000-0000-4000-8000-${slug.length.toString().padStart(4, "0")}${Math.floor(priceCents / 100).toString().padStart(8, "0")}`,
+  slug,
+  name,
+  priceCents,
+  isDemo: false,
+  dimensions,
+  shortDescription,
+  description: shortDescription,
+  media: base.media.filter((m) => m.type === "image"),
+});
+const MEASURED: Product[] = [
+  fixture("poltrona-medida", "Poltrona Medida", 129990, { widthCm: 78, lengthCm: 65, heightCm: 100 }, "Poltrona com encosto alto, boa para leitura."),
+  fixture("cadeira-medida", "Cadeira Medida", 59990, { widthCm: 50, lengthCm: 55, heightCm: 85 }, "Cadeira estofada para sala de jantar."),
+  fixture("poltrona-verde", "Poltrona Verde", 149990, { widthCm: 80, lengthCm: 80, heightCm: 95 }, "Poltrona verde com braços largos, para leitura."),
+  fixture("poltrona-cinza", "Poltrona Cinza", 139990, { widthCm: 75, lengthCm: 78, heightCm: 98 }, "Poltrona cinza reclinável, para leitura e descanso."),
+  fixture("poltrona-bege", "Poltrona Bege", 119990, { widthCm: 72, lengthCm: 70, heightCm: 90 }, "Poltrona bege compacta, para leitura no quarto."),
+];
+const measuresIn = (text: string) => [...text.matchAll(/(\d+(?:[.,]\d+)?)\s*cm/gi)].map((m) => Number(m[1].replace(",", ".")));
+
+describe.skipIf(!live)("assistente ao vivo: consultivo e 'cabe no espaço'", { timeout: 60_000 }, () => {
+  it("'Cabe na minha sala?' sem medidas: pergunta as medidas e não chuta", async () => {
+    const q = "Cabe na minha sala?";
+    const r = await run([{ role: "user", content: q }], "poltrona-medida", MEASURED);
+    log(`[página da poltrona medida] ${q}`, r);
+    expect(r.toolCalls).toBe(0);
+    expect(r.answer).toMatch(/largura|profundidade|medida/i);
+    expect(r.answer).not.toMatch(/\bcabe\b(?![^.?!]*\?)/i);
+  });
+
+  it("'Tenho 80 cm de largura e 70 de profundidade, a poltrona cabe?': chama a ferramenta e usa os números dela", async () => {
+    const q = "Tenho 80 cm de largura e 70 de profundidade, a poltrona medida cabe?";
+    const r = await run([{ role: "user", content: q }], undefined, MEASURED);
+    log(q, r);
+    expect(r.toolCalls).toBeGreaterThanOrEqual(1);
+    expect(r.guarded).toBe(false);
+    // 80 − 78 = 2 cm e 70 − 65 = 5 cm (cabe justo). Nenhum outro número de medida.
+    const allowed = new Set([2, 5, 78, 65, 80, 70, 60, 55, 100, 10]);
+    for (const n of measuresIn(r.answer)) expect(allowed.has(n), `${n} cm em: ${r.answer}`).toBe(true);
+    expect(r.answer).toMatch(/justo|2 cm|5 cm/i);
+  });
+
+  it("medidas em metros: a ferramenta converte (o modelo não faz a conta)", async () => {
+    const q = "Meu cantinho tem 1,2 m de largura por 0,9 m de profundidade. A poltrona medida cabe?";
+    const r = await run([{ role: "user", content: q }], undefined, MEASURED);
+    log(q, r);
+    expect(r.toolCalls).toBeGreaterThanOrEqual(1);
+    expect(r.guarded).toBe(false);
+  });
+
+  it("nunca recomenda mais de 3 produtos, com motivo, e não inventa preço nem medida", async () => {
+    for (const q of ["Qual é melhor para leitura?", "Me mostra todas as poltronas que vocês têm", "Poltrona ou cadeira?"]) {
+      const r = await run([{ role: "user", content: q }], undefined, MEASURED);
+      log(q, r);
+      expect(r.products.length).toBeLessThanOrEqual(3);
+      for (const p of r.products) expect(p.reason, p.slug).toBeTruthy();
+      // Preço só se for o do catálogo; medidas só as do catálogo.
+      const prices = new Set(MEASURED.map((p) => p.priceCents! / 100));
+      for (const m of r.answer.matchAll(/R\$\s*([\d.]+),(\d{2})/g)) {
+        expect(prices.has(Number(m[1].replace(/\./g, "") + "." + m[2])), r.answer).toBe(true);
+      }
+      const known = new Set(MEASURED.flatMap((p) => [p.dimensions.widthCm, p.dimensions.lengthCm, p.dimensions.heightCm]));
+      for (const n of measuresIn(r.answer)) expect(known.has(n), `${n} cm em: ${r.answer}`).toBe(true);
+    }
+  });
+
+  it("catálogo de demonstração (sem medidas): diz que não tem a informação", async () => {
+    const q = "Tenho 80 cm de largura e 70 de profundidade, a poltrona azul cabe?";
+    const r = await ask(q);
+    log(q, r);
+    expect(r.answer).toMatch(/medida|informa[çc][aã]o|confirm/i);
+    expect(measuresIn(r.answer).every((n) => n === 80 || n === 70)).toBe(true);
   });
 });

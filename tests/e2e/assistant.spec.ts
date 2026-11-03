@@ -15,6 +15,17 @@ const reply = {
       imageAlt: "Poltrona azul, vista frontal",
       priceText: null,
       has3d: true,
+      reason: "Encosto alto e estrutura clara, boa para o cantinho de leitura.",
+    },
+    {
+      slug: "cadeira-cinza-trama",
+      name: "Cadeira Cinza Trama",
+      url: "/produtos/cadeira-cinza-trama",
+      imageUrl: "/demo/cadeira-cinza-frente.jpg",
+      imageAlt: "Cadeira cinza, vista frontal",
+      priceText: null,
+      has3d: false,
+      reason: "Assento acolchoado em losangos, para a sala de jantar.",
     },
   ],
   nextStep: "girar_3d",
@@ -36,16 +47,43 @@ test.describe("assistente de vendas", () => {
     await expect(chat.getByText("Sou o assistente da loja")).toBeVisible();
     await expect(chat.getByText("Não envie CPF, cartão ou senhas")).toBeVisible();
 
-    await chat.getByRole("button", { name: "Qual combina com a minha sala?" }).click();
+    // Atalhos de vendedor consultivo.
+    for (const shortcut of ["Cabe na minha sala?", "Qual é melhor para leitura?", "Poltrona ou cadeira?"]) {
+      await expect(chat.getByRole("button", { name: shortcut })).toBeVisible();
+    }
+    await chat.getByRole("button", { name: "Qual é melhor para leitura?" }).click();
     await expect(chat.getByText(reply.answer)).toBeVisible();
-    expect(sent).toEqual({ messages: [{ role: "user", content: "Qual combina com a minha sala?" }] });
+    expect(sent).toEqual({ messages: [{ role: "user", content: "Qual é melhor para leitura?" }] });
 
+    // Cartões: foto, nome, preço do catálogo, motivo e "Ver no seu ambiente" (só com 3D).
     const tiles = chat.getByRole("list", { name: "Produtos sugeridos" });
-    await expect(tiles.getByText("Preço em breve")).toBeVisible();
-    await expect(tiles.getByRole("link", { name: "Girar em 3D" })).toHaveAttribute("href", "/produtos/poltrona-azul#visualizador-3d");
-    await tiles.getByRole("link", { name: "Ver produto" }).click();
+    await expect(tiles.getByRole("listitem")).toHaveCount(2);
+    await expect(tiles.getByText("Preço em breve")).toHaveCount(2);
+    await expect(tiles.getByText("Encosto alto e estrutura clara, boa para o cantinho de leitura.")).toBeVisible();
+    await expect(tiles.getByRole("link", { name: "Ver no seu ambiente: Poltrona Azul Estrutura Clara" })).toHaveAttribute(
+      "href",
+      "/produtos/poltrona-azul?ar=1",
+    );
+    await expect(tiles.getByRole("link", { name: /Ver no seu ambiente: Cadeira/ })).toHaveCount(0);
+    // O cartão inteiro leva à página do produto.
+    await tiles.getByRole("link", { name: "Poltrona Azul Estrutura Clara", exact: true }).click();
     await expect(page).toHaveURL(/\/produtos\/poltrona-azul$/);
     await expect(chat).toBeHidden();
+  });
+
+  test("'Ver no seu ambiente' do cartão abre a página pronta para o AR (QR no computador, 3D no celular)", async ({ page }, testInfo) => {
+    await page.route("**/api/assistente", (route) => route.fulfill({ json: reply }));
+    await page.goto("/");
+    await page.getByRole("button", { name: "Ajuda" }).click();
+    const chat = page.getByRole("dialog", { name: "Assistente da loja" });
+    await chat.getByRole("button", { name: "Cabe na minha sala?" }).click();
+    await chat.getByRole("link", { name: "Ver no seu ambiente: Poltrona Azul Estrutura Clara" }).click();
+    if (testInfo.project.name === "desktop") {
+      await expect(page.getByRole("dialog", { name: "Ver no seu ambiente" })).toBeVisible();
+    } else {
+      await expect(page.locator("model-viewer")).toBeVisible();
+      await expect(page.getByRole("button", { name: "Abrir no seu ambiente" })).toBeVisible();
+    }
   });
 
   test("manda a conversa inteira, alternada, e mostra erro sem quebrar", async ({ page }) => {
