@@ -130,8 +130,8 @@ export function AssistantWidget() {
             setMessages(loadHistory());
             setOpen(true);
           }}
-          // No celular fica acima da barra de compra da página de produto.
-          className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-3 z-40 inline-flex h-12 items-center gap-2 rounded-full bg-deep-fjord pl-4 pr-5 font-semibold text-white shadow-[var(--shadow-lift)] hover:bg-[#1d3a58] lg:bottom-6 lg:right-6"
+          // No celular fica no canto; só sobe quando a página tem a barra fixa de compra (produto).
+          className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-3 max-lg:[body:has([data-barra-fixa])_&]:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 inline-flex h-12 items-center gap-2 rounded-full bg-deep-fjord pl-4 pr-5 font-semibold text-white shadow-[var(--shadow-lift)] hover:bg-[#1d3a58] lg:bottom-6 lg:right-6"
         >
           <ChatIcon className="h-5 w-5" /> Ajuda
         </button>

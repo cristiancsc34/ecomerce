@@ -7,7 +7,7 @@ import { getVisibleProducts } from "@/lib/catalog/queries";
 import type { Product } from "@/lib/catalog/types";
 import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/product-section";
 import { buttonClasses } from "@/components/ui/button";
-import { CubeIcon, ImageIcon } from "@/components/ui/icons";
+import { CubeIcon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/misc";
 
 /**
@@ -34,7 +34,6 @@ async function HomeContent() {
   return (
     <>
       <Hero product={featured} />
-      <Highlights has3d={with3d.length > 0} />
       <div id="produtos" className="scroll-mt-20">
         <ProductSection
           id="produtos-titulo"
@@ -88,28 +87,6 @@ function Hero({ product }: { product: Product | null }) {
         ) : null}
       </div>
     </section>
-  );
-}
-
-function Highlights({ has3d }: { has3d: boolean }) {
-  const items = [
-    { icon: ImageIcon, title: "Todos os ângulos", text: "Frente, lado, costas e ¾ de cada peça" },
-    ...(has3d ? [{ icon: CubeIcon, title: "Veja em 3D", text: "Gire e aproxime antes de escolher" }] : []),
-  ];
-  return (
-    <ul aria-label="Vantagens" className={`grid gap-2 sm:gap-4 ${items.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-      {items.map(({ icon: Icon, title, text }) => (
-        <li key={title} className="flex min-w-0 items-center gap-2.5 rounded-lg bg-white p-3 shadow-[var(--shadow-soft)] sm:gap-4 sm:p-4">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-pale-blue text-air-blue-ink sm:h-11 sm:w-11">
-            <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-bold leading-tight text-deep-fjord sm:text-base">{title}</span>
-            <span className="mt-0.5 block text-xs leading-snug text-muted sm:text-sm">{text}</span>
-          </span>
-        </li>
-      ))}
-    </ul>
   );
 }
 

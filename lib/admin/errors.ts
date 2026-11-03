@@ -1,5 +1,18 @@
 /** Mensagens que os nossos triggers/funções já escrevem em português claro. */
-const FRIENDLY_PREFIXES = ["Para publicar", "Produto de demonstração", "Produto não encontrado", "Variação não", "Imagem não encontrada"];
+const FRIENDLY_PREFIXES = [
+  "Para publicar",
+  "Produto de demonstração",
+  "Produto não encontrado",
+  "Variação não",
+  "Imagem não encontrada",
+  // Pedidos (supabase/migrations/20261103000100_orders.sql)
+  "Pedido não encontrado",
+  "Inclua pelo menos um item",
+  "O desconto não pode",
+  "Um pedido novo",
+  "Os itens só podem",
+  "Não dá para passar",
+];
 
 type DbError = { code?: string; message?: string; details?: string | null; hint?: string | null } | null | undefined;
 
@@ -13,6 +26,9 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   products_published_requires_description: "Para publicar, escreva a descrição.",
   products_compare_at_gt_price: "O preço “de” precisa ser maior que o preço atual.",
   product_media_one_primary: "Já existe uma foto principal para este produto.",
+  orders_tracking_url: "O link de rastreio precisa começar com https://",
+  orders_customer_phone: "Celular com DDD, ex.: (11) 98765-4321.",
+  orders_customer_email: "E-mail inválido.",
 };
 
 /**
@@ -34,6 +50,7 @@ export function friendlyDbError(error: DbError, fallback = "Não foi possível s
       // Mensagens dos nossos triggers já são amigáveis.
       return error.message?.startsWith("Somente") ? error.message : "Você não tem permissão para fazer isso.";
     case "23514":
+    case "22023":
     case "P0002":
       return FRIENDLY_PREFIXES.some((prefix) => error.message?.startsWith(prefix))
         ? error.message!

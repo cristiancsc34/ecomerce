@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BoxIcon, ClockIcon, HomeIcon, PlusIcon, TagIcon } from "@/components/ui/icons";
+import { BoxIcon, ClockIcon, HomeIcon, PlusIcon, TagIcon, TruckIcon } from "@/components/ui/icons";
 
 const ITEMS = [
   { href: "/admin", label: "Início", icon: HomeIcon, exact: true },
+  { href: "/admin/pedidos", label: "Pedidos", icon: TruckIcon },
   { href: "/admin/produtos", label: "Produtos", icon: BoxIcon },
   { href: "/admin/categorias", label: "Categorias", icon: TagIcon },
   { href: "/admin/atividade", label: "Atividade", icon: ClockIcon },
@@ -50,7 +51,8 @@ export function AdminSidebarNav() {
 /** Barra de abas fixa embaixo (celular), com o "+" de novo produto no meio. */
 export function AdminBottomNav() {
   const pathname = usePathname();
-  const [home, products, categories, activity] = ITEMS;
+  // No celular: Início, Pedidos, +, Produtos, Categorias. A atividade fica no Início.
+  const [home, orders, products, categories] = ITEMS;
   const tab = (item: (typeof ITEMS)[number]) => {
     const Icon = item.icon;
     const active = isActive(pathname, item.href, "exact" in item);
@@ -71,7 +73,7 @@ export function AdminBottomNav() {
       className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-stretch border-t border-line bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
       {tab(home)}
-      {tab(products)}
+      {tab(orders)}
       <Link
         href="/admin/produtos/novo"
         aria-current={pathname === "/admin/produtos/novo" ? "page" : undefined}
@@ -82,8 +84,8 @@ export function AdminBottomNav() {
         </span>
         Novo
       </Link>
+      {tab(products)}
       {tab(categories)}
-      {tab(activity)}
     </nav>
   );
 }

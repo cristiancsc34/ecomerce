@@ -267,3 +267,11 @@ export const LogoMark = (p: IconProps) => (
     <rect x="6" y="22" width="20" height="2.5" rx="1.25" fill="#408AC2" />
   </svg>
 );
+
+export const TruckIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 6h11v10H3zM14 9h4l3 3v4h-7" />
+    <circle cx="7" cy="17.5" r="1.75" />
+    <circle cx="17" cy="17.5" r="1.75" />
+  </Icon>
+);

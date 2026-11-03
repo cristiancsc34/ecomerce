@@ -76,6 +76,20 @@ test.describe("vitrine em modo demonstração", () => {
     await expect(page.locator("article")).toHaveCount(2);
   });
 
+  test("acompanhar pedido: link no rodapé, consulta por número + celular e link inválido não mostra nada", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("contentinfo").getByRole("link", { name: "Acompanhar pedido" }).click();
+    await expect(page.getByRole("heading", { name: "Acompanhe seu pedido" })).toBeVisible();
+    await page.getByLabel("Número do pedido").fill("PED-1001");
+    await page.getByLabel("Celular usado na compra").fill("(11) 98765-4321");
+    await page.getByRole("button", { name: "Acompanhar pedido" }).click();
+    // O Next tem um anunciador de rota próprio com role="alert": filtra pela mensagem.
+    await expect(page.getByRole("alert").filter({ hasText: "Não encontramos um pedido" })).toBeVisible();
+    await page.goto("/pedido/PED-1001?t=00000000-0000-4000-8000-000000000000");
+    await expect(page.getByText("Não encontramos o pedido por este link")).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  });
+
   test("guia e comparador não existem mais", async ({ page }) => {
     for (const path of ["/guia", "/comparar"]) {
       await page.goto(path);

@@ -14,11 +14,11 @@ async function CurrentYear() {
 export function Footer() {
   const { contact, legal } = brand;
   const wa = contact.whatsapp ? whatsappHref(contact.whatsapp) : null;
-  const links = [{ href: "/atendimento", label: "Atendimento" }, ...POLICY_LINKS];
+  const links = [{ href: "/atendimento", label: "Atendimento" }, { href: "/conta", label: "Acompanhar pedido" }, ...POLICY_LINKS];
 
   return (
     <footer className="mt-12 border-t border-line bg-white">
-      <div className="container-page flex flex-col gap-4 py-8 text-sm text-muted">
+      <div className="container-page flex flex-col gap-4 pb-24 pt-8 text-sm text-muted lg:pb-8">
         <nav aria-label="Links da loja">
           <ul className="flex flex-wrap gap-x-5 gap-y-1">
             {wa ? (

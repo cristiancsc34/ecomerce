@@ -19,7 +19,8 @@ A especificação completa está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md). 
 | Visualizador 3D sob demanda (GLB) e realidade aumentada (“Ver no seu ambiente”, câmera do celular) | ✅ Pronto e testado com a Poltrona Azul ([`docs/IA-E-3D.md`](docs/IA-E-3D.md)) |
 | Assistente de vendas (chat “Ajuda”) | ✅ Claude Haiku, só com dados do catálogo, com trava contra preço/medida/prazo inventados — liga com `ANTHROPIC_API_KEY` ([`docs/ASSISTENTE.md`](docs/ASSISTENTE.md)) |
 | Avisos de pedido (WhatsApp e e-mail) | 🧱 Estrutura pronta e testada (mensagens, fila idempotente, novas tentativas); falta checkout e provedor ([`docs/NOTIFICACOES.md`](docs/NOTIFICACOES.md)) |
-| Checkout, pagamento, frete | ⏳ Não implementado: depende da escolha dos provedores ([decisões pendentes](docs/DECISOES.md)) |
+| Pedidos e entregas (pós-compra) | ✅ Painel **Pedidos**: venda fechada no atendimento vira pedido, com etapas (pago, preparação, enviado/agendado, saiu para entrega, entregue, troca), aviso ao cliente no WhatsApp com um toque e página **Acompanhar pedido** para o cliente — [`docs/LOGISTICA.md`](docs/LOGISTICA.md) |
+| Checkout, pagamento online, frete automático | ⏳ Depende das decisões do dono (opções e preços em [`docs/LOGISTICA.md`](docs/LOGISTICA.md)) |
 | Estúdio de fotos e 3D no painel | ✅ Tudo na nuvem (Vercel), sem computador ligado — [`docs/ESTUDIO-IA.md`](docs/ESTUDIO-IA.md). Fotos do celular com limpeza de fundo pelo ChatGPT (~20 s), 4 fotos de catálogo recriadas por IA (~45 s, com conferência humana), nome e descrição lidos das fotos uma vez e guardados (“Aprimorar descrição”), 3D pela API do Tripo. |
 
 **Nada aqui é dado comercial real.** Os produtos “Nuvem Essencial”, “Brisa Premium” e “Sereno Híbrido” são

@@ -55,6 +55,7 @@ ou deixe só até cadastrar os produtos reais; depois, use `CATALOG_SOURCE=supab
 | IA na nuvem (fila na Vercel) | `lib/ai-cloud/`, `scripts/ai-pipeline.mjs`, `scripts/ai-background.mjs` | `docs/ESTUDIO-IA.md` |
 | Nome e descrição guardados (“Aprimorar descrição”) | `lib/ai/copy.ts`, `lib/ai/copy-draft.ts` | `docs/ESTUDIO-IA.md` |
 | Visualizador 3D e realidade aumentada | `components/product/viewer-3d.tsx` | `docs/IA-E-3D.md` |
+| Pedidos, etapas da entrega, aviso no WhatsApp, “Acompanhar pedido” | `lib/orders/`, `app/admin/(painel)/pedidos/`, `app/(store)/pedido/` | `docs/LOGISTICA.md` |
 | Banco, regras de acesso (RLS), bucket de fotos | `supabase/migrations/` | `docs/SEGURANCA.md` |
 | Painel e papéis (admin, editor, PIN) | `app/admin/`, `lib/auth/` | `docs/PAINEL.md` |
 | Conferir a configuração | `scripts/verificar-config.mjs` (`npm run config:verificar`) | `kit/GUIA-DE-CHAVES.md` |
