@@ -5,6 +5,7 @@ import { catalogSource, isSupabaseConfigured } from "@/config/site";
 import { friendlyDbError } from "@/lib/admin/errors";
 import type { ActionResult } from "@/lib/admin/types";
 import { rateLimit } from "@/lib/auth/rate-limit";
+import { kickOrderNotifications } from "@/lib/notifications/order-dispatch";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { checkoutInputSchema, checkoutToRpc, type CheckoutInput } from "@/lib/validation/checkout";
 
@@ -53,6 +54,12 @@ export async function placeOrderAction(input: CheckoutInput): Promise<ActionResu
     }
     if (!CODE.test(result.code) || !TOKEN.test(result.token)) {
       return { ok: false, error: "Não foi possível fazer o pedido. Tente de novo ou fale com o atendimento." };
+    }
+    try {
+      // Aviso de "Pedido recebido" em segundo plano (só se o dono ligou e há provedor); nunca atrapalha o pedido.
+      kickOrderNotifications();
+    } catch {
+      // A rota agendada /api/avisos envia depois.
     }
     return { ok: true, data: { code: result.code, token: result.token } };
   } catch {

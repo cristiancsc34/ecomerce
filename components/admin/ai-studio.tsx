@@ -170,8 +170,8 @@ function WorkingTile({ label, active }: { label: string; active: boolean }) {
 }
 
 const STEP_ANCHOR: Record<string, string> = {
-  fotos: "#estudio-fotos",
-  limpeza: "#estudio-fotos",
+  fotos: "#estudio-fotos-titulo",
+  limpeza: "#estudio-fotos-titulo",
   catalogo: "#estudio-catalogo",
   textos: "#estudio-textos",
   modelo3d: "#estudio-3d",
@@ -569,7 +569,7 @@ export function AiStudio({
       </div>
 
       {/* 1. Fotos */}
-      <h3 id="estudio-fotos" className="mt-4 scroll-mt-32 font-bold">
+      <h3 id="estudio-fotos-titulo" className="mt-4 scroll-mt-32 font-bold">
         1. Fotos do produto
       </h3>
       {canEdit ? (
