@@ -58,12 +58,16 @@ encaixar quando o provedor for escolhido.
   a Poltrona Azul em azul, marrom, branco, vermelho e bege. As fotos e o `.glb` com as 5 cores
   (`public/demo/exemplo`, `npm run demo:variantes`) são a poltrona azul **recolorida por computador** (só o tecido muda;
   madeira, fundo e sombras ficam), marcadas como ilustrativas e sem preço. Não aparecem na loja de verdade.
-- **Para arquitetos e designers**: seção recolhida na página de produto com 3D: download do `.glb` (e do `.usdz`
-  quando há tamanho real conferido) com nome legível (`cuxoes-<produto>.glb`; no Storage, via `?download=`) e ficha
-  técnica só com dados do catálogo (medidas L × P × A, peso, materiais, tecido, cores; o que falta aparece como
-  “Ainda não informado pela loja”). Sem escala conferida, a seção avisa que a escala é aproximada. O projeto ainda
-  não captura contatos: o download é livre e há um comentário em `components/product/architects.tsx` indicando onde
-  pedir nome e e-mail e salvar o lead do tipo “arquiteto”.
+- **Para arquitetos e designers** (fase de teste): enquanto as medidas não forem conferidas com o modelo 3D, a página
+  mostra só uma linha discreta no fim — “É arquiteto ou designer de interiores? Peça o arquivo 3D e a ficha técnica” —
+  que leva ao atendimento (ou ao WhatsApp com a mensagem pronta, quando configurado) e registra o evento
+  `arquitetos_interesse`. Nenhum arquivo com escala aproximada é oferecido. Com o tamanho real conferido, aparece a
+  seção recolhida com o download do `.glb` e do `.usdz` (nome legível, `cuxoes-<produto>.glb`; no Storage, via
+  `?download=`) e a ficha técnica só com dados do catálogo. O texto diz o que cada programa abre, conferido nas
+  documentações: `.glb` no Blender, no SketchUp para computador 2024+ (Pro/Studio), Lumion, D5, Twinmotion e Rhino;
+  o Revit e o Promob não abrem `.glb`. No Brasil o padrão das marcas é o bloco `.skp` (SketchUp) e o `.dwg`; um `.obj`
+  leve em milímetros ampliaria o alcance (Revit, Archicad, 3ds Max, Promob). Próximo passo possível: programa de
+  indicação ([`PROGRAMA-INDICACAO.md`](PROGRAMA-INDICACAO.md)).
 - Checklist de revisão de um modelo: proporções conferidas com as medidas reais, cor e textura comparadas com a foto,
   costuras/faixas presentes, arquivo < 4 MB (comprimir texturas), orientação e escala (metros). Para o AR do Android:
   texturas JPEG/PNG (nada de WebP), até 2048 px, até 100 mil triângulos e a base do modelo apoiada em y = 0 — o

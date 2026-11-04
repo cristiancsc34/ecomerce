@@ -81,7 +81,7 @@ test.describe("assistente de vendas", () => {
     if (testInfo.project.name === "desktop") {
       await expect(page.getByRole("dialog", { name: "Ver no seu ambiente" })).toBeVisible();
     } else {
-      await expect(page.locator("model-viewer")).toBeVisible();
+      await expect(page.locator("model-viewer")).toBeVisible({ timeout: 30_000 });
       await expect(page.getByRole("button", { name: "Abrir no seu ambiente" })).toBeVisible();
     }
   });

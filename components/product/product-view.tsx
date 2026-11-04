@@ -137,13 +137,14 @@ export function ProductView({ product, preview = false }: { product: Product; pr
           </Block>
         ) : null}
 
-        <ArchitectsSection product={product} />
-
         {product.faq.length ? (
           <Block id="faq-produto-titulo" title="Dúvidas sobre este produto">
             <FaqList items={product.faq} />
           </Block>
         ) : null}
+
+        {/* No fim da página, discreto: ver architects.tsx. */}
+        <ArchitectsSection product={product} />
 
       </div>
 

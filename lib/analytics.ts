@@ -18,7 +18,9 @@ export type AnalyticsEventName =
   /** Toque em "Girar em 3D". */
   | "view3d_click"
   /** Abriu o código QR para passar para o celular. */
-  | "ar_qr_open";
+  | "ar_qr_open"
+  /** Arquiteto ou designer pediu o arquivo 3D (mede o interesse na área profissional). */
+  | "arquitetos_interesse";
 
 export type AnalyticsProps = { produto_id: string } & Record<string, string | number | boolean | null>;
 

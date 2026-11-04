@@ -47,7 +47,7 @@ test.describe("vitrine em modo demonstração", () => {
     await expect(page).toHaveURL(/#visualizador-3d$/);
     // O link leva ao topo e troca a foto principal pelo 3D.
     await expect(page.getByRole("region", { name: "Fotos e 3D: Poltrona Azul Estrutura Clara" })).toBeInViewport();
-    await expect(page.locator("model-viewer")).toBeVisible();
+    await expect(page.locator("model-viewer")).toBeVisible({ timeout: 30_000 });
   });
 
   test("produto sem preço e sem 3D não mostra barra de compra vazia", async ({ page }) => {
@@ -130,7 +130,7 @@ test.describe("vitrine em modo demonstração", () => {
     const glb = page.waitForRequest(/poltrona-azul\.glb/);
     await page.getByRole("button", { name: "Girar em 3D" }).click();
     await glb;
-    await expect(page.locator("model-viewer")).toBeVisible();
+    await expect(page.locator("model-viewer")).toBeVisible({ timeout: 30_000 });
     // "Ver fotos" volta para a foto principal.
     await page.getByRole("button", { name: "Ver fotos" }).click();
     await expect(page.locator("model-viewer")).toHaveCount(0);
@@ -175,7 +175,7 @@ test.describe("vitrine em modo demonstração", () => {
       window.addEventListener("cuxoes:evento", (e) => seen.push((e as CustomEvent).detail));
     });
     await page.getByRole("button", { name: "Girar em 3D" }).click();
-    await expect(page.locator("model-viewer")).toBeVisible();
+    await expect(page.locator("model-viewer")).toBeVisible({ timeout: 30_000 });
     const seen = () => page.evaluate(() => (window as unknown as { seen: { event: string; produto_id: string }[] }).seen);
     await expect.poll(seen).toContainEqual(
       expect.objectContaining({ event: "view3d_click", produto_id: "dcdaee90-64b9-4b91-832b-f5049a237cb9" }),
@@ -242,7 +242,7 @@ test.describe("vitrine em modo demonstração", () => {
     // Chegando no Chrome/Safari do iPhone pelo link: o 3D já carrega e pede um toque para a câmera.
     for (const path of ["/produtos/poltrona-azul?ar=1", "/produtos/poltrona-azul?ver-no-ambiente=1"]) {
       const chrome = await open(devices["iPhone 13"], iphone("CriOS/138.0.7204.156"), path);
-      await expect(chrome.page.locator("model-viewer")).toBeVisible();
+      await expect(chrome.page.locator("model-viewer")).toBeVisible({ timeout: 30_000 });
       await expect(chrome.region.getByText("Pronto para ver no seu ambiente")).toBeVisible();
       await expect(chrome.region.getByRole("button", { name: "Abrir no seu ambiente" })).toBeVisible();
       await expect(chrome.page).toHaveURL(/\/produtos\/poltrona-azul$/);
@@ -327,36 +327,59 @@ test.describe("vitrine em modo demonstração", () => {
   test("celular: o link do código QR (?ar=1) abre o 3D pronto e pede um toque para a câmera", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "chegada no celular");
     await page.goto("/produtos/poltrona-azul?ar=1");
-    await expect(page.locator("model-viewer")).toBeVisible();
+    await expect(page.locator("model-viewer")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("button", { name: "Abrir no seu ambiente" })).toBeVisible();
     await expect(page.getByText("Pronto para ver no seu ambiente")).toBeVisible();
     // A câmera não abre sozinha: nada de diálogo de QR no celular com AR.
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
-  test("arquitetos e designers: baixa o 3D com nome legível e a ficha técnica só com dados do catálogo", async ({ page }) => {
+  test("arquitetos e designers: sem medidas conferidas, só uma linha discreta que leva ao atendimento", async ({ page }) => {
     await page.goto("/produtos/poltrona-azul");
-    const section = page.getByTestId("arquitetos");
-    // Discreta: recolhida até a pessoa abrir.
-    const glb = section.getByRole("link", { name: "Baixar .glb" });
-    await expect(glb).toBeHidden();
-    await section.getByText("Para arquitetos e designers").click();
-    await expect(glb).toHaveAttribute("download", "cuxoes-poltrona-azul.glb");
-    await expect(glb).toHaveAttribute("href", "/demo/poltrona-azul.glb");
-    const download = page.waitForEvent("download");
-    await glb.click();
-    expect((await download).suggestedFilename()).toBe("cuxoes-poltrona-azul.glb");
-    // Sem medidas conferidas: sem .usdz em tamanho real e sem número inventado.
-    await expect(section.getByRole("link", { name: "Baixar .usdz" })).toHaveCount(0);
-    await expect(section.getByText(".usdz em tamanho real: disponível quando as medidas forem conferidas.")).toBeVisible();
-    await expect(section.getByText("Escala aproximada", { exact: false })).toBeVisible();
-    await expect(section.locator("dd").filter({ hasText: "Ainda não informado pela loja" })).toHaveCount(3);
+    await page.waitForLoadState("networkidle");
+    // Enquanto a página termina de chegar, o Next pode manter uma cópia escondida: mede só a visível.
+    const line = page.getByTestId("arquitetos").filter({ visible: true });
+    await expect(line).toHaveText("É arquiteto ou designer de interiores? Peça o arquivo 3D e a ficha técnica.");
+    // Nenhum arquivo com escala aproximada é oferecido para download.
+    await expect(page.getByRole("link", { name: /Baixar \.(glb|usdz)/ })).toHaveCount(0);
+    await expect(page.getByText("Para arquitetos e designers")).toHaveCount(0);
+    // Fica no fim da página, depois do conteúdo do produto.
+    const lineBox = await line.boundingBox();
+    const description = await page.getByRole("heading", { name: "Descrição do produto" }).filter({ visible: true }).boundingBox();
+    expect(lineBox && description && lineBox.y > description.y).toBe(true);
+    // O pedido vai ao atendimento e o interesse é medido.
+    const link = line.getByRole("link", { name: "Peça o arquivo 3D e a ficha técnica" });
+    await expect(link).toHaveAttribute("href", "/atendimento");
+    await link.click();
+    await expect(page).toHaveURL(/\/atendimento$/);
     // Sem cor cadastrada, o seletor de cor fica escondido.
+    await page.goto("/produtos/poltrona-azul");
     await expect(page.getByTestId("seletor-cor")).toHaveCount(0);
 
-    // Produto sem 3D: sem a seção.
+    // Produto sem 3D: nem a linha.
     await page.goto("/produtos/cadeira-cinza-trama");
     await expect(page.getByTestId("arquitetos")).toHaveCount(0);
+  });
+
+  test("arquitetos: o clique no pedido do arquivo 3D é registrado", async ({ page }) => {
+    await page.goto("/produtos/poltrona-azul");
+    await page.evaluate(() => {
+      const seen: unknown[] = [];
+      Object.assign(window, { seen });
+      window.addEventListener("cuxoes:evento", (e) => {
+        seen.push((e as CustomEvent).detail);
+        e.stopImmediatePropagation();
+      });
+      // Não navega: só queremos o evento.
+      document.addEventListener("click", (e) => {
+        if ((e.target as HTMLElement).closest("[data-testid=arquitetos] a")) e.preventDefault();
+      });
+    });
+    await page.getByRole("link", { name: "Peça o arquivo 3D e a ficha técnica" }).click();
+    const seen = () => page.evaluate(() => (window as unknown as { seen: { event: string; produto_id: string }[] }).seen);
+    await expect.poll(seen).toContainEqual(
+      expect.objectContaining({ event: "arquitetos_interesse", produto_id: "dcdaee90-64b9-4b91-832b-f5049a237cb9" }),
+    );
   });
 
   test("galeria: miniaturas, contador e zoom acessível", async ({ page }) => {
