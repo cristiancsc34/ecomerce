@@ -92,7 +92,11 @@ encaixar quando o provedor for escolhido.
   existe no servidor de produção, então o GPT pode rodar lá: a rota temporária `POST /api/interno/cores-exemplo`
   (`lib/ai/cores-exemplo.ts`) gera a foto da Poltrona Azul numa das 4 cores de exemplo e devolve a imagem; o script
   usa `CORES_GPT_URL` e `CORES_GPT_SENHA` no lugar da chave. A rota só aceita a senha (no código vai só o SHA-256),
-  não aceita outra foto, cor ou instrução e fecha sozinha em 08/11/2026. Marcadas como ilustrativas e sem
+  não aceita outra foto, cor ou instrução e fecha sozinha em 08/11/2026. `CORES_GPT_URL` tem de ser o domínio de
+  produção (`https://cuxoes.vercel.app/api/interno/cores-exemplo`): prévias e a URL gerada de cada deploy ficam atrás
+  da proteção da Vercel e não têm a chave. O script confere a rota antes (sem custo) e para se a senha, a publicação
+  ou a chave estiverem faltando. As fotos que o GPT devolve ficam em `ai/cache/cores-gpt` (fora do git): rodar de
+  novo só paga o que faltou; `--refazer=vermelho` pede de novo uma cor. Marcadas como ilustrativas e sem
   preço. Não aparecem na loja de verdade. Proposta para o painel: [`CORES-NO-ESTUDIO.md`](CORES-NO-ESTUDIO.md).
 - **Para arquitetos e designers** (fase de teste): enquanto as medidas não forem conferidas com o modelo 3D, a página
   mostra só uma linha discreta no fim — “É arquiteto ou designer de interiores? Peça o arquivo 3D e a ficha técnica” —

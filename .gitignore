@@ -54,4 +54,5 @@ next-env.d.ts
 .venv-ai/
 ai/models/
 ai/vendor/
+ai/cache/
 __pycache__/

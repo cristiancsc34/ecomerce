@@ -59,12 +59,13 @@ export async function coresExemploResponse(request: Request, options: Options = 
   const { now = Date.now(), env = process.env, senhaSha256 = SENHA_SHA256, fetchPhoto = (url) => fetch(url) } = options;
   if (now > CORES_EXEMPLO_ABERTA_ATE) return json(404, "Rota encerrada.");
   if (!authorized(request, senhaSha256)) return json(401, "Não autorizado.");
+  // Antes do corpo: assim um POST com {} (sem custo) responde 400 só quando a rota está pronta para gerar.
+  if (!env.OPENAI_API_KEY) return json(503, "OPENAI_API_KEY não está configurada no servidor.");
 
   const body = (await request.json().catch(() => null)) as { cor?: unknown; vista?: unknown } | null;
   const cor = typeof body?.cor === "string" && Object.hasOwn(CORES_EXEMPLO, body.cor) ? CORES_EXEMPLO[body.cor as keyof typeof CORES_EXEMPLO] : null;
   const vista = VISTAS.find((v) => v === body?.vista) ?? null;
   if (!cor || !vista) return json(400, "Cor ou vista inválida.");
-  if (!env.OPENAI_API_KEY) return json(503, "OPENAI_API_KEY não está configurada no servidor.");
 
   const photo = await fetchPhoto(new URL(`/demo/poltrona-azul-${vista}.jpg`, request.url)).catch(() => null);
   if (!photo?.ok) return json(502, "Não foi possível ler a foto de catálogo.");
@@ -74,16 +75,20 @@ export async function coresExemploResponse(request: Request, options: Options = 
     const input = path.join(dir, `poltrona-azul-${vista}.jpg`);
     const output = path.join(dir, "gerada.jpg");
     await writeFile(input, Buffer.from(await photo.arrayBuffer()));
-    const engine = options.engine ?? openaiRecolorEngine(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL);
+    // Sem repetir aqui: a função tem 300 s; quem repete depois de um 429 é o script.
+    const engine = options.engine ?? openaiRecolorEngine(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL, { retry: false });
     await engine.recolor(input, cor.name, cor.hex, output);
     const bytes = await readFile(output);
     return new Response(new Uint8Array(bytes), {
       headers: { "Content-Type": imageType(bytes), "Cache-Control": "no-store" },
     });
   } catch (e) {
-    // Vai curta para o script registrar no relatório, sem nenhum pedaço de chave (a OpenAI cita a chave mascarada).
-    const message = (e instanceof Error ? e.message : String(e)).replace(/sk-[\w*-]+/g, "sk-…");
-    return json(502, message.slice(0, 300));
+    // Só repassa a mensagem que veio da OpenAI (o motor a monta como "OpenAI: …", com a chave já mascarada, e aqui
+    // ainda tira o que parecer chave). Qualquer outro erro pode citar a chave inteira (ex.: cabeçalho inválido).
+    const raw = e instanceof Error ? e.message : String(e);
+    const message = raw.startsWith("OpenAI: ") ? raw.replace(/sk-[\w*-]+/g, "sk-…").slice(0, 300) : "Falha ao chamar o GPT.";
+    const status = (e as { status?: unknown })?.status === 429 ? 429 : 502;
+    return json(status, message);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

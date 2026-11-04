@@ -148,14 +148,14 @@ export function recolorPrompt(colorName, hex) {
 export function openaiRecolorEngine(
   apiKey = process.env.OPENAI_API_KEY,
   model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL,
-  { retryWaitMs = 20_000, size = "1600x1200", quality = "high" } = {},
+  { retryWaitMs = 20_000, size = "1600x1200", quality = "high", retry = true } = {},
 ) {
   return {
     async recolor(inputFile, colorName, hex, output) {
-      return retryRateLimit(
-        () => openaiImageEdit({ apiKey, model, references: [inputFile], prompt: recolorPrompt(colorName, hex), output, size, transparent: false, quality }),
-        retryWaitMs,
-      );
+      const run = () =>
+        openaiImageEdit({ apiKey, model, references: [inputFile], prompt: recolorPrompt(colorName, hex), output, size, transparent: false, quality });
+      // retry: false quando quem chama tem prazo curto (rota da Vercel) e repete do lado dele.
+      return retry ? retryRateLimit(run, retryWaitMs) : run();
     },
   };
 }

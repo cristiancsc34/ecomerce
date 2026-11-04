@@ -6,7 +6,11 @@
  *
  *   npm run demo:variantes          # fotos recoloridas por computador (grátis, na hora)
  *   npm run demo:variantes:gpt      # tom da cor pelo GPT (OPENAI_API_KEY aqui, ou
- *                                   #   CORES_GPT_URL + CORES_GPT_SENHA: o GPT roda no site)
+ *                                   #   CORES_GPT_URL=https://cuxoes.vercel.app/api/interno/cores-exemplo
+ *                                   #   + CORES_GPT_SENHA: o GPT roda no site, com a chave do servidor)
+ *
+ * As fotos que o GPT devolve ficam em ai/cache/cores-gpt (fora do git): rodar de novo reaproveita e só paga o
+ * que faltou. Para pedir de novo uma cor que o GPT errou: --refazer=vermelho (ou várias, separadas por vírgula).
  *
  * Gera em public/demo/exemplo/:
  * - as 4 fotos de catálogo de cada cor (só o tecido muda de cor: a madeira, o
@@ -35,6 +39,8 @@ import sharp from "sharp";
 const ROOT = process.cwd();
 const DEMO = path.join(ROOT, "public", "demo");
 const OUT = path.join(DEMO, "exemplo");
+/** Fotos do GPT já pagas (fora do git): rodar de novo reaproveita e só pede o que falta. */
+const GPT_CACHE = path.join(ROOT, "ai", "cache", "cores-gpt");
 const VIEWS = ["frente", "tres-quartos", "lateral", "traseira"];
 
 /** Cores de exemplo (hex do tecido). "azul" é a original. */
@@ -477,14 +483,21 @@ export async function gptTone(shots, { targetHex, limits = {} }) {
   const original = [0, 0, 0];
   for (const shot of shots) {
     if (!shot.generated) {
-      views.push({ view: shot.view ?? null, used: false, reason: "a OpenAI não devolveu este ângulo" });
+      views.push({ view: shot.view ?? null, used: false, reason: shot.error ? `sem foto do GPT (${shot.error})` : "a OpenAI não devolveu este ângulo" });
       continue;
     }
     const { data: A, info } = await sharp(shot.original).removeAlpha().raw().toBuffer({ resolveWithObject: true });
     const W = info.width;
     const H = info.height;
-    const meta = await sharp(shot.generated).metadata();
-    const B = await sharp(shot.generated).removeAlpha().resize(W, H, { fit: "fill" }).raw().toBuffer();
+    let meta;
+    let B;
+    try {
+      meta = await sharp(shot.generated).metadata();
+      B = await sharp(shot.generated).removeAlpha().resize(W, H, { fit: "fill" }).raw().toBuffer();
+    } catch {
+      views.push({ view: shot.view ?? null, used: false, reason: "a foto do GPT não abriu (arquivo inválido)" });
+      continue;
+    }
     const align = alignTo(A, B, W, H, meta.width / meta.height / (W / H), L.maxShift);
     const view = {
       view: shot.view ?? null,
@@ -544,19 +557,33 @@ export async function gptTone(shots, { targetHex, limits = {} }) {
  * Se o tom não serve, a cor inteira fica com o recolor por computador. Devolve a
  * cor medida (para o 3D) ou null.
  */
-async function gptPhotos(color, engine, report) {
+async function gptPhotos(color, engine, report, { redo = false } = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), "cuxoes-cores-"));
   try {
     const shots = [];
     for (const view of VIEWS) {
       const sourceFile = path.join(DEMO, `poltrona-azul-${view}.jpg`);
       const original = await readFile(sourceFile);
+      // Foto do GPT já paga numa rodada anterior: reaproveita (rodar de novo só paga o que falta).
+      const cached = path.join(GPT_CACHE, `${color.slug}-${view}.jpg`);
+      const saved = redo ? null : await readFile(cached).catch(() => null);
+      if (saved) {
+        shots.push({ view, original, generated: saved });
+        continue;
+      }
       const output = path.join(dir, `${color.slug}-${view}.jpg`);
       try {
         await engine.recolor(sourceFile, color.name.toLowerCase(), color.hex, output);
-        shots.push({ view, original, generated: await readFile(output) });
+        const generated = await readFile(output);
+        await mkdir(GPT_CACHE, { recursive: true });
+        await writeFile(cached, generated);
+        shots.push({ view, original, generated });
       } catch (e) {
-        shots.push({ view, original, error: (e instanceof Error ? e.message : String(e)).slice(0, 200) });
+        // Senha errada, rota fora do ar ou sem chave: tentar os outros ângulos não muda nada.
+        if (FATAL_SITE_STATUS.has(e?.status)) throw e;
+        const error = (e instanceof Error ? e.message : String(e)).slice(0, 200);
+        console.log(`${color.name} · ${view}: sem foto do GPT (${error})`);
+        shots.push({ view, original, error });
       }
     }
     const result = await gptTone(shots, { targetHex: color.hex });
@@ -602,37 +629,86 @@ async function gptPhotos(color, engine, report) {
  * Motor que pede a foto ao site (rota temporária /api/interno/cores-exemplo), que chama o GPT com a chave do
  * servidor: a chave nunca vem para cá. Mesmo formato do openaiRecolorEngine.
  */
-export function siteRecolorEngine(url, password, { fetchImpl = fetch } = {}) {
+export function siteRecolorEngine(url, password, { fetchImpl = fetch, retryWaitMs = 20_000 } = {}) {
+  const ask = (body) =>
+    fetchImpl(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${password}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      // A função da Vercel vive até 300 s; um pouco de folga para a resposta chegar.
+      signal: AbortSignal.timeout(310_000),
+    });
   return {
     async recolor(inputFile, _colorName, hex, output) {
       const vista = path.basename(inputFile).replace(/^poltrona-azul-/, "").replace(/\.jpg$/, "");
       const cor = EXAMPLE_COLORS.find((c) => c.hex === hex)?.slug;
-      const res = await fetchImpl(url, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${password}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ cor, vista }),
-        signal: AbortSignal.timeout(6 * 60_000),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(`Site: ${body?.error ?? `erro ${res.status}`}`.slice(0, 300));
+      let res = await ask({ cor, vista });
+      // Limite de pedidos da OpenAI: a rota não repete (prazo de 300 s); aqui, sem prazo, espera e repete uma vez.
+      if (res.status === 429) {
+        await new Promise((r) => setTimeout(r, retryWaitMs));
+        res = await ask({ cor, vista });
+      }
+      if (!res.ok) throw await siteError(res);
+      const type = res.headers.get("content-type") ?? "";
+      if (!type.startsWith("image/")) {
+        const error = new Error(`Site: a resposta não é uma imagem (${type || "sem tipo"}, ${res.status})`);
+        error.status = res.status;
+        throw error;
       }
       await writeFile(output, Buffer.from(await res.arrayBuffer()));
     },
+    /** Confere, sem custo, que a rota está no ar, aberta, com a senha certa e com a chave: {} tem de dar 400. */
+    async check() {
+      const res = await ask({});
+      if (res.status === 400) return;
+      throw await siteError(res);
+    },
   };
+}
+
+/** Respostas do site que não mudam tentando de novo (param tudo antes de regravar arquivos). */
+const FATAL_SITE_STATUS = new Set([401, 403, 404, 503]);
+
+async function siteError(res) {
+  const body = await res.json().catch(() => null);
+  const hint = {
+    401: body?.error
+      ? "senha errada (CORES_GPT_SENHA)"
+      : "bloqueado pela proteção da Vercel: use https://cuxoes.vercel.app/api/interno/cores-exemplo",
+    403: "bloqueado pela Vercel",
+    404: "a rota não está no site (falta publicar em produção) ou já fechou (08/11/2026)",
+    503: "a OPENAI_API_KEY não está no servidor",
+  }[res.status];
+  const error = new Error(`Site: ${body?.error ?? `erro ${res.status}`}${hint ? ` — ${hint}` : ""}`.slice(0, 300));
+  error.status = res.status;
+  return error;
 }
 
 async function main(args) {
   await mkdir(OUT, { recursive: true });
   const useGpt = args.includes("--gpt");
+  // --refazer=vermelho,bege: pede de novo ao GPT só essas cores (as outras reaproveitam as fotos já pagas).
+  const redo = new Set((args.find((a) => a.startsWith("--refazer="))?.slice(10) ?? "").split(",").filter(Boolean));
   let engine = null;
   if (useGpt) {
     const { CORES_GPT_URL: url, CORES_GPT_SENHA: password, OPENAI_API_KEY: key } = process.env;
+    if (Boolean(url) !== Boolean(password)) {
+      console.error(`Falta ${url ? "CORES_GPT_SENHA" : "CORES_GPT_URL"} (as duas vão juntas para o GPT rodar no site).`);
+      process.exit(1);
+    }
     if (url && password) {
       engine = siteRecolorEngine(url, password);
+      try {
+        await engine.check();
+      } catch (e) {
+        console.error(e instanceof Error ? e.message : e);
+        process.exit(1);
+      }
+      console.log(`GPT pelo site (${new URL(url).host}, com a chave do servidor).`);
     } else if (key) {
       const { openaiRecolorEngine } = await import("./ai-pipeline.mjs");
       engine = openaiRecolorEngine();
+      console.log("GPT com a OPENAI_API_KEY daqui.");
     } else {
       console.error(
         "Modo --gpt precisa de OPENAI_API_KEY, ou de CORES_GPT_URL e CORES_GPT_SENHA (o GPT roda no site, com a chave do servidor). Sem elas, rode sem --gpt (recolor por computador).",
@@ -646,7 +722,10 @@ async function main(args) {
   const colors3d = Object.fromEntries(EXAMPLE_COLORS.map((c) => [c.slug, c.hex]));
   for (const color of EXAMPLE_COLORS.filter((c) => c.slug !== "azul")) {
     if (engine) {
-      const measured = await gptPhotos(color, engine, report);
+      const measured = await gptPhotos(color, engine, report, { redo: redo.has(color.slug) }).catch((e) => {
+        console.error(e instanceof Error ? e.message : e);
+        process.exit(1);
+      });
       if (measured) colors3d[color.slug] = measured;
     } else {
       for (const view of VIEWS) {
@@ -662,6 +741,7 @@ async function main(args) {
     await writeFile(path.join(OUT, "relatorio-gpt.json"), JSON.stringify({ cores3d: colors3d, ...report }, null, 2));
     const fromGpt = report.cores.filter((c) => c.fonte === "tom-do-gpt").length;
     console.log(`Tom do GPT usado em ${fromGpt} de ${report.cores.length} cores (as outras ficaram só pelo computador).`);
+    if (!fromGpt) process.exitCode = 2;
   }
 
   // Modelo 3D com as cores no mesmo arquivo (KHR_materials_variants).
