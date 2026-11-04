@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import sharp, { type Sharp } from "sharp";
 import { describe, expect, it } from "vitest";
 import { recolorPrompt } from "@/scripts/ai-pipeline.mjs";
-import { fabricWeight, gptTone, recolor, recolorWith, toneAt } from "@/scripts/gerar-variantes-exemplo.mjs";
+import { fabricMask, fabricWeight, gptTone, recolor, recolorWith, toneAt } from "@/scripts/gerar-variantes-exemplo.mjs";
 
 const photo = (view: string) => readFileSync(new URL(`../../public/demo/poltrona-azul-${view}.jpg`, import.meta.url));
 const FRENTE = photo("frente");
@@ -34,10 +34,11 @@ describe("cores com o GPT: a foto final é a original, só com o tecido repintad
       expect(r.ok, r.reasons.join("; ")).toBe(true);
       const final = await raw((await recolorWith(FRENTE, (l: number) => toneAt(r.tone!, l))).image);
       const original = await raw(FRENTE);
+      const mask = fabricMask(original, 1600, 1200);
       let outside = 0;
       let same = 0;
       for (let i = 0; i < original.length; i += 3) {
-        if (fabricWeight(original[i] / 255, original[i + 1] / 255, original[i + 2] / 255) > 0) continue;
+        if (mask[i / 3] > 0) continue;
         outside++;
         if (final[i] === original[i] && final[i + 1] === original[i + 1] && final[i + 2] === original[i + 2]) same++;
       }

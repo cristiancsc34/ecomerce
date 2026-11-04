@@ -96,7 +96,11 @@ encaixar quando o provedor for escolhido.
   produção (`https://cuxoes.vercel.app/api/interno/cores-exemplo`): prévias e a URL gerada de cada deploy ficam atrás
   da proteção da Vercel e não têm a chave. O script confere a rota antes (sem custo) e para se a senha, a publicação
   ou a chave estiverem faltando. As fotos que o GPT devolve ficam em `ai/cache/cores-gpt` (fora do git): rodar de
-  novo só paga o que faltou; `--refazer=vermelho` pede de novo uma cor. Marcadas como ilustrativas e sem
+  novo só paga o que faltou; `--refazer=vermelho` pede de novo uma cor. **Fotos de exemplo atuais (04/11/2026):**
+  geradas pelo GPT do site e usadas como o GPT entregou (`--fotos-do-gpt`), por escolha do Cristian depois de
+  comparar com a versão repintada. As 4 cores passaram no alinhamento e na cor (ΔE 5–6,5), e as 16 fotos foram
+  conferidas uma a uma com as originais: mesma forma, madeira, ripas, parafusos, sapatas, fundo e sombra, nada
+  acrescentado. Para gerar de novo assim, a conferência por pessoa é obrigatória. Marcadas como ilustrativas e sem
   preço. Não aparecem na loja de verdade. Proposta para o painel: [`CORES-NO-ESTUDIO.md`](CORES-NO-ESTUDIO.md).
 - **Para arquitetos e designers** (fase de teste): enquanto as medidas não forem conferidas com o modelo 3D, a página
   mostra só uma linha discreta no fim — “É arquiteto ou designer de interiores? Peça o arquivo 3D e a ficha técnica” —

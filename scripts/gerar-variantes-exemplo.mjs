@@ -11,6 +11,8 @@
  *
  * As fotos que o GPT devolve ficam em ai/cache/cores-gpt (fora do git): rodar de novo reaproveita e só paga o
  * que faltou. Para pedir de novo uma cor que o GPT errou: --refazer=vermelho (ou várias, separadas por vírgula).
+ * Com --fotos-do-gpt, a loja usa a própria foto do GPT (escolha do dono em 04/11/2026), só depois de uma pessoa
+ * comparar as 16 com as originais (ai/cache/cores-gpt).
  *
  * Gera em public/demo/exemplo/:
  * - as 4 fotos de catálogo de cada cor (só o tecido muda de cor: a madeira, o
@@ -91,14 +93,81 @@ function fabricLuminance(data) {
   return weight ? sum / weight : 0.05;
 }
 
+/** Matiz (0–360), saturação e valor de um pixel (0–1). */
+function hsv(r, g, b) {
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  if (!d) return { h: 0, s: 0, v: max };
+  let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  h = (h * 60 + 360) % 360;
+  return { h, s: d / max, v: max };
+}
+
+/** Erosão ou dilatação num quadrado de lado 2r+1 (fora da imagem conta como vazio). */
+function morph(mask, w, h, r, isErode) {
+  const pass = (src, horizontal) => {
+    const out = new Uint8Array(src.length);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let v = isErode ? 1 : 0;
+        for (let d = -r; d <= r; d++) {
+          const xx = horizontal ? x + d : x;
+          const yy = horizontal ? y : y + d;
+          const m = xx < 0 || yy < 0 || xx >= w || yy >= h ? 0 : src[yy * w + xx];
+          if (isErode ? !m : m) {
+            v = isErode ? 0 : 1;
+            break;
+          }
+        }
+        out[y * w + x] = v;
+      }
+    }
+    return out;
+  };
+  return pass(pass(mask, true), false);
+}
+
+/**
+ * Área do tecido a repintar (0–1 por pixel): o tecido azul (fabricWeight) e mais
+ * - as sombras escuras cercadas de tecido (o azul quase preto não tem cor para reconhecer e virava ponto escuro);
+ * - a borda com tom azulado (mistura do tecido com o fundo), para não sobrar friso azul na cor nova.
+ * Madeira (alaranjada) e fundo (creme) nunca entram.
+ */
+export function fabricMask(data, width, height) {
+  const n = width * height;
+  const alpha = new Float32Array(n);
+  const solid = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    alpha[i] = fabricWeight(data[i * 3] / 255, data[i * 3 + 1] / 255, data[i * 3 + 2] / 255);
+    solid[i] = alpha[i] > 0.35 ? 1 : 0;
+  }
+  const closed = morph(morph(solid, width, height, 4, false), width, height, 4, true);
+  const band = morph(closed, width, height, 2, false);
+  for (let i = 0; i < n; i++) {
+    if (solid[i]) {
+      alpha[i] = 1;
+      continue;
+    }
+    if (!band[i]) continue;
+    const [r, g, b] = [data[i * 3] / 255, data[i * 3 + 1] / 255, data[i * 3 + 2] / 255];
+    const { h, s, v } = hsv(r, g, b);
+    if (h >= 10 && h <= 60 && s > 0.3 && v > 0.15) continue; // madeira
+    const bluish = h >= 190 && h <= 260 && s > 0.06;
+    const dark = luminance(r, g, b) < 0.03;
+    if (bluish || (closed[i] && dark)) alpha[i] = 1;
+  }
+  return alpha;
+}
+
 /** Repinta o tecido: cada pixel dele vira tone(luz do pixel); o resto da foto fica igual, pixel a pixel. */
 function paintFabric(data, info, tone) {
   const out = Buffer.alloc(data.length);
+  const mask = fabricMask(data, info.width, info.height);
   for (let i = 0; i < data.length; i += 3) {
     const r = data[i] / 255;
     const g = data[i + 1] / 255;
     const b = data[i + 2] / 255;
-    const w = fabricWeight(r, g, b);
+    const w = mask[i / 3];
     if (!w) {
       out[i] = data[i];
       out[i + 1] = data[i + 1];
@@ -432,11 +501,15 @@ function learnTone(sets) {
   return knots.map((k, i) => ({ l: k.l, c: [fixed[0][i], fixed[1][i], fixed[2][i]] }));
 }
 
-/** Cor (linear) do tom para uma luz: entre as faixas, interpola; fora delas, proporcional à luz. */
+/**
+ * Cor (linear) do tom para uma luz: entre as faixas, interpola. Mais escuro que a faixa mais escura, fica na cor
+ * dela (o GPT clareia a sombra funda de um tecido claro; ir ao preto deixava pontos escuros). Mais claro que a
+ * faixa mais clara, cresce com a luz.
+ */
 export function toneAt(knots, l) {
   const first = knots[0];
   const last = knots[knots.length - 1];
-  if (l <= first.l) return first.c.map((v) => (first.l > 0 ? (v * l) / first.l : v));
+  if (l <= first.l) return [...first.c];
   if (l >= last.l) return last.c.map((v) => Math.min(1, last.l > 0 ? (v * l) / last.l : v));
   let lo = 0;
   let hi = knots.length - 1;
@@ -557,7 +630,7 @@ export async function gptTone(shots, { targetHex, limits = {} }) {
  * Se o tom não serve, a cor inteira fica com o recolor por computador. Devolve a
  * cor medida (para o 3D) ou null.
  */
-async function gptPhotos(color, engine, report, { redo = false } = {}) {
+async function gptPhotos(color, engine, report, { redo = false, gptPhotosAsIs = false } = {}) {
   const dir = await mkdtemp(path.join(tmpdir(), "cuxoes-cores-"));
   try {
     const shots = [];
@@ -587,14 +660,22 @@ async function gptPhotos(color, engine, report, { redo = false } = {}) {
       }
     }
     const result = await gptTone(shots, { targetHex: color.hex });
+    const source = !result.ok ? "computador" : gptPhotosAsIs ? "gpt" : "tom-do-gpt";
     for (const shot of shots) {
-      const { image } = result.ok ? await recolorWith(shot.original, (l) => toneAt(result.tone, l)) : await recolor(shot.original, color.hex);
+      let image;
+      if (source === "gpt") {
+        // A própria foto do GPT (só com --fotos-do-gpt, depois de uma pessoa conferir as 16 com as originais).
+        const { width, height } = await sharp(shot.original).metadata();
+        image = sharp(shot.generated).removeAlpha().resize(width, height, { fit: "fill" });
+      } else {
+        ({ image } = source === "tom-do-gpt" ? await recolorWith(shot.original, (l) => toneAt(result.tone, l)) : await recolor(shot.original, color.hex));
+      }
       await writeFile(path.join(OUT, `poltrona-${color.slug}-${shot.view}.jpg`), await image.jpeg({ quality: 84, mozjpeg: true }).toBuffer());
       const v = result.views.find((x) => x.view === shot.view);
       report.fotos.push({
         cor: color.slug,
         vista: shot.view,
-        fonte: result.ok ? "tom-do-gpt" : "computador",
+        fonte: source,
         ...(v?.alignDiff !== undefined
           ? {
               deslocamentoPx: [v.dx, v.dy],
@@ -609,14 +690,14 @@ async function gptPhotos(color, engine, report, { redo = false } = {}) {
     }
     report.cores.push({
       cor: color.slug,
-      fonte: result.ok ? "tom-do-gpt" : "computador",
+      fonte: source,
       pedida: color.hex,
       medida: result.fabricHex,
       deltaE: result.colorDeltaE === null ? null : Number(result.colorDeltaE.toFixed(1)),
       motivos: result.reasons,
     });
     const how = result.ok
-      ? `tom do GPT (${result.views.filter((v) => v.used).length} de ${VIEWS.length} ângulos; medida ${result.fabricHex}, ΔE ${result.colorDeltaE.toFixed(1)})`
+      ? `${source === "gpt" ? "foto do GPT" : "tom do GPT"} (${result.views.filter((v) => v.used).length} de ${VIEWS.length} ângulos; medida ${result.fabricHex}, ΔE ${result.colorDeltaE.toFixed(1)})`
       : `computador (${result.reasons.join("; ")})`;
     console.log(`${color.name}: ${how}`);
     return result.ok ? result.fabricHex : null;
@@ -688,6 +769,10 @@ async function main(args) {
   await mkdir(OUT, { recursive: true });
   const useGpt = args.includes("--gpt");
   // --refazer=vermelho,bege: pede de novo ao GPT só essas cores (as outras reaproveitam as fotos já pagas).
+  // --fotos-do-gpt: usa a própria foto do GPT (passando no alinhamento e na cor), em vez da original repintada no tom
+  // dele. Só depois de uma pessoa comparar as 16 fotos com as originais: a conferência automática não garante que a
+  // peça não mudou.
+  const gptPhotosAsIs = args.includes("--fotos-do-gpt");
   const redo = new Set((args.find((a) => a.startsWith("--refazer="))?.slice(10) ?? "").split(",").filter(Boolean));
   let engine = null;
   if (useGpt) {
@@ -722,7 +807,7 @@ async function main(args) {
   const colors3d = Object.fromEntries(EXAMPLE_COLORS.map((c) => [c.slug, c.hex]));
   for (const color of EXAMPLE_COLORS.filter((c) => c.slug !== "azul")) {
     if (engine) {
-      const measured = await gptPhotos(color, engine, report, { redo: redo.has(color.slug) }).catch((e) => {
+      const measured = await gptPhotos(color, engine, report, { redo: redo.has(color.slug), gptPhotosAsIs }).catch((e) => {
         console.error(e instanceof Error ? e.message : e);
         process.exit(1);
       });
@@ -739,8 +824,8 @@ async function main(args) {
   }
   if (engine) {
     await writeFile(path.join(OUT, "relatorio-gpt.json"), JSON.stringify({ cores3d: colors3d, ...report }, null, 2));
-    const fromGpt = report.cores.filter((c) => c.fonte === "tom-do-gpt").length;
-    console.log(`Tom do GPT usado em ${fromGpt} de ${report.cores.length} cores (as outras ficaram só pelo computador).`);
+    const fromGpt = report.cores.filter((c) => c.fonte !== "computador").length;
+    console.log(`GPT usado em ${fromGpt} de ${report.cores.length} cores (as outras ficaram só pelo computador).`);
     if (!fromGpt) process.exitCode = 2;
   }
 

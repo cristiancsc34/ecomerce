@@ -1,0 +1,301 @@
+{
+  "cores3d": {
+    "azul": "#2F3E62",
+    "marrom": "#604334",
+    "branco": "#DED7D0",
+    "vermelho": "#8B2726",
+    "bege": "#C1A88D"
+  },
+  "cores": [
+    {
+      "cor": "marrom",
+      "fonte": "gpt",
+      "pedida": "#6B4A35",
+      "medida": "#604334",
+      "deltaE": 5.3,
+      "motivos": []
+    },
+    {
+      "cor": "branco",
+      "fonte": "gpt",
+      "pedida": "#ECE7DE",
+      "medida": "#DED7D0",
+      "deltaE": 5.5,
+      "motivos": []
+    },
+    {
+      "cor": "vermelho",
+      "fonte": "gpt",
+      "pedida": "#9C2A2A",
+      "medida": "#8B2726",
+      "deltaE": 6.5,
+      "motivos": []
+    },
+    {
+      "cor": "bege",
+      "fonte": "gpt",
+      "pedida": "#CDB797",
+      "medida": "#C1A88D",
+      "deltaE": 6,
+      "motivos": []
+    }
+  ],
+  "fotos": [
+    {
+      "cor": "marrom",
+      "vista": "frente",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.25,
+      "foraDoTom": 0,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "marrom",
+      "vista": "tres-quartos",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.03,
+      "foraDoTom": 0,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "marrom",
+      "vista": "lateral",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.05,
+      "foraDoTom": 0.003,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "marrom",
+      "vista": "traseira",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.08,
+      "foraDoTom": 0.001,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "branco",
+      "vista": "frente",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.2,
+      "foraDoTom": 0.004,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "branco",
+      "vista": "tres-quartos",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.15,
+      "foraDoTom": 0.004,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "branco",
+      "vista": "lateral",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.08,
+      "foraDoTom": 0.001,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "branco",
+      "vista": "traseira",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.18,
+      "foraDoTom": 0.001,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "vermelho",
+      "vista": "frente",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.14,
+      "foraDoTom": 0.003,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "vermelho",
+      "vista": "tres-quartos",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.09,
+      "foraDoTom": 0.003,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "vermelho",
+      "vista": "lateral",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.02,
+      "foraDoTom": 0.002,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "vermelho",
+      "vista": "traseira",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 0.97,
+      "foraDoTom": 0.002,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "bege",
+      "vista": "frente",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.19,
+      "foraDoTom": 0.005,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "bege",
+      "vista": "tres-quartos",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 1.1,
+      "foraDoTom": 0.004,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "bege",
+      "vista": "lateral",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 0.98,
+      "foraDoTom": 0.005,
+      "usadoNoTom": true
+    },
+    {
+      "cor": "bege",
+      "vista": "traseira",
+      "fonte": "gpt",
+      "deslocamentoPx": [
+        0,
+        0
+      ],
+      "escala": [
+        1,
+        1
+      ],
+      "diferencaForaDoTecido": 0.94,
+      "foraDoTom": 0.005,
+      "usadoNoTom": true
+    }
+  ]
+}
