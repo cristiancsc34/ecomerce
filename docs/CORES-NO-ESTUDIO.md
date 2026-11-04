@@ -3,7 +3,7 @@
 > Status (04/11/2026): a loja já tem a estrutura de variantes de cor (seletor “Cor”, fotos e 3D por cor, link do QR
 > com a cor; migração `20261103000500_variantes_cor`). Falta o painel criar as cores. Para a demonstração, as cores da
 > Poltrona Azul (marrom, branco, vermelho, bege) saem de `npm run demo:variantes` (por computador) ou
-> `npm run demo:variantes:gpt` (pelo GPT, com conferência), e só aparecem no ambiente de desenvolvimento.
+> `npm run demo:variantes:gpt` (tom do GPT, com a foto original repintada), e só aparecem no ambiente de desenvolvimento.
 
 ## Onde entra no fluxo
 
@@ -17,13 +17,14 @@ Novo passo no Estúdio: **5. Cores (opcional)**.
    - **foto da amostra do tecido** (recomendado): o painel mede a cor da amostra, sem depender da calibração da tela;
    - código **#RRGGBB** ou **RGB** (ex.: 205, 183, 151), com o seletor de cor.
 2. **Gerar** (fila do estúdio, como as outras etapas):
-   - as 4 fotos de catálogo na cor nova pelo GPT (`openaiRecolorEngine`, mesma chave das fotos de catálogo);
-   - cada foto passa pela **conferência automática** (`fidelityCheck`): fora do tecido, madeira, fundo e sombra têm de
-     continuar iguais à foto original; dentro do tecido, nada pode fugir do sombreado e da cor do resto do tecido
-     (almofada, manta, encosto cortado); e a cor medida tem de ser a pedida. Se a IA mexeu na peça em qualquer
-     ângulo, a cor é refeita ou fica a versão recolorida por computador, com aviso;
+   - as 4 fotos de catálogo na cor nova pelo GPT (`openaiRecolorEngine`, mesma chave das fotos de catálogo), usadas
+     só como **referência de tom** (`gptTone`): a foto que vai para a loja é a de catálogo aprovada com o tecido
+     repintado nesse tom. Madeira, fundo, sombra e forma ficam pixel a pixel como na original, então a IA não tem como
+     mudar a peça nem acrescentar nada. Cada foto do GPT é alinhada com a original; o ângulo é descartado se não
+     corresponde a ela ou se o tecido não é uma cor só. Com 3 dos 4 ângulos bons, o tom sai de todos juntos e a cor
+     medida tem de ser a pedida (ΔE ≤ 10). Senão, a cor fica com o recolor por computador, com aviso;
    - o 3D: o mesmo modelo, com a cor nova como variante dentro do `.glb` (`KHR_materials_variants`), pintado com a cor
-     medida nas fotos geradas; e o `.usdz` dessa cor para o iPhone, quando o tamanho real estiver conferido.
+     medida; e o `.usdz` dessa cor para o iPhone, quando o tamanho real estiver conferido.
 3. **Conferir e aprovar**: antes × depois lado a lado, foto por foto (como as fotos de catálogo). Até alguém aprovar,
    nada vai para a loja. Na loja, a foto aparece como “Imagem ilustrativa” até a foto real da cor chegar.
 4. **Publicar a cor**: vira uma variação em “Preço e estoque” (preço igual ou diferente, estoque), com as fotos ligadas

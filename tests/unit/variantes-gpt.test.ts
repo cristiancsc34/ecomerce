@@ -1,85 +1,154 @@
 import { readFileSync } from "node:fs";
-import sharp, { type OverlayOptions, type Sharp } from "sharp";
+import sharp, { type Sharp } from "sharp";
 import { describe, expect, it } from "vitest";
 import { recolorPrompt } from "@/scripts/ai-pipeline.mjs";
-import { fidelityCheck, recolor } from "@/scripts/gerar-variantes-exemplo.mjs";
+import { fabricWeight, gptTone, recolor, recolorWith, toneAt } from "@/scripts/gerar-variantes-exemplo.mjs";
 
-const FRENTE = readFileSync(new URL("../../public/demo/poltrona-azul-frente.jpg", import.meta.url));
+const photo = (view: string) => readFileSync(new URL(`../../public/demo/poltrona-azul-${view}.jpg`, import.meta.url));
+const FRENTE = photo("frente");
+const RED = "#9C2A2A";
+const jpg = (img: Sharp, quality = 84) => img.jpeg({ quality }).toBuffer();
+const box = (width: number, height: number, background: string) => ({ create: { width, height, channels: 3 as const, background } });
+/** Tom de um ângulo só (a regra de 3 dos 4 ângulos tem teste próprio). */
+const toneOf = (generated: Buffer, targetHex = RED, limits = {}) =>
+  gptTone([{ view: "frente", original: FRENTE, generated }], { targetHex, limits: { minViews: 1, ...limits } });
+const raw = (input: Buffer | Sharp) => (Buffer.isBuffer(input) ? sharp(input) : input).removeAlpha().raw().toBuffer();
+const SLOW = 60_000;
 
-describe("cores com o GPT: conferência da foto gerada", () => {
-  const jpg = (img: Sharp) => img.jpeg({ quality: 84 }).toBuffer();
-  const box = (width: number, height: number, background: string) => ({ create: { width, height, channels: 3 as const, background } });
+describe("cores com o GPT: a foto final é a original, só com o tecido repintado", () => {
+  it(
+    "fora do tecido, a foto final é pixel a pixel a original, mesmo que a foto do GPT tenha mexido na peça ou acrescentado algo",
+    async () => {
+      const red = await jpg((await recolor(FRENTE, RED)).image);
+      // Foto do GPT "errada": móvel ao lado, luminária, almofada rosa por cima, apoio de cabeça apagado.
+      const tampered = await jpg(
+        sharp(red).composite([
+          { input: box(330, 450, "#e9e4dc"), left: 20, top: 350 },
+          { input: box(12, 900, "#2b2b2b"), left: 1450, top: 200 },
+          { input: box(300, 250, "#ff96af"), left: 560, top: 300 },
+          { input: box(620, 250, "#f4efe8"), left: 490, top: 90 },
+        ]),
+      );
+      // Mesmo aceitando o tom dela (todos os limites soltos de propósito), nada disso chega à foto final.
+      const r = await toneOf(tampered, RED, { maxAlignDiff: 255, maxOffToneShare: 1, maxColorDeltaE: 255 });
+      expect(r.ok, r.reasons.join("; ")).toBe(true);
+      const final = await raw((await recolorWith(FRENTE, (l: number) => toneAt(r.tone!, l))).image);
+      const original = await raw(FRENTE);
+      let outside = 0;
+      let same = 0;
+      for (let i = 0; i < original.length; i += 3) {
+        if (fabricWeight(original[i] / 255, original[i + 1] / 255, original[i + 2] / 255) > 0) continue;
+        outside++;
+        if (final[i] === original[i] && final[i + 1] === original[i + 1] && final[i + 2] === original[i + 2]) same++;
+      }
+      expect(outside).toBeGreaterThan(1_000_000);
+      expect(same).toBe(outside);
+      // Com os limites normais, o tom dessa foto é recusado (o apoio apagado contamina a cor) e a cor fica pelo computador.
+      expect((await toneOf(tampered)).ok).toBe(false);
+    },
+    SLOW,
+  );
 
-  it("foto que só mudou a cor do tecido passa em todas as cores, e a cor medida é a pedida", async () => {
-    for (const hex of ["#6B4A35", "#ECE7DE", "#9C2A2A", "#CDB797"]) {
-      const { image } = await recolor(FRENTE, hex);
-      const check = await fidelityCheck(FRENTE, await jpg(image), { targetHex: hex });
-      expect(check.ok, `${hex}: ${check.reasons.join("; ")}`).toBe(true);
-      expect(check.colorDeltaE!).toBeLessThan(10);
-    }
-    const { image } = await recolor(FRENTE, "#9C2A2A");
-    const check = await fidelityCheck(FRENTE, await jpg(image), { targetHex: "#9C2A2A" });
-    expect(check.meanDiff).toBeLessThan(3);
-    // Vermelho: canal R bem acima de G e B.
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(check.fabricHex!.slice(i, i + 2), 16));
-    expect(r).toBeGreaterThan(g + 40);
-    expect(r).toBeGreaterThan(b + 40);
-  });
+  it(
+    "aprende o tom da foto do GPT: o tecido fica como o do GPT e a cor medida é a pedida",
+    async () => {
+      for (const hex of ["#6B4A35", "#ECE7DE", RED, "#CDB797"]) {
+        const generated = await jpg((await recolor(FRENTE, hex)).image);
+        const r = await toneOf(generated, hex);
+        expect(r.ok, `${hex}: ${r.reasons.join("; ")}`).toBe(true);
+        expect(r.colorDeltaE!, hex).toBeLessThan(6);
+        const final = await raw((await recolorWith(FRENTE, (l: number) => toneAt(r.tone!, l))).image);
+        const gpt = await raw(generated);
+        const original = await raw(FRENTE);
+        let sum = 0;
+        let n = 0;
+        for (let i = 0; i < original.length; i += 3) {
+          if (fabricWeight(original[i] / 255, original[i + 1] / 255, original[i + 2] / 255) < 0.5) continue;
+          sum += (Math.abs(final[i] - gpt[i]) + Math.abs(final[i + 1] - gpt[i + 1]) + Math.abs(final[i + 2] - gpt[i + 2])) / 3;
+          n++;
+        }
+        expect(sum / n, hex).toBeLessThan(4);
+      }
+    },
+    SLOW,
+  );
 
-  it("tolera o que uma troca de cor fiel faz: recompressão e deslocamento de poucos pixels", async () => {
-    const { width, height } = await sharp(FRENTE).metadata();
-    const red = await jpg((await recolor(FRENTE, "#9C2A2A")).image);
-    const shifted = await jpg(
-      sharp(await sharp(red).extend({ left: 12, background: "#f4efe8" }).extract({ left: 0, top: 0, width: width!, height: height! }).toBuffer()),
-    );
-    expect((await fidelityCheck(FRENTE, shifted, { targetHex: "#9C2A2A" })).ok).toBe(true);
-    expect((await fidelityCheck(FRENTE, await sharp(red).jpeg({ quality: 60 }).toBuffer(), { targetHex: "#9C2A2A" })).ok).toBe(true);
-  });
+  it(
+    "tolera o que o GPT faz ao refazer a foto: deslocamento, escala, outro formato, luz e compressão",
+    async () => {
+      const red = await jpg((await recolor(FRENTE, RED)).image);
+      const shifted = await sharp(await sharp(red).extend({ left: 30, bottom: 20, background: "#f4efe8" }).toBuffer())
+        .extract({ left: 0, top: 20, width: 1600, height: 1200 })
+        .jpeg()
+        .toBuffer();
+      const r = await toneOf(shifted);
+      expect(r.ok, r.reasons.join("; ")).toBe(true);
+      expect(r.views[0]).toMatchObject({ dx: 30, dy: -20 });
 
-  it("recusa foto em que a IA mexeu na peça, no tecido ou no fundo, ou errou a cor", async () => {
-    const { width, height } = await sharp(FRENTE).metadata();
-    const red = await jpg((await recolor(FRENTE, "#9C2A2A")).image);
-    const over = (items: OverlayOptions[]) => jpg(sharp(red).composite(items));
-    const cases: [string, Buffer, string][] = [
-      // Dentro do tecido: almofada acrescentada (mesmo de cor parecida) e encosto de cabeça apagado.
-      ["almofada bege", await over([{ input: box(300, 220, "#d8c7a5"), left: 650, top: 500 }]), "tecido"],
-      ["almofada vermelho-escura", await over([{ input: box(300, 220, "#6e1c1c"), left: 650, top: 500 }]), "tecido"],
-      ["encosto apagado", await over([{ input: box(570, 230, "#f4efe8"), left: 510, top: 110 }]), "tecido"],
-      // Fora do tecido: objeto pequeno no fundo, mancha grande, peça deslocada.
-      ["objeto 60×60", await over([{ input: box(60, 60, "#3a2a1a"), left: 200, top: 300 }]), "fora do tecido"],
-      ["mancha 300×300", await over([{ input: box(300, 300, "#3a2a1a"), left: 40, top: 40 }]), "fora do tecido"],
-      [
-        "deslocada 80 px",
-        await jpg(sharp(await sharp(red).extend({ left: 80, background: "#f4efe8" }).extract({ left: 0, top: 0, width: width!, height: height! }).toBuffer())),
-        "fora do tecido",
-      ],
-    ];
-    for (const [name, image, where] of cases) {
-      const check = await fidelityCheck(FRENTE, image, { targetHex: "#9C2A2A" });
-      expect(check.ok, name).toBe(false);
-      expect(check.reasons.join(" "), name).toContain(where);
-    }
-    // Madeira 25% mais escura (outro acabamento).
-    const { data, info } = await sharp(red).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-    const original = await sharp(FRENTE).removeAlpha().raw().toBuffer();
-    const darker = Buffer.from(data);
-    for (let i = 0; i < darker.length; i += 3) {
-      const fromBg = (Math.abs(original[i] - 244) + Math.abs(original[i + 1] - 239) + Math.abs(original[i + 2] - 232)) / 3;
-      const blue = original[i + 2] > original[i] + 20;
-      if (!blue && fromBg > 40) for (let c = 0; c < 3; c++) darker[i + c] = Math.round(darker[i + c] * 0.75);
-    }
-    const wood = await fidelityCheck(FRENTE, await jpg(sharp(darker, { raw: { width: info.width, height: info.height, channels: 3 } })), {
-      targetHex: "#9C2A2A",
-    });
-    expect(wood.ok).toBe(false);
-    expect(wood.reasons.join(" ")).toContain("madeira");
-    // Cor errada: a foto continua azul, ou saiu rosa no lugar de vermelho.
-    const blue = await fidelityCheck(FRENTE, FRENTE, { targetHex: "#6B4A35" });
-    expect(blue.ok).toBe(false);
-    expect(blue.reasons).toContain("a cor do tecido não é a pedida");
-    const pink = await fidelityCheck(FRENTE, await jpg((await recolor(FRENTE, "#E58FB0")).image), { targetHex: "#9C2A2A" });
-    expect(pink.ok).toBe(false);
-  });
+      const bigger = await sharp(await sharp(red).resize(1632, 1224).toBuffer()).extract({ left: 16, top: 12, width: 1600, height: 1200 }).jpeg().toBuffer();
+      const brighter = await sharp(red).linear(1.05, 0).jpeg().toBuffer();
+      const variants: [string, Buffer][] = [
+        ["2% maior", bigger],
+        ["1536 × 1024, cortada em cima e embaixo", await sharp(red).resize(1536, 1024, { fit: "cover" }).jpeg().toBuffer()],
+        ["5% mais clara", brighter],
+        ["JPEG qualidade 40", await sharp(red).jpeg({ quality: 40 }).toBuffer()],
+      ];
+      for (const [name, generated] of variants) {
+        const check = await toneOf(generated);
+        expect(check.ok, `${name}: ${check.reasons.join("; ")}`).toBe(true);
+        expect(check.colorDeltaE!, name).toBeLessThan(6);
+      }
+    },
+    SLOW,
+  );
+
+  it(
+    "recusa o tom quando a cor não é a pedida ou a foto do GPT não é a da peça",
+    async () => {
+      const wrong: [string, Buffer, string][] = [
+        ["vinho no lugar de vermelho", await jpg((await recolor(FRENTE, "#722F37")).image), RED],
+        ["vermelho vivo no lugar de vermelho", await jpg((await recolor(FRENTE, "#C62828")).image), RED],
+        ["continua azul", FRENTE, "#6B4A35"],
+      ];
+      for (const [name, generated, hex] of wrong) {
+        const r = await toneOf(generated, hex);
+        expect(r.ok, name).toBe(false);
+        expect(r.reasons, name).toContain("a cor do tecido não é a pedida");
+        expect(r.tone, name).toBeNull();
+      }
+      // Outro ângulo da peça no lugar da frente.
+      const other = await toneOf(await jpg((await recolor(photo("lateral"), RED)).image));
+      expect(other.ok).toBe(false);
+      expect(other.views[0].reason).toContain("não corresponde à original");
+    },
+    SLOW,
+  );
+
+  it(
+    "precisa de 3 dos 4 ângulos e tira um tom só para todos",
+    async () => {
+      const views = ["frente", "tres-quartos", "lateral", "traseira"];
+      const shots = await Promise.all(
+        views.map(async (view) => ({ view, original: photo(view), generated: await jpg((await recolor(photo(view), RED)).image) })),
+      );
+      // Um ângulo sem resposta da OpenAI: os outros 3 bastam.
+      const three = await gptTone(
+        shots.map((s, i) => (i === 3 ? { view: s.view, original: s.original } : s)),
+        { targetHex: RED },
+      );
+      expect(three.ok, three.reasons.join("; ")).toBe(true);
+      expect(three.views.map((v) => v.used)).toEqual([true, true, true, false]);
+      expect(three.views[3].reason).toBe("a OpenAI não devolveu este ângulo");
+      // Dois ângulos trocados: não dá.
+      const two = await gptTone(
+        shots.map((s, i) => (i < 2 ? { ...s, generated: shots[2].generated } : s)),
+        { targetHex: RED },
+      );
+      expect(two.ok).toBe(false);
+      expect(two.reasons).toContain("o GPT acertou 2 de 4 ângulos (precisa de 3)");
+    },
+    SLOW,
+  );
 
   it("a instrução pede só a troca da cor do tecido", () => {
     const prompt = recolorPrompt("marrom", "#6B4A35");

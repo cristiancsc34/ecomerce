@@ -5,18 +5,19 @@
  * produto sem cadastrar cores que a loja não vende.
  *
  *   npm run demo:variantes          # fotos recoloridas por computador (grátis, na hora)
- *   npm run demo:variantes:gpt      # fotos geradas pelo GPT (precisa de OPENAI_API_KEY)
+ *   npm run demo:variantes:gpt      # tom da cor pelo GPT (precisa de OPENAI_API_KEY)
  *
  * Gera em public/demo/exemplo/:
  * - as 4 fotos de catálogo de cada cor (só o tecido muda de cor: a madeira, o
- *   fundo e as sombras ficam como na foto original). No modo GPT, cada foto
- *   gerada é conferida com a original (fidelityCheck: fora do tecido, madeira,
- *   forma do tecido e cor pedida); se a IA mexeu na peça, acrescentou algo ou
- *   errou a cor em qualquer ângulo, a cor inteira fica com a versão recolorida
- *   por computador;
+ *   fundo e as sombras ficam como na foto original, pixel a pixel). No modo GPT,
+ *   o GPT gera os 4 ângulos na cor nova, mas a foto da loja continua sendo a
+ *   original: das fotos do GPT sai só o tom da cor (gptTone: que cor o tecido tem
+ *   em cada nível de luz). Assim a IA não tem como mudar a peça nem acrescentar
+ *   nada. Se o tom não serve (foto que não corresponde, tecido com mais de uma
+ *   cor, cor diferente da pedida), a cor inteira fica com o recolor por computador;
  * - poltrona-cores.glb: o modelo 3D com as 5 cores no mesmo arquivo
  *   (extensão KHR_materials_variants; o visualizador troca pelo nome da cor).
- *   No modo GPT, a cor do 3D é a cor medida no tecido das fotos geradas.
+ *   No modo GPT, a cor do 3D é a cor medida com o tom do GPT.
  *
  * Só aparece na loja com CATALOG_DEV_EXAMPLES=1, fora da Vercel e no modo
  * demonstração (lib/catalog/dev-examples.ts). Não são fotos reais: para vender
@@ -83,14 +84,8 @@ function fabricLuminance(data) {
   return weight ? sum / weight : 0.05;
 }
 
-/**
- * Troca a cor do tecido mantendo o sombreado: cada pixel do tecido vira a cor
- * nova × (luminância do pixel ÷ luminância média do tecido), em espaço linear.
- */
-export async function recolor(input, hex, { reference } = {}) {
-  const { data, info } = await sharp(input).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-  const mean = reference ?? fabricLuminance(data);
-  const target = hexRgb(hex).map(toLinear);
+/** Repinta o tecido: cada pixel dele vira tone(luz do pixel); o resto da foto fica igual, pixel a pixel. */
+function paintFabric(data, info, tone) {
   const out = Buffer.alloc(data.length);
   for (let i = 0; i < data.length; i += 3) {
     const r = data[i] / 255;
@@ -103,89 +98,66 @@ export async function recolor(input, hex, { reference } = {}) {
       out[i + 2] = data[i + 2];
       continue;
     }
-    const k = luminance(r, g, b) / mean;
+    const color = tone(luminance(r, g, b));
     for (let c = 0; c < 3; c++) {
-      const recolored = toSrgb(Math.min(1, target[c] * k));
+      const recolored = toSrgb(Math.min(1, color[c]));
       const original = data[i + c] / 255;
       out[i + c] = Math.round((original * (1 - w) + recolored * w) * 255);
     }
   }
-  return { image: sharp(out, { raw: { width: info.width, height: info.height, channels: 3 } }), mean };
+  return sharp(out, { raw: { width: info.width, height: info.height, channels: 3 } });
+}
+
+/**
+ * Troca a cor do tecido mantendo o sombreado: cada pixel do tecido vira a cor
+ * nova × (luminância do pixel ÷ luminância média do tecido), em espaço linear.
+ */
+export async function recolor(input, hex, { reference } = {}) {
+  const { data, info } = await sharp(input).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const mean = reference ?? fabricLuminance(data);
+  const target = hexRgb(hex).map(toLinear);
+  return { image: paintFabric(data, info, (l) => target.map((t) => t * (l / mean))), mean };
+}
+
+/** Troca a cor do tecido por uma curva de tom (luz → cor linear), como a aprendida das fotos do GPT. */
+export async function recolorWith(input, tone) {
+  const { data, info } = await sharp(input).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  return { image: paintFabric(data, info, tone) };
 }
 
 const toHex = (rgb) => `#${rgb.map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 
 // ---------------------------------------------------------------------------
-// Conferência da foto gerada pela IA (regra da loja: o produto não muda e nenhum
-// objeto é acrescentado; só a cor do tecido troca)
+// Cor pelo GPT sem risco para o produto (regra da loja: o produto não muda e
+// nenhum objeto é acrescentado). A foto final é SEMPRE a original com o tecido
+// repintado: madeira, fundo, sombra e forma vêm da original, pixel a pixel. Da
+// foto do GPT sai só o TOM da cor nova: que cor o tecido tem em cada nível de
+// luz (sombra, dobra, brilho). O que a IA acrescentar, apagar ou mudar na foto
+// dela (objeto, almofada, estampa, madeira, forma) não chega à loja.
 // ---------------------------------------------------------------------------
 
-/** Tamanho da célula da conferência, em pixels (a IA redesenha tudo: pixel a pixel nunca bate). */
-const CELL = 4;
+/** Limites (calibrados com fotos recoloridas por computador, refeitas e adulteradas). */
+export const TONE_LIMITS = {
+  /** Maior deslocamento procurado entre a foto do GPT e a original, em px. */
+  maxShift: 48,
+  /**
+   * Diferença média fora do tecido depois de alinhar (0–255, já descontada a
+   * mudança geral de luz). Acima disso, a foto do GPT não corresponde à original
+   * (outra peça, outro ângulo, peça fora do lugar) e o tom dela não serve.
+   */
+  maxAlignDiff: 10,
+  /** ΔE a partir do qual um ponto do tecido do GPT "foge" do tom aprendido. */
+  offToneDeltaE: 15,
+  /** Fração do tecido do GPT que pode fugir do tom (estampa, almofada por cima, dois tons). */
+  maxOffToneShare: 0.25,
+  /** Ângulos que precisam dar certo, dos 4. */
+  minViews: 3,
+  /** Distância (ΔE) aceita entre a cor medida e a cor pedida. */
+  maxColorDeltaE: 10,
+};
 
-/** Média de cada célula de CELL×CELL pixels (RGB 0–255). */
-async function cellImage(input, width, height) {
-  const w = Math.round(width / CELL);
-  const h = Math.round(height / CELL);
-  const data = await sharp(input).removeAlpha().resize(w, h, { fit: "fill", kernel: "cubic" }).raw().toBuffer();
-  return { w, h, data };
-}
-
-/** Erosão (todas as células da janela) ou dilatação (alguma célula) num quadrado de lado 2r+1. */
-function morph(mask, w, h, r, isErode) {
-  const pass = (src, horizontal) => {
-    const out = new Uint8Array(src.length);
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        let v = isErode ? 1 : 0;
-        for (let d = -r; d <= r; d++) {
-          const xx = horizontal ? x + d : x;
-          const yy = horizontal ? y : y + d;
-          const m = xx < 0 || yy < 0 || xx >= w || yy >= h ? 0 : src[yy * w + xx];
-          if (isErode ? !m : m) {
-            v = isErode ? 0 : 1;
-            break;
-          }
-        }
-        out[y * w + x] = v;
-      }
-    }
-    return out;
-  };
-  return pass(pass(mask, true), false);
-}
-const erode = (m, w, h, r) => morph(m, w, h, r, true);
-const dilate = (m, w, h, r) => morph(m, w, h, r, false);
-
-/** Maior mancha contínua da máscara (vizinhança de 4), em células. */
-function largestBlob(mask, w) {
-  const seen = new Uint8Array(mask.length);
-  const stack = [];
-  let best = 0;
-  for (let i = 0; i < mask.length; i++) {
-    if (!mask[i] || seen[i]) continue;
-    let size = 0;
-    seen[i] = 1;
-    stack.push(i);
-    while (stack.length) {
-      const j = stack.pop();
-      size++;
-      const x = j % w;
-      for (const k of [j - w, j + w, x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1]) {
-        if (k >= 0 && k < mask.length && mask[k] && !seen[k]) {
-          seen[k] = 1;
-          stack.push(k);
-        }
-      }
-    }
-    best = Math.max(best, size);
-  }
-  return best;
-}
-
-/** sRGB (0–1) → Lab (D65). */
-function lab([r, g, b]) {
-  const [R, G, B] = [r, g, b].map(toLinear);
+/** RGB linear (0–1) → Lab (D65). */
+function labLinear([R, G, B]) {
   const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (t * 24389) / 27 / 116 + 16 / 116);
   const x = f((0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047);
   const y = f(0.2126 * R + 0.7152 * G + 0.0722 * B);
@@ -198,202 +170,378 @@ const median = (values) => {
   return v.length ? v[v.length >> 1] : 0;
 };
 
-/** Limites da conferência (calibrados com as 16 fotos recoloridas por computador e com fotos adulteradas). */
-export const FIDELITY_LIMITS = {
-  /** Diferença média fora do tecido (0–255). */
-  maxMeanDiff: 10,
-  /** Célula "mudou" fora do tecido a partir desta diferença (0–255). */
-  changedCell: 28,
-  /** Maior mancha mudada aceita, em fração da imagem (0,1% ≈ 44 × 44 px em 1600 × 1200). */
-  maxBlobShare: 0.001,
-  /** Diferença de cor média (ΔE) aceita na madeira e no resto da peça fora do tecido. */
-  maxFrameDeltaE: 6,
-  /** Fração do tecido que pode fugir do sombreado e da cor do resto do tecido. */
-  maxFabricAnomalyShare: 0.03,
-  /** Distância (ΔE) aceita entre a cor medida no tecido e a cor pedida. */
-  maxColorDeltaE: 28,
+/** Erosão (todos os pontos da janela) num quadrado de lado 2r+1; fora da imagem conta como vazio. */
+function erode(mask, w, h, r) {
+  const pass = (src, horizontal) => {
+    const out = new Uint8Array(src.length);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let v = 1;
+        for (let d = -r; d <= r && v; d++) {
+          const xx = horizontal ? x + d : x;
+          const yy = horizontal ? y : y + d;
+          if (xx < 0 || yy < 0 || xx >= w || yy >= h || !src[yy * w + xx]) v = 0;
+        }
+        out[y * w + x] = v;
+      }
+    }
+    return out;
+  };
+  return pass(pass(mask, true), false);
+}
+
+/** Média de blocos S×S: cinza (0–255) e peso do tecido de cada bloco. */
+function blocks(data, W, H, S) {
+  const w = Math.floor(W / S);
+  const h = Math.floor(H / S);
+  const rgb = new Float32Array(w * h * 3);
+  for (let y = 0; y < h * S; y++) {
+    const row = ((y / S) | 0) * w;
+    for (let x = 0; x < w * S; x++) {
+      const i = (y * W + x) * 3;
+      const o = (row + ((x / S) | 0)) * 3;
+      rgb[o] += data[i];
+      rgb[o + 1] += data[i + 1];
+      rgb[o + 2] += data[i + 2];
+    }
+  }
+  const gray = new Float32Array(w * h);
+  const fabric = new Float32Array(w * h);
+  const k = S * S;
+  for (let i = 0; i < w * h; i++) {
+    const [r, g, b] = [rgb[i * 3] / k, rgb[i * 3 + 1] / k, rgb[i * 3 + 2] / k];
+    gray[i] = (r + g + b) / 3;
+    fabric[i] = fabricWeight(r / 255, g / 255, b / 255);
+  }
+  return { w, h, gray, fabric };
+}
+
+const grayOf = (data) => {
+  const g = new Float32Array(data.length / 3);
+  for (let i = 0; i < g.length; i++) g[i] = (data[i * 3] + data[i * 3 + 1] + data[i * 3 + 2]) / 3;
+  return g;
 };
 
 /**
- * Confere uma foto gerada pela IA com a original. Recusa (ok = false, com os
- * motivos) quando:
- * - fora do tecido (madeira, fundo, sombra), alguma mancha mudou (objeto novo,
- *   peça deslocada, parte apagada) ou a imagem inteira mudou;
- * - a madeira (e o resto da peça fora do tecido) mudou de tom ou de acabamento;
- * - dentro do tecido, alguma região não segue o sombreado da original nem a cor
- *   do resto do tecido (almofada ou manta acrescentada, encosto cortado, outra
- *   forma);
- * - com `targetHex`, a cor medida no tecido não é a pedida (ou continua a original).
- * Trabalha em células de 4×4 px: a IA redesenha a imagem inteira e pixel a pixel
- * nunca bate. Na dúvida recusa: a reserva (recolor por computador) é fiel.
- *
- * @param {Buffer} original
- * @param {Buffer} generated
- * @param {{ targetHex?: string | null; limits?: Partial<typeof FIDELITY_LIMITS> }} [options]
+ * Melhor deslocamento (com escala sx, sy em torno do centro) em que a foto do
+ * GPT bate com a original nos pontos da lista (fora do tecido). Ponto (x, y) da
+ * original ↔ (cx + (x − cx)·sx + dx, cy + (y − cy)·sy + dy) na do GPT. Mede pela
+ * correlação (não liga para a foto do GPT ter ficado um pouco mais clara ou escura).
  */
-export async function fidelityCheck(original, generated, { targetHex = null, limits = {} } = {}) {
-  const L = { ...FIDELITY_LIMITS, ...limits };
-  const { width, height } = await sharp(original).metadata();
-  const A = await cellImage(original, width, height);
-  const B = await cellImage(await sharp(generated).removeAlpha().resize(width, height, { fit: "fill" }).toBuffer(), width, height);
-  const { w, h } = A;
-  const n = w * h;
-  const px = (img, i) => [img.data[i * 3] / 255, img.data[i * 3 + 1] / 255, img.data[i * 3 + 2] / 255];
-
-  // Regiões da original: tecido, borda do tecido, resto da peça (madeira, sombra) e fundo.
-  const weight = new Float32Array(n);
-  const anyFabric = new Uint8Array(n);
-  const fabric = new Uint8Array(n);
-  for (let i = 0; i < n; i++) {
-    weight[i] = fabricWeight(...px(A, i));
-    anyFabric[i] = weight[i] > 0 ? 1 : 0;
-    fabric[i] = weight[i] > 0.5 ? 1 : 0;
+function searchShift(gA, gB, w, h, points, [sx, sy], range, around = [0, 0]) {
+  const cx = (w - 1) / 2;
+  const cy = (h - 1) / 2;
+  const n = points.length;
+  const ax = new Float32Array(n);
+  const ay = new Float32Array(n);
+  const va = new Float32Array(n);
+  for (let k = 0; k < n; k++) {
+    const i = points[k];
+    ax[k] = cx + ((i % w) - cx) * sx;
+    ay[k] = cy + (((i / w) | 0) - cy) * sy;
+    va[k] = gA[i];
   }
-  const nearFabric = dilate(anyFabric, w, h, 2);
-  const fabricCore = erode(fabric, w, h, 1);
-  const ring = [];
-  for (let i = 0; i < n; i++) {
-    const x = i % w;
-    const y = (i / w) | 0;
-    if (x < 2 || y < 2 || x >= w - 2 || y >= h - 2) ring.push(i);
-  }
-  const bg = [0, 1, 2].map((c) => median(ring.map((i) => A.data[i * 3 + c])));
-  const diff = (i) => (Math.abs(A.data[i * 3] - B.data[i * 3]) + Math.abs(A.data[i * 3 + 1] - B.data[i * 3 + 1]) + Math.abs(A.data[i * 3 + 2] - B.data[i * 3 + 2])) / 3;
-  const fromBg = (i) => (Math.abs(A.data[i * 3] - bg[0]) + Math.abs(A.data[i * 3 + 1] - bg[1]) + Math.abs(A.data[i * 3 + 2] - bg[2])) / 3;
-
-  // 1) Fora do tecido: diferença média e maior mancha mudada (abertura de 5 × 5
-  // células descarta faixas finas, como um deslocamento de poucos pixels na borda).
-  const changed = new Uint8Array(n);
-  let sum = 0;
-  let count = 0;
-  let changedCount = 0;
-  const frameA = [0, 0, 0];
-  const frameB = [0, 0, 0];
-  let frameCount = 0;
-  for (let i = 0; i < n; i++) {
-    if (nearFabric[i]) continue;
-    const d = diff(i);
-    sum += d;
-    count++;
-    if (d > L.changedCell) {
-      changed[i] = 1;
-      changedCount++;
-    }
-    // Resto da peça (madeira, base, sombra): o que difere do fundo na original.
-    if (fromBg(i) > 24) {
-      for (let c = 0; c < 3; c++) {
-        frameA[c] += toLinear(A.data[i * 3 + c] / 255);
-        frameB[c] += toLinear(B.data[i * 3 + c] / 255);
+  let best = { dx: 0, dy: 0, score: -Infinity };
+  for (let dy = around[1] - range; dy <= around[1] + range; dy++) {
+    for (let dx = around[0] - range; dx <= around[0] + range; dx++) {
+      let m = 0;
+      let sa = 0;
+      let sb = 0;
+      let saa = 0;
+      let sbb = 0;
+      let sab = 0;
+      for (let k = 0; k < n; k++) {
+        const X = Math.round(ax[k] + dx);
+        const Y = Math.round(ay[k] + dy);
+        if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
+        const a = va[k];
+        const b = gB[Y * w + X];
+        m++;
+        sa += a;
+        sb += b;
+        saa += a * a;
+        sbb += b * b;
+        sab += a * b;
       }
-      frameCount++;
+      if (m < n * 0.6) continue;
+      const cov = sab - (sa * sb) / m;
+      const den = Math.sqrt(Math.max(1e-9, (saa - (sa * sa) / m) * (sbb - (sb * sb) / m)));
+      const score = cov / den;
+      if (score > best.score) best = { dx, dy, score };
     }
   }
-  const meanDiff = count ? sum / count : 0;
-  const changedShare = count ? changedCount / count : 0;
-  const blobShare = largestBlob(dilate(erode(changed, w, h, 2), w, h, 2), w) / n;
-
-  // 2) Madeira e resto da peça: mesma cor média (ΔE).
-  const meanLab = (acc, k) => lab(acc.map((v) => toSrgb(v / k)));
-  const frameDeltaE = frameCount ? deltaE(meanLab(frameA, frameCount), meanLab(frameB, frameCount)) : 0;
-
-  // 3) Dentro do tecido: a luminância da gerada tem de seguir a da original por uma
-  // curva crescente (a cor nova comprime os brilhos de outro jeito; por isso não
-  // é uma reta) e a cromaticidade tem de ser a do resto do tecido. O que foge dos
-  // dois é forma nova ou algo por cima. Faixas finas na borda (deslocamento de
-  // poucos pixels) não contam.
-  const core = [];
-  for (let i = 0; i < n; i++) if (fabricCore[i]) core.push(i);
-  const lum = (img, i) => luminance(...px(img, i));
-  const la = core.map((i) => lum(A, i));
-  const lb = core.map((i) => lum(B, i));
-  const order = core.map((_, k) => k).sort((p, q) => la[p] - la[q]);
-  const BINS = 32;
-  const knots = [];
-  for (let bIdx = 0; bIdx < BINS && order.length; bIdx++) {
-    const slice = order.slice(Math.floor((bIdx * order.length) / BINS), Math.floor(((bIdx + 1) * order.length) / BINS));
-    if (slice.length) knots.push([median(slice.map((k) => la[k])), median(slice.map((k) => lb[k]))]);
-  }
-  const curve = (x) => {
-    if (!knots.length) return 0;
-    if (x <= knots[0][0]) return knots[0][1];
-    for (let k = 1; k < knots.length; k++) {
-      if (x <= knots[k][0]) {
-        const [x0, y0] = knots[k - 1];
-        const [x1, y1] = knots[k];
-        return x1 > x0 ? y0 + ((x - x0) / (x1 - x0)) * (y1 - y0) : y1;
-      }
-    }
-    return knots[knots.length - 1][1];
-  };
-  const res = core.map((_, k) => lb[k] - curve(la[k]));
-  const sigma = 1.4826 * median(res.map(Math.abs));
-  const chroma = (img, i) => {
-    const rgb = px(img, i);
-    if (Math.max(...rgb) > 0.96) return null; // brilho estourado: sem cor para comparar
-    const [r, g, b] = rgb.map(toLinear);
-    const t = r + g + b;
-    return t > 0.03 ? [r / t, g / t] : null;
-  };
-  const chromaB = core.map((i) => chroma(B, i));
-  const lit = chromaB.filter(Boolean);
-  const chromaRef = [median(lit.map((c) => c[0])), median(lit.map((c) => c[1]))];
-  const anomaly = new Uint8Array(n);
-  const fabricSum = [0, 0, 0];
-  core.forEach((i, k) => {
-    const c = chromaB[k];
-    const expected = curve(la[k]);
-    const offShade = Math.abs(res[k]) > Math.max(0.035, 5 * sigma) && Math.abs(res[k]) > 0.35 * Math.max(lb[k], expected);
-    const offHue = c !== null && Math.hypot(c[0] - chromaRef[0], c[1] - chromaRef[1]) > 0.07;
-    if (offShade || offHue) anomaly[i] = 1;
-    for (let ch = 0; ch < 3; ch++) fabricSum[ch] += toLinear(B.data[i * 3 + ch] / 255);
-  });
-  const opened = dilate(erode(anomaly, w, h, 2), w, h, 2);
-  let anomalyCount = 0;
-  for (const i of core) if (opened[i]) anomalyCount++;
-  const fabricAnomalyShare = core.length ? anomalyCount / core.length : 1;
-  const fabricBlobShare = largestBlob(opened, w) / n;
-  const fabricRgb = core.length ? fabricSum.map((v) => toSrgb(v / core.length)) : null;
-  const fabricHex = fabricRgb ? toHex(fabricRgb) : null;
-
-  // 4) Cor pedida: a medida tem de estar perto dela e mais perto dela que da original.
-  let colorDeltaE = null;
-  let colorOk = true;
-  if (targetHex && fabricRgb) {
-    const origSum = [0, 0, 0];
-    for (const i of core) for (let ch = 0; ch < 3; ch++) origSum[ch] += toLinear(A.data[i * 3 + ch] / 255);
-    const origLab = lab(origSum.map((v) => toSrgb(v / core.length)));
-    const gotLab = lab(fabricRgb);
-    colorDeltaE = deltaE(gotLab, lab(hexRgb(targetHex)));
-    colorOk = colorDeltaE <= L.maxColorDeltaE && colorDeltaE < deltaE(gotLab, origLab);
-  }
-
-  const reasons = [];
-  if (meanDiff > L.maxMeanDiff) reasons.push("a imagem inteira mudou fora do tecido");
-  if (blobShare > L.maxBlobShare) reasons.push("uma região mudou fora do tecido (objeto novo, peça deslocada ou parte apagada)");
-  if (frameDeltaE > L.maxFrameDeltaE) reasons.push("a madeira ou o resto da peça mudou de tom");
-  if (fabricAnomalyShare > L.maxFabricAnomalyShare || fabricBlobShare > L.maxBlobShare) {
-    reasons.push("o tecido mudou de forma ou ganhou algo por cima (não é só a cor)");
-  }
-  if (!colorOk) reasons.push("a cor do tecido não é a pedida");
-  return {
-    ok: reasons.length === 0,
-    reasons,
-    meanDiff,
-    changedShare,
-    blobShare,
-    frameDeltaE,
-    fabricAnomalyShare,
-    fabricBlobShare,
-    colorDeltaE,
-    fabricHex,
-  };
+  return best;
 }
 
 /**
- * Fotos de uma cor pelo GPT, com conferência. A cor só usa o GPT se os 4 ângulos
- * passarem (assim o tom é o mesmo em todas as fotos); senão, a cor inteira fica
- * com a versão recolorida por computador. Devolve a cor medida na frente (para o
- * 3D) ou null.
+ * Alinha a foto do GPT com a original: a IA redesenha a imagem inteira e pode
+ * entregar a peça alguns pixels deslocada, um pouco maior ou menor, ou em outro
+ * formato (cortando as sobras ou encolhendo com faixas). `B` é a foto do GPT já
+ * esticada para W × H; `ratio` é o formato dela ÷ o da original. Devolve a
+ * transformação e a diferença que sobra fora do tecido (0–255, já descontada a
+ * mudança geral de luz).
+ */
+function alignTo(A, B, W, H, ratio, maxShift) {
+  const S = 4;
+  const a = blocks(A, W, H, S);
+  const b = blocks(B, W, H, S);
+  // Fora do tecido e longe da borda dele (2 blocos = 8 px): onde a foto do GPT tem de bater.
+  const outside = Uint8Array.from(a.fabric, (f) => (f === 0 ? 1 : 0));
+  const keep = erode(outside, a.w, a.h, 2);
+  const coarsePoints = [];
+  for (let i = 0; i < keep.length; i += 3) if (keep[i]) coarsePoints.push(i);
+  const finePoints = [];
+  for (let y = 0; y < H; y += 4) {
+    for (let x = 0; x < W; x += 4) {
+      if (keep[Math.min(a.h - 1, (y / S) | 0) * a.w + Math.min(a.w - 1, (x / S) | 0)]) finePoints.push(y * W + x);
+    }
+  }
+  // Formatos possíveis: esticada (1, 1); cortada ou com faixas, em cima/embaixo ou dos lados.
+  const shapes = [[1, 1]];
+  if (Math.abs(ratio - 1) > 0.01) shapes.push([1, ratio], [1 / ratio, 1]);
+  const candidates = [];
+  for (const [fx, fy] of shapes) {
+    for (const s of [0.98, 1, 1.02]) {
+      const scale = [fx * s, fy * s];
+      candidates.push({ scale, ...searchShift(a.gray, b.gray, a.w, a.h, coarsePoints, scale, Math.ceil(maxShift / S)) });
+    }
+  }
+  candidates.sort((p, q) => q.score - p.score);
+  const gA = grayOf(A);
+  const gB = grayOf(B);
+  let best = null;
+  for (const c of candidates.slice(0, 2)) {
+    const fine = searchShift(gA, gB, W, H, finePoints, c.scale, S, [c.dx * S, c.dy * S]);
+    if (!best || fine.score > best.score) best = { scale: c.scale, ...fine };
+  }
+  // Diferença que sobra, com ganho e brilho ajustados (B ≈ k·A + c).
+  const cx = (W - 1) / 2;
+  const cy = (H - 1) / 2;
+  const [sx, sy] = best.scale;
+  const at = (x, y) => {
+    const X = Math.round(cx + (x - cx) * sx + best.dx);
+    const Y = Math.round(cy + (y - cy) * sy + best.dy);
+    return X < 0 || Y < 0 || X >= W || Y >= H ? -1 : Y * W + X;
+  };
+  let m = 0;
+  let sa = 0;
+  let sb = 0;
+  let saa = 0;
+  let sab = 0;
+  const pa = [];
+  const pb = [];
+  for (const i of finePoints) {
+    const j = at(i % W, (i / W) | 0);
+    if (j < 0) continue;
+    pa.push(gA[i]);
+    pb.push(gB[j]);
+    m++;
+    sa += gA[i];
+    sb += gB[j];
+    saa += gA[i] * gA[i];
+    sab += gA[i] * gB[j];
+  }
+  const ma = sa / (m || 1);
+  const mb = sb / (m || 1);
+  const vaa = saa - m * ma * ma;
+  const k = vaa > 0 ? (sab - m * ma * mb) / vaa : 1;
+  let diff = 0;
+  for (let i = 0; i < m; i++) diff += Math.abs(pb[i] - (mb + k * (pa[i] - ma)));
+  return { scale: best.scale, dx: best.dx, dy: best.dy, at, diff: m ? diff / m : Infinity };
+}
+
+/**
+ * Pares (luz na original → cor na foto do GPT) no miolo do tecido, numa grade de
+ * 2 px, sem os 6 px da borda (onde o alinhamento erra mais).
+ */
+function tonePairs(A, B, W, H, at) {
+  const S = 2;
+  const w = Math.floor(W / S);
+  const h = Math.floor(H / S);
+  const fabric = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * S * W + x * S) * 3;
+      fabric[y * w + x] = fabricWeight(A[i] / 255, A[i + 1] / 255, A[i + 2] / 255) > 0.5 ? 1 : 0;
+    }
+  }
+  const core = erode(fabric, w, h, 3);
+  const l = [];
+  const c = [];
+  const original = [0, 0, 0];
+  for (let k = 0; k < core.length; k++) {
+    if (!core[k]) continue;
+    const x = (k % w) * S;
+    const y = ((k / w) | 0) * S;
+    const j = at(x, y);
+    if (j < 0) continue;
+    const i = (y * W + x) * 3;
+    const [r, g, b] = [A[i] / 255, A[i + 1] / 255, A[i + 2] / 255];
+    l.push(luminance(r, g, b));
+    c.push(toLinear(B[j * 3] / 255), toLinear(B[j * 3 + 1] / 255), toLinear(B[j * 3 + 2] / 255));
+    original[0] += toLinear(r);
+    original[1] += toLinear(g);
+    original[2] += toLinear(b);
+  }
+  return { l: Float64Array.from(l), c: Float32Array.from(c), original };
+}
+
+/** Regressão isotônica (crescente), pesos iguais. */
+function isotonic(values) {
+  const blocksV = [];
+  for (const v of values) {
+    blocksV.push([v, 1]);
+    while (blocksV.length > 1 && blocksV[blocksV.length - 2][0] > blocksV[blocksV.length - 1][0]) {
+      const [v2, n2] = blocksV.pop();
+      const [v1, n1] = blocksV.pop();
+      blocksV.push([(v1 * n1 + v2 * n2) / (n1 + n2), n1 + n2]);
+    }
+  }
+  return blocksV.flatMap(([v, n]) => Array(n).fill(v));
+}
+
+/**
+ * Curva de tom: para cada nível de luz da original, a cor (linear) do tecido na
+ * foto do GPT. 32 faixas de luz, mediana de cada canal (resiste a estampa ou
+ * almofada por cima), sempre crescente (mais luz, cor mais clara).
+ */
+function learnTone(sets) {
+  const l = sets.flatMap((s) => Array.from(s.l));
+  const c = new Float32Array(l.length * 3);
+  let offset = 0;
+  for (const s of sets) {
+    c.set(s.c, offset * 3);
+    offset += s.l.length;
+  }
+  const order = Array.from(l.keys()).sort((p, q) => l[p] - l[q]);
+  const BINS = 32;
+  const knots = [];
+  for (let k = 0; k < BINS; k++) {
+    const slice = order.slice(Math.floor((k * order.length) / BINS), Math.floor(((k + 1) * order.length) / BINS));
+    if (!slice.length) continue;
+    knots.push({ l: median(slice.map((i) => l[i])), c: [0, 1, 2].map((ch) => median(slice.map((i) => c[i * 3 + ch]))) });
+  }
+  const fixed = [0, 1, 2].map((ch) => isotonic(knots.map((k) => k.c[ch])));
+  return knots.map((k, i) => ({ l: k.l, c: [fixed[0][i], fixed[1][i], fixed[2][i]] }));
+}
+
+/** Cor (linear) do tom para uma luz: entre as faixas, interpola; fora delas, proporcional à luz. */
+export function toneAt(knots, l) {
+  const first = knots[0];
+  const last = knots[knots.length - 1];
+  if (l <= first.l) return first.c.map((v) => (first.l > 0 ? (v * l) / first.l : v));
+  if (l >= last.l) return last.c.map((v) => Math.min(1, last.l > 0 ? (v * l) / last.l : v));
+  let lo = 0;
+  let hi = knots.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (knots[mid].l <= l) lo = mid;
+    else hi = mid;
+  }
+  const a = knots[lo];
+  const b = knots[hi];
+  const t = b.l > a.l ? (l - a.l) / (b.l - a.l) : 1;
+  return a.c.map((v, ch) => v + t * (b.c[ch] - v));
+}
+
+/** Fração dos pontos do tecido do GPT que fogem do tom (amostra de até 20 mil pontos). */
+function offToneShare(set, knots, limit) {
+  const n = set.l.length;
+  if (!n) return 1;
+  const step = Math.max(1, Math.floor(n / 20000));
+  let off = 0;
+  let count = 0;
+  for (let i = 0; i < n; i += step) {
+    const got = [set.c[i * 3], set.c[i * 3 + 1], set.c[i * 3 + 2]];
+    if (deltaE(labLinear(got), labLinear(toneAt(knots, set.l[i]))) > limit) off++;
+    count++;
+  }
+  return off / count;
+}
+
+/**
+ * Tom da cor nova tirado das fotos do GPT (uma por ângulo). Cada foto é alinhada
+ * com a original; um ângulo não serve quando a foto do GPT não corresponde à
+ * original ou quando o tecido dela não é uma cor só (estampa, dois tons, algo
+ * por cima). Com pelo menos `minViews` ângulos bons, o tom sai de todos juntos
+ * (assim a cor é a mesma nos 4 ângulos) e a cor medida tem de ser a pedida.
+ *
+ * @param {{ original: Buffer; generated?: Buffer; view?: string }[]} shots
+ * @param {{ targetHex: string; limits?: Partial<typeof TONE_LIMITS> }} options
+ */
+export async function gptTone(shots, { targetHex, limits = {} }) {
+  const L = { ...TONE_LIMITS, ...limits };
+  const views = [];
+  const good = [];
+  const original = [0, 0, 0];
+  for (const shot of shots) {
+    if (!shot.generated) {
+      views.push({ view: shot.view ?? null, used: false, reason: "a OpenAI não devolveu este ângulo" });
+      continue;
+    }
+    const { data: A, info } = await sharp(shot.original).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const W = info.width;
+    const H = info.height;
+    const meta = await sharp(shot.generated).metadata();
+    const B = await sharp(shot.generated).removeAlpha().resize(W, H, { fit: "fill" }).raw().toBuffer();
+    const align = alignTo(A, B, W, H, meta.width / meta.height / (W / H), L.maxShift);
+    const view = {
+      view: shot.view ?? null,
+      dx: align.dx,
+      dy: align.dy,
+      scale: align.scale.map((v) => Number(v.toFixed(3))),
+      alignDiff: align.diff,
+      offToneShare: null,
+      used: false,
+      reason: null,
+    };
+    views.push(view);
+    if (align.diff > L.maxAlignDiff) {
+      view.reason = "a foto do GPT não corresponde à original (outra peça, outro ângulo ou peça fora do lugar)";
+      continue;
+    }
+    const set = tonePairs(A, B, W, H, align.at);
+    view.offToneShare = set.l.length ? offToneShare(set, learnTone([set]), L.offToneDeltaE) : 1;
+    if (view.offToneShare > L.maxOffToneShare) {
+      view.reason = "o GPT não trocou só a cor do tecido (estampa, dois tons ou algo por cima)";
+      continue;
+    }
+    view.used = true;
+    good.push(set);
+    for (let ch = 0; ch < 3; ch++) original[ch] += set.original[ch];
+  }
+
+  const reasons = [];
+  if (good.length < L.minViews) {
+    reasons.push(`o GPT acertou ${good.length} de ${shots.length} ângulos (precisa de ${L.minViews})`);
+    return { ok: false, reasons, views, tone: null, fabricHex: null, colorDeltaE: null };
+  }
+  const tone = learnTone(good);
+  // Cor medida: o tom aplicado à luz do tecido da original (é a cor que vai para a loja).
+  const sum = [0, 0, 0];
+  let n = 0;
+  for (const set of good) {
+    for (let i = 0; i < set.l.length; i += 4) {
+      const c = toneAt(tone, set.l[i]);
+      for (let ch = 0; ch < 3; ch++) sum[ch] += c[ch];
+      n++;
+    }
+  }
+  const fabricLinear = sum.map((v) => v / n);
+  const fabricHex = toHex(fabricLinear.map(toSrgb));
+  const count = good.reduce((t, s) => t + s.l.length, 0);
+  const got = labLinear(fabricLinear);
+  const colorDeltaE = deltaE(got, labLinear(hexRgb(targetHex).map(toLinear)));
+  const fromOriginal = deltaE(got, labLinear(original.map((v) => v / count)));
+  if (colorDeltaE > L.maxColorDeltaE || colorDeltaE >= fromOriginal) reasons.push("a cor do tecido não é a pedida");
+  return { ok: reasons.length === 0, reasons, views, tone: reasons.length ? null : tone, fabricHex, colorDeltaE };
+}
+
+/**
+ * Fotos de uma cor pelo GPT. O GPT gera os 4 ângulos; deles sai só o tom da cor
+ * (gptTone) e as fotos da loja são as originais com o tecido repintado nesse tom.
+ * Se o tom não serve, a cor inteira fica com o recolor por computador. Devolve a
+ * cor medida (para o 3D) ou null.
  */
 async function gptPhotos(color, engine, report) {
   const dir = await mkdtemp(path.join(tmpdir(), "cuxoes-cores-"));
@@ -405,35 +553,45 @@ async function gptPhotos(color, engine, report) {
       const output = path.join(dir, `${color.slug}-${view}.jpg`);
       try {
         await engine.recolor(sourceFile, color.name.toLowerCase(), color.hex, output);
-        const generated = await readFile(output);
-        shots.push({ view, original, generated, check: await fidelityCheck(original, generated, { targetHex: color.hex }) });
+        shots.push({ view, original, generated: await readFile(output) });
       } catch (e) {
         shots.push({ view, original, error: (e instanceof Error ? e.message : String(e)).slice(0, 200) });
       }
     }
-    const allOk = shots.every((shot) => shot.check?.ok);
+    const result = await gptTone(shots, { targetHex: color.hex });
     for (const shot of shots) {
-      const target = path.join(OUT, `poltrona-${color.slug}-${shot.view}.jpg`);
-      if (allOk) {
-        const { width, height } = await sharp(shot.original).metadata();
-        await writeFile(target, await sharp(shot.generated).resize(width, height, { fit: "fill" }).jpeg({ quality: 84, mozjpeg: true }).toBuffer());
-      } else {
-        const { image } = await recolor(shot.original, color.hex);
-        await writeFile(target, await image.jpeg({ quality: 84, mozjpeg: true }).toBuffer());
-      }
-      const entry = {
+      const { image } = result.ok ? await recolorWith(shot.original, (l) => toneAt(result.tone, l)) : await recolor(shot.original, color.hex);
+      await writeFile(path.join(OUT, `poltrona-${color.slug}-${shot.view}.jpg`), await image.jpeg({ quality: 84, mozjpeg: true }).toBuffer());
+      const v = result.views.find((x) => x.view === shot.view);
+      report.fotos.push({
         cor: color.slug,
         vista: shot.view,
-        fonte: allOk ? "gpt" : "computador",
-        ...(shot.check ?? {}),
+        fonte: result.ok ? "tom-do-gpt" : "computador",
+        ...(v?.alignDiff !== undefined
+          ? {
+              deslocamentoPx: [v.dx, v.dy],
+              escala: v.scale,
+              diferencaForaDoTecido: Number(v.alignDiff.toFixed(2)),
+              foraDoTom: v.offToneShare === null ? null : Number(v.offToneShare.toFixed(3)),
+            }
+          : {}),
+        ...(v ? { usadoNoTom: v.used, ...(v.reason ? { motivo: v.reason } : {}) } : {}),
         ...(shot.error ? { erro: shot.error } : {}),
-        ...(!allOk && shot.check?.ok ? { observacao: "passou, mas outro ângulo desta cor não passou: a cor inteira fica pelo computador" } : {}),
-      };
-      report.push(entry);
-      const why = shot.error ?? (shot.check.ok ? (allOk ? "conferida" : entry.observacao) : shot.check.reasons.join("; "));
-      console.log(`${color.name} · ${shot.view}: ${entry.fonte} (${why})`);
+      });
     }
-    return allOk ? (shots.find((shot) => shot.view === "frente")?.check.fabricHex ?? null) : null;
+    report.cores.push({
+      cor: color.slug,
+      fonte: result.ok ? "tom-do-gpt" : "computador",
+      pedida: color.hex,
+      medida: result.fabricHex,
+      deltaE: result.colorDeltaE === null ? null : Number(result.colorDeltaE.toFixed(1)),
+      motivos: result.reasons,
+    });
+    const how = result.ok
+      ? `tom do GPT (${result.views.filter((v) => v.used).length} de ${VIEWS.length} ângulos; medida ${result.fabricHex}, ΔE ${result.colorDeltaE.toFixed(1)})`
+      : `computador (${result.reasons.join("; ")})`;
+    console.log(`${color.name}: ${how}`);
+    return result.ok ? result.fabricHex : null;
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -453,7 +611,7 @@ async function main(args) {
   }
 
   // Fotos de catálogo: cada cor nos 4 ângulos. A cor do 3D segue a cor das fotos.
-  const report = [];
+  const report = { cores: [], fotos: [] };
   const colors3d = Object.fromEntries(EXAMPLE_COLORS.map((c) => [c.slug, c.hex]));
   for (const color of EXAMPLE_COLORS.filter((c) => c.slug !== "azul")) {
     if (engine) {
@@ -470,9 +628,9 @@ async function main(args) {
     }
   }
   if (engine) {
-    await writeFile(path.join(OUT, "relatorio-gpt.json"), JSON.stringify({ cores3d: colors3d, fotos: report }, null, 2));
-    const fromGpt = report.filter((r) => r.fonte === "gpt").length;
-    console.log(`GPT aprovado em ${fromGpt} de ${report.length} fotos (as outras ficaram recoloridas por computador).`);
+    await writeFile(path.join(OUT, "relatorio-gpt.json"), JSON.stringify({ cores3d: colors3d, ...report }, null, 2));
+    const fromGpt = report.cores.filter((c) => c.fonte === "tom-do-gpt").length;
+    console.log(`Tom do GPT usado em ${fromGpt} de ${report.cores.length} cores (as outras ficaram só pelo computador).`);
   }
 
   // Modelo 3D com as cores no mesmo arquivo (KHR_materials_variants).

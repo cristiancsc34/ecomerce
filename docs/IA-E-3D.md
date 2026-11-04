@@ -75,14 +75,20 @@ encaixar quando o provedor for escolhido.
 - **Cores de exemplo (só desenvolvimento)**: `CATALOG_DEV_EXAMPLES=1` com `CATALOG_SOURCE=demo`, fora da Vercel, mostra
   a Poltrona Azul em azul, marrom, branco, vermelho e bege. As fotos e o `.glb` com as 5 cores
   (`public/demo/exemplo`) saem de `npm run demo:variantes` (**recolor por computador**: só o tecido muda; madeira, fundo
-  e sombras ficam) ou de `npm run demo:variantes:gpt` (**pelo GPT**, com `OPENAI_API_KEY`). No modo GPT, cada foto
-  gerada passa pela conferência `fidelityCheck`, em células de 4×4 px: fora do tecido, nenhuma mancha mudou (objeto
-  novo, peça deslocada ou parte apagada; a partir de ~44 × 44 px); a madeira não mudou de tom (ΔE ≤ 6); dentro do
-  tecido, tudo segue o sombreado da original e a cor do resto do tecido (pega almofada ou manta acrescentada, encosto
-  cortado, outra forma); e a cor medida é a pedida (ΔE ≤ 28, e mais perto dela que do azul). Se qualquer um dos 4
-  ângulos de uma cor não passar, a cor inteira fica com a versão por computador (o tom fica igual em todas as fotos);
-  o 3D usa a cor medida na frente. Calibrada com as 16 fotos recoloridas (passam) e com fotos adulteradas (recusadas),
-  em `tests/unit/variantes-gpt.test.ts`. Relatório em `public/demo/exemplo/relatorio-gpt.json`. Marcadas como ilustrativas e sem
+  e sombras ficam) ou de `npm run demo:variantes:gpt` (**tom do GPT**, com `OPENAI_API_KEY`). No modo GPT, **a foto
+  da loja é sempre a original com o tecido repintado**: madeira, fundo, sombra e forma vêm da original, pixel a pixel,
+  e nada que a IA acrescente ou mude na foto dela chega à loja. Da foto do GPT sai só o tom da cor nova (`gptTone`):
+  que cor o tecido tem em cada nível de luz (sombra, dobra, brilho), em 32 faixas, pela mediana. Antes, cada foto do
+  GPT é alinhada com a original (deslocamento de até 48 px, escala de ±2%, formato diferente cortado ou com faixas),
+  e o ângulo é descartado se a foto não corresponde à original (diferença fora do tecido > 10, já descontada a luz)
+  ou se o tecido dela não é uma cor só (> 25% fora do tom: estampa, dois tons, algo por cima). Com pelo menos 3 dos 4
+  ângulos bons, o tom sai de todos juntos (a cor fica igual nos 4) e a cor medida tem de ser a pedida (ΔE ≤ 10 e mais
+  perto dela que do azul). Senão, a cor inteira fica com o recolor por computador. O 3D usa a cor medida.
+  Por que não usar a foto do GPT direto: um teste de ataque (109 casos) mostrou que conferir pixel a pixel não separa
+  adulteração de foto fiel refeita — sofá ou almofadas acrescentados, apoio de cabeça apagado, madeira mais escura e
+  estampas passavam, e uma foto fiel deslocada 12 px era recusada. Calibrado com 41 casos (fiéis refeitas, cor
+  errada, foto que não corresponde) e testado em `tests/unit/variantes-gpt.test.ts`. Relatório por cor e por foto em
+  `public/demo/exemplo/relatorio-gpt.json`. Marcadas como ilustrativas e sem
   preço. Não aparecem na loja de verdade. Proposta para o painel: [`CORES-NO-ESTUDIO.md`](CORES-NO-ESTUDIO.md).
 - **Para arquitetos e designers** (fase de teste): enquanto as medidas não forem conferidas com o modelo 3D, a página
   mostra só uma linha discreta no fim — “É arquiteto ou designer de interiores? Peça o arquivo 3D e a ficha técnica” —
