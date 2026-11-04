@@ -53,7 +53,7 @@ function withColors(product: Product): Product {
       type: "image",
       url: `/demo/exemplo/poltrona-${c.slug}-${v.key}.jpg`,
       storagePath: `demo/exemplo/poltrona-${c.slug}-${v.key}.jpg`,
-      altText: `Poltrona ${c.name.toLowerCase()}, ${v.label} (cor de exemplo: foto recolorida por computador)`,
+      altText: `Poltrona ${c.name.toLowerCase()}, ${v.label} (cor de exemplo, imagem ilustrativa)`,
       sortOrder: vi,
       isPrimary: vi === 0,
       isIllustrative: true,

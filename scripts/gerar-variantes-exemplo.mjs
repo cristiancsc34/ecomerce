@@ -4,20 +4,26 @@
  * marrom, branco, vermelho e bege, para mostrar a troca de cor na página do
  * produto sem cadastrar cores que a loja não vende.
  *
- *   npm run demo:variantes
+ *   npm run demo:variantes          # fotos recoloridas por computador (grátis, na hora)
+ *   npm run demo:variantes:gpt      # fotos geradas pelo GPT (precisa de OPENAI_API_KEY)
  *
  * Gera em public/demo/exemplo/:
  * - as 4 fotos de catálogo de cada cor (só o tecido muda de cor: a madeira, o
- *   fundo e as sombras ficam como na foto original);
+ *   fundo e as sombras ficam como na foto original). No modo GPT, cada foto
+ *   gerada é conferida com a original fora do tecido; se a IA mexeu na peça ou
+ *   no fundo, a foto é descartada e fica a versão recolorida por computador;
  * - poltrona-cores.glb: o modelo 3D com as 5 cores no mesmo arquivo
  *   (extensão KHR_materials_variants; o visualizador troca pelo nome da cor).
+ *   No modo GPT, a cor do 3D é a cor medida no tecido das fotos geradas.
  *
  * Só aparece na loja com CATALOG_DEV_EXAMPLES=1, fora da Vercel e no modo
  * demonstração (lib/catalog/dev-examples.ts). Não são fotos reais: para vender
  * uma cor de verdade, cadastre a variação no painel com as fotos do produto.
  */
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS, KHRMaterialsVariants } from "@gltf-transform/extensions";
 import sharp from "sharp";
@@ -45,7 +51,7 @@ const smooth = (a, b, x) => {
 };
 
 /** Peso do "tecido azul" no pixel (0–1): matiz azul, saturado o bastante. */
-function fabricWeight(r, g, b) {
+export function fabricWeight(r, g, b) {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const d = max - min;
@@ -79,7 +85,7 @@ function fabricLuminance(data) {
  * Troca a cor do tecido mantendo o sombreado: cada pixel do tecido vira a cor
  * nova × (luminância do pixel ÷ luminância média do tecido), em espaço linear.
  */
-async function recolor(input, hex, { reference } = {}) {
+export async function recolor(input, hex, { reference } = {}) {
   const { data, info } = await sharp(input).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   const mean = reference ?? fabricLuminance(data);
   const target = hexRgb(hex).map(toLinear);
@@ -105,18 +111,115 @@ async function recolor(input, hex, { reference } = {}) {
   return { image: sharp(out, { raw: { width: info.width, height: info.height, channels: 3 } }), mean };
 }
 
-async function main() {
-  await mkdir(OUT, { recursive: true });
+const toHex = (rgb) => `#${rgb.map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 
-  // Fotos de catálogo: cada cor nos 4 ângulos.
-  for (const color of EXAMPLE_COLORS.filter((c) => c.slug !== "azul")) {
-    for (const view of VIEWS) {
-      const source = await readFile(path.join(DEMO, `poltrona-azul-${view}.jpg`));
-      const { image } = await recolor(source, color.hex);
-      const file = path.join(OUT, `poltrona-${color.slug}-${view}.jpg`);
-      await writeFile(file, await image.jpeg({ quality: 84, mozjpeg: true }).toBuffer());
+/**
+ * Confere uma foto gerada pela IA com a original: fora do tecido (madeira, fundo,
+ * sombra) as duas têm de ser praticamente iguais. Compara as duas desfocadas de
+ * leve (a IA redesenha a imagem inteira, pixel a pixel nunca bate) e devolve a
+ * diferença média fora do tecido (0–255), quanto da área "mudou de verdade" e a
+ * cor média do tecido na foto gerada.
+ */
+export async function fidelityCheck(original, generated, { maxMeanDiff = 12, maxChangedShare = 0.04 } = {}) {
+  const a = await sharp(original).removeAlpha().blur(2).raw().toBuffer({ resolveWithObject: true });
+  const { width, height } = a.info;
+  const b = await sharp(generated).removeAlpha().resize(width, height, { fit: "fill" }).blur(2).raw().toBuffer();
+  const raw = await sharp(original).removeAlpha().raw().toBuffer();
+  let sum = 0;
+  let count = 0;
+  let changed = 0;
+  const fabric = [0, 0, 0];
+  let fabricCount = 0;
+  for (let i = 0; i < raw.length; i += 3) {
+    const w = fabricWeight(raw[i] / 255, raw[i + 1] / 255, raw[i + 2] / 255);
+    if (w > 0.5) {
+      for (let c = 0; c < 3; c++) fabric[c] += toLinear(b[i + c] / 255);
+      fabricCount++;
+      continue;
     }
-    console.log(`fotos: ${color.name}`);
+    if (w > 0) continue; // borda do tecido: não conta
+    const d = (Math.abs(a.data[i] - b[i]) + Math.abs(a.data[i + 1] - b[i + 1]) + Math.abs(a.data[i + 2] - b[i + 2])) / 3;
+    sum += d;
+    count++;
+    if (d > 40) changed++;
+  }
+  const meanDiff = count ? sum / count : 0;
+  const changedShare = count ? changed / count : 0;
+  const fabricHex = fabricCount ? toHex(fabric.map((v) => toSrgb(v / fabricCount))) : null;
+  return { ok: meanDiff <= maxMeanDiff && changedShare <= maxChangedShare, meanDiff, changedShare, fabricHex };
+}
+
+/** Fotos de uma cor pelo GPT, com conferência; sem passar, fica a versão por computador. */
+async function gptPhotos(color, engine, report) {
+  const dir = await mkdtemp(path.join(tmpdir(), "cuxoes-cores-"));
+  const measured = [];
+  try {
+    for (const view of VIEWS) {
+      const sourceFile = path.join(DEMO, `poltrona-azul-${view}.jpg`);
+      const original = await readFile(sourceFile);
+      const output = path.join(dir, `${color.slug}-${view}.jpg`);
+      const target = path.join(OUT, `poltrona-${color.slug}-${view}.jpg`);
+      let entry;
+      try {
+        await engine.recolor(sourceFile, color.name.toLowerCase(), color.hex, output);
+        const generated = await readFile(output);
+        const check = await fidelityCheck(original, generated);
+        entry = { cor: color.slug, vista: view, fonte: check.ok ? "gpt" : "computador", ...check };
+        if (check.ok) {
+          const { width, height } = await sharp(original).metadata();
+          await writeFile(target, await sharp(generated).resize(width, height, { fit: "fill" }).jpeg({ quality: 84, mozjpeg: true }).toBuffer());
+          if (check.fabricHex) measured.push(check.fabricHex);
+        }
+      } catch (e) {
+        entry = { cor: color.slug, vista: view, fonte: "computador", erro: (e instanceof Error ? e.message : String(e)).slice(0, 200) };
+      }
+      if (entry.fonte === "computador") {
+        const { image } = await recolor(original, color.hex);
+        await writeFile(target, await image.jpeg({ quality: 84, mozjpeg: true }).toBuffer());
+      }
+      report.push(entry);
+      console.log(`${color.name} · ${view}: ${entry.fonte}${entry.erro ? ` (${entry.erro})` : entry.meanDiff !== undefined ? ` (diferença fora do tecido ${entry.meanDiff.toFixed(1)}, área mudada ${(entry.changedShare * 100).toFixed(1)}%)` : ""}`);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+  return measured[0] ?? null; // a frente manda na cor do 3D
+}
+
+async function main(args) {
+  await mkdir(OUT, { recursive: true });
+  const useGpt = args.includes("--gpt");
+  let engine = null;
+  if (useGpt) {
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("Modo --gpt precisa da variável OPENAI_API_KEY. Sem ela, rode sem --gpt (recolor por computador).");
+      process.exit(1);
+    }
+    const { openaiRecolorEngine } = await import("./ai-pipeline.mjs");
+    engine = openaiRecolorEngine();
+  }
+
+  // Fotos de catálogo: cada cor nos 4 ângulos. A cor do 3D segue a cor das fotos.
+  const report = [];
+  const colors3d = Object.fromEntries(EXAMPLE_COLORS.map((c) => [c.slug, c.hex]));
+  for (const color of EXAMPLE_COLORS.filter((c) => c.slug !== "azul")) {
+    if (engine) {
+      const measured = await gptPhotos(color, engine, report);
+      if (measured) colors3d[color.slug] = measured;
+    } else {
+      for (const view of VIEWS) {
+        const source = await readFile(path.join(DEMO, `poltrona-azul-${view}.jpg`));
+        const { image } = await recolor(source, color.hex);
+        const file = path.join(OUT, `poltrona-${color.slug}-${view}.jpg`);
+        await writeFile(file, await image.jpeg({ quality: 84, mozjpeg: true }).toBuffer());
+      }
+      console.log(`fotos: ${color.name}`);
+    }
+  }
+  if (engine) {
+    await writeFile(path.join(OUT, "relatorio-gpt.json"), JSON.stringify({ cores3d: colors3d, fotos: report }, null, 2));
+    const fromGpt = report.filter((r) => r.fonte === "gpt").length;
+    console.log(`GPT aprovado em ${fromGpt} de ${report.length} fotos (as outras ficaram recoloridas por computador).`);
   }
 
   // Modelo 3D com as cores no mesmo arquivo (KHR_materials_variants).
@@ -132,7 +235,7 @@ async function main() {
   const variants = Object.fromEntries(EXAMPLE_COLORS.map((c) => [c.slug, ext.createVariant(c.slug)]));
   const materials = { azul: material };
   for (const color of EXAMPLE_COLORS.filter((c) => c.slug !== "azul")) {
-    const { image } = await recolor(baseImage, color.hex, { reference: mean });
+    const { image } = await recolor(baseImage, colors3d[color.slug], { reference: mean });
     const texture = doc
       .createTexture(`tecido-${color.slug}`)
       .setMimeType("image/jpeg")
@@ -154,4 +257,4 @@ async function main() {
   console.log(`modelo 3D com ${EXAMPLE_COLORS.length} cores: ${(glb.length / 1024 / 1024).toFixed(2)} MB`);
 }
 
-await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main(process.argv.slice(2));

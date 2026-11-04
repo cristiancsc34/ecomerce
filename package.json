@@ -14,6 +14,7 @@
     "check": "npm run lint && npm run typecheck && npm run test",
     "demo:assets": "node scripts/generate-demo-assets.mjs",
     "demo:variantes": "node scripts/gerar-variantes-exemplo.mjs",
+    "demo:variantes:gpt": "node --env-file-if-exists=.env.local scripts/gerar-variantes-exemplo.mjs --gpt",
     "config:verificar": "node scripts/verificar-config.mjs",
     "kit:montar": "node scripts/montar-kit.mjs",
     "admin:create": "node --env-file=.env.local scripts/create-admin.mjs",

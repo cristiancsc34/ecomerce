@@ -56,8 +56,11 @@ encaixar quando o provedor for escolhido.
   ligar uma foto ou um modelo a uma cor (hoje só pelo banco).
 - **Cores de exemplo (só desenvolvimento)**: `CATALOG_DEV_EXAMPLES=1` com `CATALOG_SOURCE=demo`, fora da Vercel, mostra
   a Poltrona Azul em azul, marrom, branco, vermelho e bege. As fotos e o `.glb` com as 5 cores
-  (`public/demo/exemplo`, `npm run demo:variantes`) são a poltrona azul **recolorida por computador** (só o tecido muda;
-  madeira, fundo e sombras ficam), marcadas como ilustrativas e sem preço. Não aparecem na loja de verdade.
+  (`public/demo/exemplo`) saem de `npm run demo:variantes` (**recolor por computador**: só o tecido muda; madeira, fundo
+  e sombras ficam) ou de `npm run demo:variantes:gpt` (**pelo GPT**, com `OPENAI_API_KEY`: cada foto gerada é conferida
+  com a original fora do tecido e, se a IA mexeu na peça ou no fundo, fica a versão por computador; o 3D usa a cor
+  medida nas fotos geradas; relatório em `public/demo/exemplo/relatorio-gpt.json`). Marcadas como ilustrativas e sem
+  preço. Não aparecem na loja de verdade. Proposta para o painel: [`CORES-NO-ESTUDIO.md`](CORES-NO-ESTUDIO.md).
 - **Para arquitetos e designers** (fase de teste): enquanto as medidas não forem conferidas com o modelo 3D, a página
   mostra só uma linha discreta no fim — “É arquiteto ou designer de interiores? Peça o arquivo 3D e a ficha técnica” —
   que leva ao atendimento (ou ao WhatsApp com a mensagem pronta, quando configurado) e registra o evento

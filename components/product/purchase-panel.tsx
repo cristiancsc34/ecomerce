@@ -183,7 +183,7 @@ export function PurchasePanel({
             })}
           </div>
           {variants.some((v) => v.example) ? (
-            <p className="mt-2 text-xs text-muted">Cores de exemplo, só no ambiente de desenvolvimento (imagens recoloridas).</p>
+            <p className="mt-2 text-xs text-muted">Cores de exemplo, só no ambiente de desenvolvimento (imagens ilustrativas).</p>
           ) : null}
         </fieldset>
       ) : needsVariant ? (

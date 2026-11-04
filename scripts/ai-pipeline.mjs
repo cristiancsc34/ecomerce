@@ -127,6 +127,39 @@ async function openaiImageEdit({ apiKey, model, references, prompt, output, size
   return body.usage ?? null;
 }
 
+/**
+ * Instrução para trocar SÓ a cor do tecido de uma foto de catálogo (cores de
+ * variação). O produto, a madeira, o fundo e a luz ficam como estão.
+ */
+export function recolorPrompt(colorName, hex) {
+  return [
+    "Image 1 is a catalog photograph of ONE real piece of furniture. It is the only source of truth for this exact product.",
+    "",
+    `Change ONLY the color of the upholstery fabric (cushions, seat and backrest) to ${colorName} (${hex}),`,
+    "keeping the same fabric texture, folds, seams and stitching, with realistic shading under the same light.",
+    "",
+    "Keep everything else exactly as it is: shape, proportions, every part, the wood frame color, grain and finish,",
+    "the background, the shadow, the camera angle and framing. Do not add, remove, move, repair or restyle anything.",
+    "No text, no logos.",
+  ].join("\n");
+}
+
+/** Troca a cor do tecido de uma foto de catálogo com a API de imagem da OpenAI. */
+export function openaiRecolorEngine(
+  apiKey = process.env.OPENAI_API_KEY,
+  model = process.env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL,
+  { retryWaitMs = 20_000, size = "1600x1200", quality = "high" } = {},
+) {
+  return {
+    async recolor(inputFile, colorName, hex, output) {
+      return retryRateLimit(
+        () => openaiImageEdit({ apiKey, model, references: [inputFile], prompt: recolorPrompt(colorName, hex), output, size, transparent: false, quality }),
+        retryWaitMs,
+      );
+    },
+  };
+}
+
 /** Limite de pedidos por minuto da OpenAI (429): espera um pouco e tenta de novo, uma vez. */
 async function retryRateLimit(run, waitMs = 20_000) {
   try {
