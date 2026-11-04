@@ -5,6 +5,7 @@ import { brand } from "@/config/brand";
 import { siteUrl } from "@/config/site";
 import { getOrder, orderProductOptions } from "@/lib/admin/orders";
 import { listOrderNotifications } from "@/lib/admin/shipping";
+import { getOrderIntegration } from "@/lib/admin/trama";
 import { requireStaffPage } from "@/lib/auth/staff";
 import { formatPrice } from "@/lib/catalog/money";
 import { formatDeliveryDate, trackingLink } from "@/lib/orders/messages";
@@ -13,6 +14,7 @@ import { OrderForm } from "@/components/admin/order-form";
 import { OrderStatusBadge } from "@/components/admin/order-status-badge";
 import { OrderSteps } from "@/components/admin/order-steps";
 import { OrderNotificationsList } from "@/components/admin/order-notifications";
+import { OrderTrama } from "@/components/admin/order-trama";
 import { Card } from "@/components/admin/ui";
 import { ExternalIcon } from "@/components/ui/icons";
 
@@ -25,7 +27,11 @@ export default async function OrderPage({ params }: PageProps<"/admin/pedidos/[i
   const { id } = await params;
   const order = await getOrder(id);
   if (!order) notFound();
-  const [products, notifications] = await Promise.all([orderProductOptions(), listOrderNotifications(order.id)]);
+  const [products, notifications, integration] = await Promise.all([
+    orderProductOptions(),
+    listOrderNotifications(order.id),
+    getOrderIntegration(order.id),
+  ]);
   const link = trackingLink(siteUrl(), order.code, order.publicToken);
   const lastNote = [...order.events].reverse().find((e) => e.status === order.status)?.publicNote ?? null;
   const itemsLocked = !["recebido", "pago", "em_preparacao"].includes(order.status);
@@ -181,6 +187,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/pedidos/[i
             {order.deliveryNotes ? <p className="mt-2 rounded-lg bg-cloud p-2 text-sm">Acesso: {order.deliveryNotes}</p> : null}
             {order.assembly ? <p className="mt-2 text-sm font-semibold">Inclui montagem</p> : null}
           </Card>
+          <OrderTrama orderId={order.id} orderStatus={order.status} integration={integration} />
           <Card title="Acompanhamento do cliente" description="O link que vai nas mensagens. Quem tem o link vê as etapas, sem o endereço completo.">
             <a href={link} target="_blank" rel="noopener" className="link inline-flex items-center gap-1 break-all text-sm">
               Abrir a página do cliente <ExternalIcon className="h-4 w-4 shrink-0" />
