@@ -3,7 +3,19 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { ModelViewerElement } from "@google/model-viewer";
 import { track } from "@/lib/analytics";
-import { arLink, arViewerAttributes, currentDevice, detectArSupport, hasArParam, AR_PARAM, LEGACY_AR_PARAM, SERVER_AR_SUPPORT, type ArSupport } from "@/lib/ar/device";
+import {
+  arLauncherAttributes,
+  arLink,
+  arViewerAttributes,
+  canOpenArDirectly,
+  currentDevice,
+  detectArSupport,
+  hasArParam,
+  AR_PARAM,
+  LEGACY_AR_PARAM,
+  SERVER_AR_SUPPORT,
+  type ArSupport,
+} from "@/lib/ar/device";
 import { nameWithArticle } from "@/lib/catalog/product-helpers";
 import type { ProductMedia as Media } from "@/lib/catalog/types";
 import type { ColorOption } from "@/lib/catalog/variants";
@@ -71,6 +83,21 @@ function arSupportSnapshot(): ArSupport {
 }
 const serverSupport = () => SERVER_AR_SUPPORT;
 
+let viewerLibrary: Promise<unknown> | null = null;
+/** Biblioteca do visualizador (model-viewer + three.js), baixada uma vez só. */
+function loadViewerLibrary(): Promise<unknown> {
+  viewerLibrary ??= import("@google/model-viewer").catch((error) => {
+    viewerLibrary = null;
+    throw error;
+  });
+  return viewerLibrary;
+}
+
+/** O navegador ainda considera o último toque recente (exigido para abrir a câmera)? */
+const recentTap = () => navigator.userActivation?.isActive ?? true;
+
+const NO_AR = "Este aparelho ou navegador não abre a realidade aumentada. Você ainda pode girar o produto em 3D aqui.";
+
 /** Reserva: o app não deixou abrir o Safari/Chrome sozinho, então oferece copiar o link. */
 function CopyLinkFallback({ browser }: { browser: "Safari" | "Chrome" }) {
   const [copied, setCopied] = useState<string | null>(null);
@@ -112,10 +139,14 @@ const overlaySecondary = `${overlayButton} bg-white text-deep-fjord ring-1 ring-
  * Fotos e 3D do produto no mesmo lugar. Sobre a foto principal ficam
  * "Ver no seu ambiente" e "Girar em 3D" (só quando o produto tem modelo 3D).
  *
- * O visualizador é carregado sob demanda: nem a biblioteca (model-viewer/three.js)
- * nem o .glb são baixados antes do toque. "Ver no seu ambiente" depende do aparelho:
- * - celular com AR: abre a câmera com o produto (WebXR/Scene Viewer no Android,
- *   AR Quick Look no iPhone/iPad);
+ * O .glb só é baixado quando o cliente pede o 3D. No celular com AR, a biblioteca
+ * do visualizador (model-viewer/three.js) chega com a página já parada, para a
+ * câmera abrir no mesmo toque. "Ver no seu ambiente" depende do aparelho:
+ * - celular com AR: abre a câmera com o produto. Da foto, vai direto para o
+ *   visualizador do sistema (Scene Viewer no Android, AR Quick Look com o .usdz
+ *   pronto no iPhone), sem trocar a foto pelo 3D. Com o 3D na tela, abre pelo 3D
+ *   (WebXR no Android, que mostra a cor escolhida). Se o navegador achar que o
+ *   toque já ficou para trás, aparece "Abrir no seu ambiente" para tocar de novo;
  * - navegador de dentro de app: abre a mesma página no Safari/Chrome;
  * - computador ou celular sem AR: código QR que abre a página pronta para o AR no celular.
  */
@@ -149,12 +180,19 @@ export function ProductMedia({
   const [arProblem, setArProblem] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [jumpFailed, setJumpFailed] = useState(false);
-  const [arrived, setArrived] = useState(false);
+  /** Pede um toque para abrir a câmera (chegada por ?ar=1 ou o toque ficou para trás). */
+  const [askTap, setAskTap] = useState(false);
+  /** Esperando o modelo carregar para abrir a câmera. */
+  const [preparing, setPreparing] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [origin, setOrigin] = useState<string | null>(null);
   const viewerRef = useRef<HTMLElement>(null);
+  const launcherRef = useRef<HTMLElement>(null);
   const arButtonRef = useRef<HTMLButtonElement>(null);
   const wantsAr = useRef(false);
+  const wantsDirect = useRef(false);
+  const tryOpenCamera = useRef<() => void>(() => {});
+  const tryOpenDirectly = useRef<() => void>(() => {});
   const arrivalHandled = useRef(false);
   const support = useSyncExternalStore(subscribeNever, arSupportSnapshot, serverSupport);
   const selection = useVariantSelection();
@@ -168,6 +206,14 @@ export function ProductMedia({
   const originalColor = useRef<RGBA | null>(null);
   const cameraBrowser = support.mode === "abrir-chrome" ? "Chrome" : "Safari";
   const event = { produto_id: productId };
+  // Da foto direto para a câmera: arquivo como está e, no iPhone, com o .usdz pronto.
+  const direct = Boolean(activeModel) && canOpenArDirectly(support, current);
+  // O .usdz pronto abre sem o .glb; WebXR e o .usdz gerado na hora precisam do modelo carregado.
+  const needsModel = !(support.ios && current.usdzUrl);
+  const needsLoadedModel = useRef(needsModel);
+  useEffect(() => {
+    needsLoadedModel.current = needsModel;
+  }, [needsModel]);
 
   async function load(want: "3d" | "ar") {
     wantsAr.current = want === "ar";
@@ -177,7 +223,7 @@ export function ProductMedia({
     setPending(want);
     setState("loading");
     try {
-      await import("@google/model-viewer");
+      await loadViewerLibrary();
       setState("ready");
     } catch {
       setState("error");
@@ -185,15 +231,45 @@ export function ProductMedia({
     setPending(null);
   }
 
-  /** Abre a câmera agora (o visualizador já está montado e ainda há um toque recente). */
+  /** Abre a câmera pelo 3D da tela (ainda dentro do toque do cliente). */
   function openCamera() {
-    const viewer = viewerRef.current as ModelViewerElement | null;
-    if (!viewer?.canActivateAR) {
-      setArProblem("Este aparelho ou navegador não abre a realidade aumentada. Você ainda pode girar o produto em 3D aqui.");
+    wantsAr.current = true;
+    tryOpenCamera.current();
+  }
+
+  /** Abre a câmera direto da foto, pelo visualizador escondido. False se ele não estiver pronto. */
+  function openCameraDirectly(): boolean {
+    const launcher = launcherRef.current as ModelViewerElement | null;
+    if (!launcher?.canActivateAR) return false;
+    setAskTap(false);
+    track("ar_open", { ...event, origem: "foto" });
+    void launcher.activateAR();
+    return true;
+  }
+
+  /** Toque antes de a biblioteca chegar: espera por ela (sem trocar a foto) e abre a câmera. */
+  async function openDirectlyWhenReady() {
+    wantsDirect.current = true;
+    if (state === "ready") {
+      tryOpenDirectly.current();
       return;
     }
-    track("ar_open", event);
-    void viewer.activateAR();
+    setPending("ar");
+    try {
+      await loadViewerLibrary();
+      setState((s) => (s === "idle" || s === "loading" ? "ready" : s));
+    } catch {
+      wantsDirect.current = false;
+      void load("ar"); // tenta de novo pelo 3D, que mostra o erro se não der
+    }
+    setPending(null);
+  }
+
+  function showPhotos() {
+    wantsAr.current = false;
+    setPreparing(false);
+    setAskTap(false);
+    setMode("fotos");
   }
 
   /**
@@ -226,6 +302,8 @@ export function ProductMedia({
     setArProblem(null);
     if (support.mode === "camera") {
       if (state === "ready" && mode === "3d") openCamera();
+      else if (openCameraDirectly()) return;
+      else if (direct) void openDirectlyWhenReady();
       else void load("ar");
     } else if (support.mode === "abrir-safari" || support.mode === "abrir-chrome") {
       openInCameraBrowser();
@@ -242,7 +320,7 @@ export function ProductMedia({
 
   function on3dClick() {
     if (mode === "3d") {
-      setMode("fotos");
+      showPhotos();
       return;
     }
     track("view3d_click", event);
@@ -263,7 +341,7 @@ export function ProductMedia({
         url.searchParams.delete(LEGACY_AR_PARAM);
         window.history.replaceState(window.history.state, "", url);
         if (support.mode === "camera") {
-          setArrived(true);
+          setAskTap(true);
           void load("3d");
         } else if (support.mode === "sem-ar") {
           // No computador, o link "Ver no seu ambiente" (ex.: do assistente) abre o código QR.
@@ -287,33 +365,113 @@ export function ProductMedia({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model, support.mode]);
 
+  // Celular com AR: a biblioteca do visualizador chega com a página já parada (sem
+  // disputar banda com as fotos), para o toque em "Ver no seu ambiente" abrir a
+  // câmera na hora. Não baixa com economia de dados ligada; o .glb nunca vem antes.
+  useEffect(() => {
+    if (!model || support.mode !== "camera") return;
+    if ((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) return;
+    let cancelled = false;
+    let idle = 0;
+    let timer = 0;
+    const start = () =>
+      loadViewerLibrary().then(
+        () => !cancelled && setState((s) => (s === "idle" ? "ready" : s)),
+        () => {},
+      );
+    const schedule = () => {
+      // O Safari antigo não tem requestIdleCallback.
+      if (typeof window.requestIdleCallback === "function") idle = window.requestIdleCallback(start, { timeout: 3000 });
+      else timer = window.setTimeout(start, 1500);
+    };
+    if (document.readyState === "complete") schedule();
+    else window.addEventListener("load", schedule, { once: true });
+    return () => {
+      cancelled = true;
+      window.removeEventListener("load", schedule);
+      if (idle) window.cancelIdleCallback(idle);
+      clearTimeout(timer);
+    };
+  }, [model, support.mode]);
+
+  // Visualizador escondido (abre a câmera da foto). Toque feito antes de ele ficar
+  // pronto: abre assim que puder, ainda dentro do toque, ou pede outro toque. Se o
+  // Scene Viewer não abrir (aparelho sem o app do Google), segue pelo 3D na tela,
+  // que tenta o WebXR.
+  useEffect(() => {
+    const launcher = launcherRef.current as ModelViewerElement | null;
+    if (!launcher) return;
+    let frame = 0;
+    const giveUpAt = performance.now() + 2000;
+    function attempt() {
+      if (!launcher || !wantsDirect.current) return;
+      if (!launcher.canActivateAR) {
+        if (performance.now() < giveUpAt) {
+          frame = requestAnimationFrame(attempt);
+        } else {
+          wantsDirect.current = false;
+          void load("ar");
+        }
+        return;
+      }
+      wantsDirect.current = false;
+      if (recentTap()) openCameraDirectly();
+      else setAskTap(true);
+    }
+    tryOpenDirectly.current = attempt;
+    frame = requestAnimationFrame(attempt);
+    function onArStatus(e: Event) {
+      if ((e as CustomEvent<{ status: string }>).detail.status !== "failed") return;
+      void load("ar");
+    }
+    launcher.addEventListener("ar-status", onArStatus);
+    return () => {
+      cancelAnimationFrame(frame);
+      tryOpenDirectly.current = () => {};
+      launcher.removeEventListener("ar-status", onArStatus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [direct, state, mode, activeModel?.url]);
+
   useEffect(() => {
     const viewer = viewerRef.current as ModelViewerElement | null;
     if (state !== "ready" || mode !== "3d" || !viewer) return;
     let frame = 0;
     const giveUpAt = performance.now() + 2000;
 
-    // O model-viewer escolhe o modo de AR logo depois de montado, sem esperar o
-    // arquivo: o Scene Viewer baixa o modelo sozinho e o Quick Look/WebXR esperam
-    // o carregamento por conta própria. Assim a câmera abre com um toque só.
-    function openCameraWhenReady() {
+    // O model-viewer escolhe o modo de AR logo depois de montado. O .usdz pronto
+    // (iPhone) abre na hora; WebXR e o .usdz gerado na hora esperam o .glb, e só
+    // então pedem a câmera — dentro do toque, ou com "Abrir no seu ambiente".
+    function attempt() {
       if (!viewer || !wantsAr.current) return;
-      if (viewer.canActivateAR) {
-        wantsAr.current = false;
-        // A câmera só abre a partir de um toque recente. Se a biblioteca demorou, o
-        // botão "Ver no seu ambiente" continua à vista para tocar de novo.
-        if (navigator.userActivation?.isActive ?? true) {
-          track("ar_open", event);
-          void viewer.activateAR();
+      if (!viewer.canActivateAR) {
+        if (performance.now() < giveUpAt) {
+          frame = requestAnimationFrame(attempt);
+        } else {
+          wantsAr.current = false;
+          setPreparing(false);
+          setArProblem(NO_AR);
         }
-      } else if (performance.now() < giveUpAt) {
-        frame = requestAnimationFrame(openCameraWhenReady);
+        return;
+      }
+      if (needsLoadedModel.current && !viewer.loaded) {
+        setPreparing(true); // o evento "load" chama de novo
+        return;
+      }
+      wantsAr.current = false;
+      setPreparing(false);
+      if (recentTap()) {
+        setAskTap(false);
+        track("ar_open", { ...event, origem: "3d" });
+        void viewer.activateAR();
       } else {
-        wantsAr.current = false;
-        setArProblem("Este aparelho ou navegador não abre a realidade aumentada. Você ainda pode girar o produto em 3D aqui.");
+        // A câmera só abre a partir de um toque recente: agora o modelo está pronto
+        // e o próximo toque abre na hora.
+        setAskTap(true);
       }
     }
-    frame = requestAnimationFrame(openCameraWhenReady);
+    tryOpenCamera.current = attempt;
+    frame = requestAnimationFrame(attempt);
 
     function onArStatus(e: Event) {
       const { status } = (e as CustomEvent<{ status: string }>).detail;
@@ -321,16 +479,21 @@ export function ProductMedia({
         setArProblem("Não foi possível abrir a câmera neste aparelho. Você ainda pode girar o produto em 3D aqui.");
       } else if (status === "session-started") {
         setArProblem(null);
-        setArrived(false);
+        setAskTap(false);
       }
     }
     function onError() {
+      wantsAr.current = false;
+      setPreparing(false);
       setState("error");
     }
+    viewer.addEventListener("load", attempt);
     viewer.addEventListener("ar-status", onArStatus);
     viewer.addEventListener("error", onError);
     return () => {
       cancelAnimationFrame(frame);
+      tryOpenCamera.current = () => {};
+      viewer.removeEventListener("load", attempt);
       viewer.removeEventListener("ar-status", onArStatus);
       viewer.removeEventListener("error", onError);
     };
@@ -381,6 +544,14 @@ export function ProductMedia({
           >
             Aponte a câmera para o chão e mova o celular devagar
           </p>
+          {preparing ? (
+            <p
+              role="status"
+              className="pointer-events-none absolute left-1/2 top-1/2 inline-flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-deep-fjord shadow"
+            >
+              <Spinner /> Abrindo a câmera…
+            </p>
+          ) : null}
         </model-viewer>
       ) : (
         <div className="relative h-full w-full">
@@ -396,20 +567,48 @@ export function ProductMedia({
       )
     ) : null;
 
+  // Visualizador escondido, só para abrir a câmera da foto: não baixa o .glb
+  // (fica fora da tela) e usa só os visualizadores do sistema.
+  const launcher =
+    direct && activeModel && state === "ready" && mode === "fotos" ? (
+      <model-viewer
+        ref={launcherRef}
+        src={activeModel.url}
+        alt=""
+        aria-hidden="true"
+        ar
+        {...arLauncherAttributes({ usdzUrl: current.usdzUrl, realScale: current.realScale })}
+        ar-placement="floor"
+        style={{ display: "none" }}
+        data-abre-camera
+      />
+    ) : null;
+
   const busy = pending !== null || leaving;
   const ready3d = mode === "3d" && state === "ready";
+  const launcherReady = direct && state === "ready" && mode === "fotos";
+  const bigButton = askTap && (ready3d || launcherReady);
+  const openingFromPhoto = pending === "ar" && mode === "fotos";
   const actions = activeModel ? (
     <div className="pointer-events-none absolute inset-x-3 bottom-3 flex flex-wrap items-end gap-2" data-acoes-3d>
       <button
         ref={arButtonRef}
         type="button"
         onClick={onArClick}
+        // Um toque começa a baixar a biblioteca, se ela ainda não chegou.
+        onPointerDown={support.mode === "camera" ? () => void loadViewerLibrary().catch(() => {}) : undefined}
         disabled={busy}
-        aria-label={`${arrived && ready3d ? "Abrir no seu ambiente" : "Ver no seu ambiente"}: ${productName}`}
-        className={`${overlayPrimary} ${arrived && ready3d ? "min-h-12 px-6 text-base" : ""}`}
+        aria-label={`${bigButton ? "Abrir no seu ambiente" : "Ver no seu ambiente"}: ${productName}`}
+        className={`${overlayPrimary} ${bigButton ? "min-h-12 px-6 text-base" : ""}`}
       >
-        {leaving ? <Spinner /> : <ArIcon className="h-5 w-5 shrink-0" />}
-        {leaving ? `Abrindo no ${cameraBrowser}…` : arrived && ready3d ? "Abrir no seu ambiente" : "Ver no seu ambiente"}
+        {leaving || openingFromPhoto ? <Spinner /> : <ArIcon className="h-5 w-5 shrink-0" />}
+        {leaving
+          ? `Abrindo no ${cameraBrowser}…`
+          : openingFromPhoto
+            ? "Abrindo a câmera…"
+            : bigButton
+              ? "Abrir no seu ambiente"
+              : "Ver no seu ambiente"}
       </button>
       <button
         type="button"
@@ -437,8 +636,9 @@ export function ProductMedia({
         productName={productName}
         stage={stage}
         actions={actions}
-        onSelectPhoto={() => setMode("fotos")}
+        onSelectPhoto={showPhotos}
       />
+      {launcher}
 
       <div className="space-y-3 px-4 lg:px-0">
         {ready3d ? (
@@ -454,9 +654,10 @@ export function ProductMedia({
                 : null}
           </p>
         ) : null}
-        {arrived && ready3d ? (
+        {bigButton ? (
           <Notice tone="success" role="status" className="mt-3" title="Pronto para ver no seu ambiente">
-            Toque em “Abrir no seu ambiente”, sobre o 3D, para abrir a câmera.
+            Toque em “Abrir no seu ambiente”, sobre {mode === "3d" ? "o 3D" : "a foto"}, para abrir a câmera. O navegador só abre a
+            câmera com um toque seu.
           </Notice>
         ) : null}
 

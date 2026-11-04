@@ -133,7 +133,8 @@ test.describe("vitrine em modo demonstração", () => {
     await expect(page.locator("model-viewer")).toBeVisible({ timeout: 30_000 });
     // "Ver fotos" volta para a foto principal.
     await page.getByRole("button", { name: "Ver fotos" }).click();
-    await expect(page.locator("model-viewer")).toHaveCount(0);
+    // No celular fica só o visualizador escondido que abre a câmera da foto.
+    await expect(page.locator("model-viewer:not([data-abre-camera])")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Girar em 3D" })).toBeVisible();
   });
 
@@ -263,8 +264,8 @@ test.describe("vitrine em modo demonstração", () => {
       return;
     }
 
-    // Pixel 7 (Android): um toque carrega o modelo e já chama o AR do Android
-    // (Scene Viewer). Aqui não há câmera: guardamos o link em vez de abri-lo.
+    // Pixel 7 (Android): um toque chama o AR do Android (Scene Viewer) direto da
+    // foto. Aqui não há câmera: guardamos o link em vez de abri-lo.
     await page.evaluate(() => {
       const opened: string[] = [];
       Object.assign(window, { arIntents: opened });
@@ -282,7 +283,9 @@ test.describe("vitrine em modo demonstração", () => {
     expect(decodeURIComponent(intent)).toContain("/demo/poltrona-azul.glb");
     expect(intent).toContain("mode=ar_preferred");
     expect(intent).not.toContain("resizable=false"); // tamanho aproximado: a pessoa pode ajustar
-    await expect(region.getByText("Na câmera, o tamanho é aproximado", { exact: false })).toBeVisible();
+    // No 3D, a loja avisa que o tamanho é aproximado; de lá a câmera abre pelo 3D da tela.
+    await region.getByRole("button", { name: "Girar em 3D" }).click();
+    await expect(region.getByText("Na câmera, o tamanho é aproximado", { exact: false })).toBeVisible({ timeout: 30_000 });
   });
 
   test("computador: código QR leva o produto para o celular em um passo", async ({ page, context }, testInfo) => {
@@ -322,6 +325,71 @@ test.describe("vitrine em modo demonstração", () => {
     // O link do QR (?ar=1) aberto no computador já mostra o código.
     await page.goto("/produtos/poltrona-azul?ar=1");
     await expect(dialog).toBeVisible();
+  });
+
+  /**
+   * Registra quando a página pede a câmera (o model-viewer clica num link rel="ar"
+   * no iPhone ou intent:// no Android) sem sair da página, e se o toque ainda era
+   * recente — se não fosse, o navegador recusaria.
+   */
+  async function watchCamera(page: Page, { iphone = false } = {}) {
+    await page.addInitScript((isIphone) => {
+      if (isIphone) {
+        const supports = DOMTokenList.prototype.supports;
+        DOMTokenList.prototype.supports = function (token) {
+          return token === "ar" ? true : supports.call(this, token);
+        };
+      }
+      const w = window as unknown as { __camera: { href: string; recent: boolean | null }[] };
+      w.__camera = [];
+      const click = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () {
+        const href = this.getAttribute("href") ?? "";
+        if (this.rel === "ar" || href.startsWith("intent://")) {
+          w.__camera.push({ href, recent: navigator.userActivation?.isActive ?? null });
+          return;
+        }
+        return click.call(this);
+      };
+    }, iphone);
+    return () => page.evaluate(() => (window as unknown as { __camera: { href: string; recent: boolean | null }[] }).__camera);
+  }
+
+  test("celular Android: 'Ver no seu ambiente' abre a câmera no mesmo toque, sem trocar a foto nem baixar o 3D", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "câmera só no celular");
+    const camera = await watchCamera(page);
+    const glb: string[] = [];
+    page.on("request", (r) => r.url().endsWith(".glb") && glb.push(r.url()));
+    await page.goto("/produtos/poltrona-azul");
+    // A biblioteca do visualizador chega com a página parada.
+    await expect(page.locator("model-viewer[data-abre-camera]")).toHaveCount(1, { timeout: 30_000 });
+    await page.getByRole("button", { name: "Ver no seu ambiente" }).tap();
+    await expect.poll(camera).toHaveLength(1);
+    const [opened] = await camera();
+    expect(opened.href).toMatch(/^intent:\/\/arvr\.google\.com\/scene-viewer\/.*file=http[^&]*poltrona-azul\.glb/);
+    expect(opened.recent).toBe(true);
+    // A foto continua na tela e a página não baixou o .glb (o Scene Viewer baixa sozinho).
+    await expect(page.locator("#visualizador-3d")).toHaveAttribute("data-modo", "fotos");
+    expect(glb).toEqual([]);
+  });
+
+  test("iPhone: 'Ver no seu ambiente' abre o AR Quick Look com o .usdz pronto, no mesmo toque", async ({ browser }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "câmera só no celular");
+    const context = await browser.newContext({ ...devices["iPhone 13"], baseURL: testInfo.project.use.baseURL });
+    const page = await context.newPage();
+    const camera = await watchCamera(page, { iphone: true });
+    await page.goto("/produtos/poltrona-azul");
+    await expect(page.locator("model-viewer[data-abre-camera]")).toHaveCount(1, { timeout: 30_000 });
+    await page.getByRole("button", { name: "Ver no seu ambiente" }).tap();
+    await expect.poll(camera).toHaveLength(1);
+    const [opened] = await camera();
+    // Tamanho aproximado: sem "allowsContentScaling=0", o cliente ajusta.
+    expect(opened.href).toMatch(/\/demo\/poltrona-azul\.usdz$/);
+    expect(opened.recent).toBe(true);
+    await expect(page.locator("#visualizador-3d")).toHaveAttribute("data-modo", "fotos");
+    const usdz = await page.request.get("/demo/poltrona-azul.usdz");
+    expect(usdz.headers()["content-type"]).toBe("model/vnd.usdz+zip");
+    await context.close();
   });
 
   test("celular: o link do código QR (?ar=1) abre o 3D pronto e pede um toque para a câmera", async ({ page }, testInfo) => {

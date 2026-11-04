@@ -26,6 +26,17 @@ function readZip(zip: Buffer): Entry[] {
   return entries;
 }
 
+/** Caixa da peça escrita no .usda do pacote (cm). */
+async function readUsdzBounds(usdz: Buffer) {
+  const usda = readZip(usdz)[0].bytes.toString("utf8");
+  const points = [...usda.matchAll(/point3f\[\] points = \[(.*?)\]/g)].flatMap(([, list]) =>
+    [...list.matchAll(/\(([^)]+)\)/g)].map(([, xyz]) => xyz.split(",").map(Number)),
+  );
+  const min = [0, 1, 2].map((i) => Math.min(...points.map((p) => p[i])));
+  const max = [0, 1, 2].map((i) => Math.max(...points.map((p) => p[i])));
+  return { widthCm: (max[0] - min[0]) * 100, depthCm: (max[2] - min[2]) * 100, heightCm: (max[1] - min[1]) * 100 };
+}
+
 describe("AR em tamanho real: medidas do catálogo", () => {
   it("pede largura, profundidade e altura", () => {
     expect(catalogBoxCm({ widthCm: 78, lengthCm: 90, heightCm: 100 })).toEqual({
@@ -49,20 +60,26 @@ describe("AR em tamanho real: medidas do catálogo", () => {
 });
 
 describe("AR em tamanho real: arquivos gerados", () => {
-  it("sem medidas no catálogo: não gera nada e explica", async () => {
+  it("sem medidas no catálogo: não promete tamanho real e explica; o .usdz sai no tamanho do modelo", async () => {
     const r = await prepareArFiles(GLB, { heightCm: 100 });
     expect(r.status).toBe("sem-medidas");
     expect(r.message).toBe(
       "Faltam largura e profundidade no catálogo. Sem as medidas, o arquivo do iPhone em tamanho real não é gerado e o AR mostra o tamanho aproximado.",
     );
-    expect("usdz" in r).toBe(false);
+    if (r.status !== "sem-medidas") throw new Error(r.status);
+    // Só para o iPhone abrir a câmera no mesmo toque: o modelo como está (1 m), sem .glb ajustado.
+    expect("glb" in r).toBe(false);
+    expect((await readUsdzBounds(r.usdz!)).heightCm).toBeCloseTo(100, 0);
   });
 
-  it("medidas que não batem com o modelo (fora de 2 cm): avisa e não publica", async () => {
+  it("medidas que não batem com o modelo (fora de 2 cm): avisa e não publica o tamanho real", async () => {
     const r = await prepareArFiles(GLB, { widthCm: 80, lengthCm: 70, heightCm: 100 });
     expect(r.status).toBe("fora-da-escala");
     expect(r.message).toMatch(/não batem com as medidas do catálogo \(tolerância de 2 cm\)/);
-    expect("usdz" in r).toBe(false);
+    if (r.status !== "fora-da-escala") throw new Error(r.status);
+    expect("glb" in r).toBe(false);
+    expect("boundsCm" in r).toBe(false);
+    expect((await readUsdzBounds(r.usdz!)).heightCm).toBeCloseTo(100, 0);
   });
 
   it("arquivo que não é um modelo legível: avisa sem quebrar o estúdio", async () => {
@@ -139,13 +156,17 @@ describe("AR em tamanho real: o que a loja mostra", () => {
     });
   });
 
-  it("medidas do catálogo mudaram depois da conferência: volta a ser aproximado", () => {
-    expect(arFiles({ dimensions: { widthCm: 85, lengthCm: 90, heightCm: 100 } }, model)).toEqual({ usdzUrl: null, realScale: false });
-    expect(arFiles({ dimensions: {} }, model)).toEqual({ usdzUrl: null, realScale: false });
+  it("medidas do catálogo mudaram depois da conferência: volta a ser aproximado (o .usdz continua, para abrir no mesmo toque)", () => {
+    expect(arFiles({ dimensions: { widthCm: 85, lengthCm: 90, heightCm: 100 } }, model)).toEqual({ usdzUrl: model.usdzUrl, realScale: false });
+    expect(arFiles({ dimensions: {} }, model)).toEqual({ usdzUrl: model.usdzUrl, realScale: false });
   });
 
   it("sem conferência: nunca diz tamanho real", () => {
     expect(arFiles({ dimensions: { widthCm: 78, lengthCm: 90, heightCm: 100 } }, { ...model, realScale: false })).toEqual({
+      usdzUrl: model.usdzUrl,
+      realScale: false,
+    });
+    expect(arFiles({ dimensions: { widthCm: 78, lengthCm: 90, heightCm: 100 } }, { ...model, realScale: false, usdzUrl: null })).toEqual({
       usdzUrl: null,
       realScale: false,
     });

@@ -25,9 +25,20 @@ encaixar quando o provedor for escolhido.
   `window.dataLayer`, se existir, e para o evento do navegador `cuxoes:evento`. O projeto ainda não tem provedor de
   analytics; para ligar um, é só chamá-lo em `track()`.
 - Marque “ilustrativa” se o modelo não for fiel ao produto; a página avisa.
-- **Realidade aumentada (“Ver no seu ambiente”)**: no celular, um toque abre a câmera com o produto no chão do
-  cliente. Android usa o **Scene Viewer** (app de AR do Google; WebXR como reserva) e iPhone/iPad usa o **AR Quick
-  Look** (o `.usdz` é gerado na hora a partir do `.glb`). No computador, a página orienta a abrir no celular. Só
+- **Realidade aumentada (“Ver no seu ambiente”)**: no celular, **um toque** abre a câmera com o produto no chão do
+  cliente, direto da foto. Os navegadores só abrem a câmera alguns segundos depois de um toque (cerca de 5 s); por
+  isso nada pesado é baixado depois do toque:
+  - a biblioteca do visualizador (model-viewer/three.js, ~300 KB) chega com a página já parada, só em celular com
+    AR e sem economia de dados ligada; o `.glb` nunca é baixado antes de o cliente pedir o 3D;
+  - um `<model-viewer>` escondido (`data-abre-camera`, `arLauncherAttributes`) abre o visualizador do sistema no
+    mesmo toque: **Scene Viewer** no Android (o app do Google baixa o `.glb` sozinho) e **AR Quick Look** no
+    iPhone/iPad com o **`.usdz` pronto** (`ios-src`). A foto continua na tela;
+  - com o 3D aberto, a câmera abre pelo próprio 3D (`ar-modes="webxr scene-viewer quick-look"`: WebXR no Android,
+    que mostra a cor escolhida). WebXR e `.usdz` gerado na hora esperam o `.glb` carregar;
+  - se mesmo assim o toque ficar para trás (rede muito lenta), a página não troca de tela: mostra o botão grande
+    “Abrir no seu ambiente” e o aviso “O navegador só abre a câmera com um toque seu”; o próximo toque abre na hora.
+  Medido em 04/11/2026 (iPhone simulado, rede de 4 Mbps): antes, a câmera era pedida 18 s depois do toque (recusada)
+  e só o segundo toque abria; agora, 0,02 s depois do toque. No computador, a página orienta a abrir no celular. Só
   funciona em HTTPS (Vercel).
 - **Tamanho real no AR (só com medidas conferidas)**: o Tripo entrega o modelo com 1 m de altura. Quando o produto
   tem **largura, profundidade e altura** no catálogo, o estúdio (`scripts/ar-files.mjs`) escolhe a escala uniforme
@@ -37,11 +48,17 @@ encaixar quando o provedor for escolhido.
   cliente não redimensiona), e os textos dizem “tamanho real”.
 - **Sem medidas, ou fora da tolerância**: nada é publicado como tamanho real. O painel mostra o aviso com o motivo
   (“Faltam largura e profundidade…”, “largura 69 cm no modelo × 80 cm no catálogo”), o AR continua com o tamanho
-  aproximado (`ar-scale="auto"`, o model-viewer gera o `.usdz` na hora) e a página avisa. Se as medidas mudarem
-  depois da conferência, a loja volta sozinha para “aproximado” até conferir de novo.
+  aproximado (`ar-scale="auto"`: o cliente ajusta com dois dedos) e a página avisa. Mesmo assim o estúdio grava um
+  `.usdz` **no tamanho do próprio modelo** (`real_scale = false`, sem `bounds_cm`) — o mesmo que o model-viewer
+  geraria na hora, só que pronto, para o iPhone abrir a câmera no mesmo toque. Se as medidas mudarem depois da
+  conferência, a loja volta sozinha para “aproximado” até conferir de novo (o `.usdz` continua, sem prender o
+  tamanho). A demonstração usa `public/demo/poltrona-azul.usdz` (77,5 × 90,3 × 100 cm, o tamanho do modelo;
+  `npm run ar:usdz -- --glb public/demo/poltrona-azul.glb --aproximado`). Os `.usdz` saem com o tipo
+  `model/vnd.usdz+zip` (`next.config.ts`).
 - **Produtos que já têm 3D**: botão **“Conferir medidas e gerar o arquivo do iPhone”** no Estúdio (Modelo 3D), ou
   `npm run ar:usdz -- --supabase` (simula) / `--supabase --aplicar` (grava). Para um arquivo solto:
-  `npm run ar:usdz -- --glb arquivo.glb --medidas 78x90x100`.
+  `npm run ar:usdz -- --glb arquivo.glb --medidas 78x90x100` (ou `--aproximado`, sem medidas). Sem medidas, o
+  `--supabase --aplicar` grava o `.usdz` no tamanho do modelo para quem ainda não tem um.
 - Banco: colunas `usdz_storage_path`, `real_scale` e `bounds_cm` em `product_media` e o tipo `model/vnd.usdz+zip`
   no bucket (migração `20261103000400_ar_real_scale.sql`).
 - **Variantes de cor ou tecido**: cada variação pode ter uma cor (`#RRGGBB`, campo “Cor (hex)” da variação no painel)
@@ -52,7 +69,8 @@ encaixar quando o provedor for escolhido.
   (se a variação tiver outro) e vai para a URL (`?cor=marrom`) e para o link do código QR (`?ar=1&cor=marrom`). A
   primeira cor da lista é a das fotos e do modelo do produto. Sem variação com cor, o seletor não aparece.
   Limitação: cor pintada na hora (sem modelo próprio) não chega ao Scene Viewer do Android, que abre o arquivo
-  original; o WebXR (primeiro modo) e o AR Quick Look gerado na hora mostram a cor escolhida. Pendente no painel:
+  original; por isso, com uma dessas cores, a câmera abre pelo 3D da tela (WebXR no Android; `.usdz` gerado na
+  hora no iPhone), que mostra a cor escolhida — pode pedir o segundo toque em rede lenta. Pendente no painel:
   ligar uma foto ou um modelo a uma cor (hoje só pelo banco).
 - **Cores de exemplo (só desenvolvimento)**: `CATALOG_DEV_EXAMPLES=1` com `CATALOG_SOURCE=demo`, fora da Vercel, mostra
   a Poltrona Azul em azul, marrom, branco, vermelho e bege. As fotos e o `.glb` com as 5 cores

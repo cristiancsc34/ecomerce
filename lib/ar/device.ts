@@ -14,7 +14,7 @@
  */
 export type ArMode = "camera" | "abrir-safari" | "abrir-chrome" | "sem-ar";
 
-export type ArSupport = { mode: ArMode; phone: boolean };
+export type ArSupport = { mode: ArMode; phone: boolean; /** iPhone/iPad (AR Quick Look, precisa do .usdz). */ ios: boolean };
 
 /** Navegadores de dentro de apps no iPhone (não abrem o AR Quick Look). */
 const IOS_IN_APP = /GSA\/|FBAN|FBAV|Instagram|WhatsApp|Line\/|Twitter|TikTok|musical_ly|Snapchat|LinkedInApp|Pinterest/i;
@@ -30,15 +30,15 @@ export function detectArSupport(device: DeviceInfo): ArSupport {
   const ua = device.userAgent;
   const ios = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && device.maxTouchPoints > 1);
   if (ios) {
-    if (IOS_IN_APP.test(ua)) return { mode: "abrir-safari", phone: true };
-    if (/CriOS\/|EdgiOS\/|FxiOS\/|DuckDuckGo\//.test(ua)) return { mode: "camera", phone: true };
-    if (device.supportsRelAr) return { mode: "camera", phone: true };
+    if (IOS_IN_APP.test(ua)) return { mode: "abrir-safari", phone: true, ios: true };
+    if (/CriOS\/|EdgiOS\/|FxiOS\/|DuckDuckGo\//.test(ua)) return { mode: "camera", phone: true, ios: true };
+    if (device.supportsRelAr) return { mode: "camera", phone: true, ios: true };
     // Safari de verdade (tem "Version/… Safari/") sem AR: o aparelho não tem. Outro
     // visualizador sem essas marcas é um app que embute a página: abre no Safari.
-    return /Version\/[\d.]+.*Safari\//.test(ua) ? { mode: "sem-ar", phone: true } : { mode: "abrir-safari", phone: true };
+    return /Version\/[\d.]+.*Safari\//.test(ua) ? { mode: "sem-ar", phone: true, ios: true } : { mode: "abrir-safari", phone: true, ios: true };
   }
-  if (/android/i.test(ua)) return /firefox|oculus/i.test(ua) ? { mode: "abrir-chrome", phone: true } : { mode: "camera", phone: true };
-  return { mode: "sem-ar", phone: false };
+  if (/android/i.test(ua)) return { mode: /firefox|oculus/i.test(ua) ? "abrir-chrome" : "camera", phone: true, ios: false };
+  return { mode: "sem-ar", phone: false, ios: false };
 }
 
 /** Lê o aparelho atual (só no navegador). */
@@ -50,7 +50,7 @@ export function currentDevice(): DeviceInfo {
   };
 }
 
-export const SERVER_AR_SUPPORT: ArSupport = { mode: "sem-ar", phone: false };
+export const SERVER_AR_SUPPORT: ArSupport = { mode: "sem-ar", phone: false, ios: false };
 
 /**
  * Parâmetro de chegada pronta para o AR (link do código QR, do assistente ou da
@@ -74,15 +74,33 @@ export function arLink(origin: string, slug: string, colorSlug?: string | null):
 }
 
 /**
- * Atributos de AR do <model-viewer>. Com o .usdz conferido, o iPhone abre o
- * arquivo pronto (AR Quick Look) e a peça fica fixa em tamanho real; sem ele, o
- * próprio model-viewer gera um .usdz na hora a partir do .glb e o cliente pode
- * ajustar o tamanho (a loja avisa que é aproximado).
+ * Atributos de AR do <model-viewer> que aparece na tela (3D). O iPhone abre o
+ * .usdz pronto (AR Quick Look) sem esperar nada; sem ele, o próprio model-viewer
+ * gera um na hora a partir do .glb. Tamanho fixo só com a escala conferida com o
+ * catálogo; senão o cliente ajusta o tamanho (a loja avisa que é aproximado).
+ * No Android, o WebXR (dentro do navegador) mostra a cor escolhida na tela.
  */
 export function arViewerAttributes({ usdzUrl, realScale }: { usdzUrl: string | null; realScale: boolean }) {
   return {
-    "ios-src": realScale && usdzUrl ? usdzUrl : undefined,
+    "ios-src": usdzUrl ?? undefined,
     "ar-modes": "webxr scene-viewer quick-look",
     "ar-scale": realScale && usdzUrl ? "fixed" : "auto",
   } as const;
+}
+
+/**
+ * Atributos do model-viewer escondido que abre a câmera direto da foto, no mesmo
+ * toque: só os visualizadores do sistema, que não precisam do .glb baixado na
+ * página (o Scene Viewer do Android baixa sozinho; o iPhone usa o .usdz pronto).
+ */
+export function arLauncherAttributes(files: { usdzUrl: string | null; realScale: boolean }) {
+  return { ...arViewerAttributes(files), "ar-modes": "scene-viewer quick-look" } as const;
+}
+
+/**
+ * Dá para abrir a câmera direto da foto? Só com o arquivo como está (cor pintada
+ * na hora precisa do 3D na tela) e, no iPhone, com o .usdz pronto.
+ */
+export function canOpenArDirectly(support: ArSupport, files: { usdzUrl: string | null; tint: string | null }): boolean {
+  return support.mode === "camera" && files.tint === null && (!support.ios || files.usdzUrl !== null);
 }

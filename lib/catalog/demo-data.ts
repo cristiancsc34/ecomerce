@@ -113,8 +113,9 @@ export const DEMO_PRODUCTS: Product[] = [
         pendingReview: false,
         width: null,
         height: null,
-        // Sem medidas confirmadas no catálogo: sem .usdz em tamanho real (o AR mostra o tamanho aproximado).
-        usdzUrl: null,
+        // Sem medidas confirmadas no catálogo: .usdz no tamanho do próprio modelo
+        // (aproximado, o cliente ajusta), só para o iPhone abrir a câmera no mesmo toque.
+        usdzUrl: "/demo/poltrona-azul.usdz",
         realScale: false,
         boundsCm: null,
         variantId: null,

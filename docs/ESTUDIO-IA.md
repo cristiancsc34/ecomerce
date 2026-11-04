@@ -128,8 +128,9 @@ pré-pagos a partir de US$ 1). Modelo padrão `v3.1-20260211` (troque com `TRIPO
 - O 3D entra marcado como **ilustrativo** até alguém conferir com as fotos reais.
 - **Tamanho real e arquivo do iPhone:** com largura, profundidade e altura no catálogo, o processador ajusta a escala
   do `.glb`, confere (±2 cm) e grava também o `.usdz` (`products/<id>/<uuid>.usdz`). Sem medidas ou fora da
-  tolerância, o 3D é gravado como está e o Estúdio mostra o aviso; o botão “Conferir medidas e gerar o arquivo do
-  iPhone” refaz a conferência depois de corrigir as medidas. Ver [`IA-E-3D.md`](IA-E-3D.md).
+  tolerância, o 3D é gravado como está, o `.usdz` sai no tamanho do modelo (aproximado, só para o iPhone abrir a
+  câmera no mesmo toque) e o Estúdio mostra o aviso; o botão “Conferir medidas e gerar o arquivo do iPhone” refaz a
+  conferência depois de corrigir as medidas. Ver [`IA-E-3D.md`](IA-E-3D.md).
 
 Alternativa local (TripoSR, grátis, qualidade menor): `AI_3D_ENGINE=triposr` com o código em `ai/vendor/TripoSR`
 (ainda não validado neste ambiente — a execução de código de terceiros precisa de autorização).

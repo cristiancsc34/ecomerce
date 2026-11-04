@@ -89,7 +89,11 @@ const nextConfig: NextConfig = {
     },
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Arquivo do iPhone (AR Quick Look): o tipo certo para o Safari reconhecer o .usdz.
+      { source: "/:path*.usdz", headers: [{ key: "Content-Type", value: "model/vnd.usdz+zip" }] },
+    ];
   },
 };
 

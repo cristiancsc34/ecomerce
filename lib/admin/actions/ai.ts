@@ -398,11 +398,24 @@ export async function prepareArAction(productId: string): Promise<ActionResult<A
   const oldPaths = [media.storage_path as string, ...(media.usdz_storage_path ? [media.usdz_storage_path as string] : [])];
 
   if (ar.status !== "ok") {
+    // Sem tamanho real: fica o .usdz no tamanho do modelo (aproximado), para o
+    // iPhone abrir a câmera no mesmo toque; o cliente ajusta o tamanho.
+    const approx = ar.status === "invalido" ? null : ar.usdz;
+    const approxPath = approx ? `products/${productId}/${crypto.randomUUID()}.usdz` : null;
+    if (approx && approxPath) {
+      const { error: upError } = await supabase.storage
+        .from(MEDIA_BUCKET)
+        .upload(approxPath, approx, { cacheControl: "31536000", upsert: false, contentType: USDZ_MIME });
+      if (upError) return { ok: false, error: "Não foi possível gravar os arquivos. Verifique sua permissão e tente de novo." };
+    }
     const { error } = await supabase
       .from("product_media")
-      .update({ usdz_storage_path: null, real_scale: false, bounds_cm: null })
+      .update({ usdz_storage_path: approxPath, real_scale: false, bounds_cm: null })
       .eq("id", media.id);
-    if (error) return { ok: false, error: friendlyDbError(error) };
+    if (error) {
+      if (approxPath) await supabase.storage.from(MEDIA_BUCKET).remove([approxPath]);
+      return { ok: false, error: friendlyDbError(error) };
+    }
     if (media.usdz_storage_path) await removeOrphanFiles([media.usdz_storage_path as string]);
     updateTag(CATALOG_TAG);
     return { ok: true, data: { status: ar.status, message: ar.message } };

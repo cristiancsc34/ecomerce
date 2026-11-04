@@ -12,35 +12,35 @@ const detect = (userAgent: string, supportsRelAr = false, maxTouchPoints = 0) =>
 
 describe("realidade aumentada: o que cada aparelho faz", () => {
   it("iPhone no Safari com AR, Chrome ou Edge: abre a câmera", () => {
-    expect(detect(SAFARI, true)).toEqual({ mode: "camera", phone: true });
-    expect(detect(iphone("CriOS/138.0 Mobile/15E148 Safari/604.1"))).toEqual({ mode: "camera", phone: true });
-    expect(detect(iphone("EdgiOS/138.0 Mobile/15E148 Safari/605.1.15"))).toEqual({ mode: "camera", phone: true });
+    expect(detect(SAFARI, true)).toEqual({ mode: "camera", phone: true, ios: true });
+    expect(detect(iphone("CriOS/138.0 Mobile/15E148 Safari/604.1"))).toEqual({ mode: "camera", phone: true, ios: true });
+    expect(detect(iphone("EdgiOS/138.0 Mobile/15E148 Safari/605.1.15"))).toEqual({ mode: "camera", phone: true, ios: true });
   });
 
   it("navegador de dentro de app no iPhone: abre a página no Safari", () => {
-    expect(detect(iphone("GSA/380.0.785098425 Mobile/15E148 Safari/604.1"))).toEqual({ mode: "abrir-safari", phone: true });
-    expect(detect(iphone("Mobile/15E148 Instagram 300.0.0.0"), false)).toEqual({ mode: "abrir-safari", phone: true });
+    expect(detect(iphone("GSA/380.0.785098425 Mobile/15E148 Safari/604.1"))).toEqual({ mode: "abrir-safari", phone: true, ios: true });
+    expect(detect(iphone("Mobile/15E148 Instagram 300.0.0.0"), false)).toEqual({ mode: "abrir-safari", phone: true, ios: true });
     // WebView sem marca nenhuma (não é o Safari): também abre no Safari.
-    expect(detect(iphone("Mobile/15E148"), false)).toEqual({ mode: "abrir-safari", phone: true });
+    expect(detect(iphone("Mobile/15E148"), false)).toEqual({ mode: "abrir-safari", phone: true, ios: true });
   });
 
   it("Safari de um iPhone sem AR: mostra o código QR (não tenta abrir o Safari de novo)", () => {
-    expect(detect(SAFARI, false)).toEqual({ mode: "sem-ar", phone: true });
+    expect(detect(SAFARI, false)).toEqual({ mode: "sem-ar", phone: true, ios: true });
   });
 
   it("iPad em modo computador conta como iPad", () => {
     const ipad = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Safari/605.1.15";
-    expect(detect(ipad, true, 5)).toEqual({ mode: "camera", phone: true });
-    expect(detect(ipad, false, 0)).toEqual({ mode: "sem-ar", phone: false });
+    expect(detect(ipad, true, 5)).toEqual({ mode: "camera", phone: true, ios: true });
+    expect(detect(ipad, false, 0)).toEqual({ mode: "sem-ar", phone: false, ios: false });
   });
 
   it("Android: Chrome abre a câmera; Firefox abre a página no Chrome", () => {
-    expect(detect(PIXEL)).toEqual({ mode: "camera", phone: true });
-    expect(detect("Mozilla/5.0 (Android 15; Mobile; rv:144.0) Gecko/144.0 Firefox/144.0")).toEqual({ mode: "abrir-chrome", phone: true });
+    expect(detect(PIXEL)).toEqual({ mode: "camera", phone: true, ios: false });
+    expect(detect("Mozilla/5.0 (Android 15; Mobile; rv:144.0) Gecko/144.0 Firefox/144.0")).toEqual({ mode: "abrir-chrome", phone: true, ios: false });
   });
 
   it("computador: código QR", () => {
-    expect(detect(DESKTOP)).toEqual({ mode: "sem-ar", phone: false });
+    expect(detect(DESKTOP)).toEqual({ mode: "sem-ar", phone: false, ios: false });
   });
 });
 
@@ -81,14 +81,42 @@ describe("atributos de AR do visualizador", () => {
     });
   });
 
-  it("sem conferência: sem .usdz (o model-viewer gera na hora) e o cliente ajusta o tamanho", async () => {
+  it("sem conferência: o cliente ajusta o tamanho; sem .usdz, o model-viewer gera um na hora", async () => {
     const { arViewerAttributes } = await import("@/lib/ar/device");
     expect(arViewerAttributes({ usdzUrl: null, realScale: false })).toEqual({
       "ios-src": undefined,
       "ar-modes": "webxr scene-viewer quick-look",
       "ar-scale": "auto",
     });
-    // .usdz sem a marcação de tamanho real não é usado.
-    expect(arViewerAttributes({ usdzUrl: "https://x/m.usdz", realScale: false })["ios-src"]).toBeUndefined();
+    // .usdz no tamanho do modelo (aproximado): vai para o iPhone abrir no mesmo toque, sem prender o tamanho.
+    expect(arViewerAttributes({ usdzUrl: "https://x/m.usdz", realScale: false })).toEqual({
+      "ios-src": "https://x/m.usdz",
+      "ar-modes": "webxr scene-viewer quick-look",
+      "ar-scale": "auto",
+    });
+  });
+
+  it("da foto direto para a câmera: só visualizadores do sistema (não esperam o .glb)", async () => {
+    const { arLauncherAttributes } = await import("@/lib/ar/device");
+    expect(arLauncherAttributes({ usdzUrl: "https://x/m.usdz", realScale: true })).toEqual({
+      "ios-src": "https://x/m.usdz",
+      "ar-modes": "scene-viewer quick-look",
+      "ar-scale": "fixed",
+    });
+  });
+
+  it("abre direto da foto no Android e no iPhone com .usdz; cor pintada na hora vai pelo 3D", async () => {
+    const { canOpenArDirectly } = await import("@/lib/ar/device");
+    const android = { mode: "camera", phone: true, ios: false } as const;
+    const iphone = { mode: "camera", phone: true, ios: true } as const;
+    expect(canOpenArDirectly(android, { usdzUrl: null, tint: null })).toBe(true);
+    expect(canOpenArDirectly(iphone, { usdzUrl: "https://x/m.usdz", tint: null })).toBe(true);
+    // iPhone sem .usdz: o model-viewer precisa do .glb para gerar um.
+    expect(canOpenArDirectly(iphone, { usdzUrl: null, tint: null })).toBe(false);
+    // Cor pintada na hora: só o 3D da tela mostra a cor certa.
+    expect(canOpenArDirectly(android, { usdzUrl: null, tint: "#9C2A2A" })).toBe(false);
+    // Computador e navegador de app não abrem a câmera.
+    expect(canOpenArDirectly({ mode: "sem-ar", phone: false, ios: false }, { usdzUrl: null, tint: null })).toBe(false);
+    expect(canOpenArDirectly({ mode: "abrir-safari", phone: true, ios: true }, { usdzUrl: "https://x/m.usdz", tint: null })).toBe(false);
   });
 });

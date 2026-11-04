@@ -18,8 +18,10 @@ export function missingDimensions(d: ProductDimensions): string[] {
 
 /**
  * Estúdio → "Arquivo do iPhone em tamanho real": mostra se o modelo 3D foi
- * conferido com as medidas do catálogo (±2 cm) e o .usdz publicado; quando não,
- * o aviso diz o porquê. O botão confere de novo (ex.: depois de corrigir as medidas).
+ * conferido com as medidas do catálogo (±2 cm) e o .usdz publicado em tamanho
+ * real; quando não, o aviso diz o porquê (o .usdz no tamanho do modelo continua,
+ * para a câmera abrir no mesmo toque). O botão confere de novo (ex.: depois de
+ * corrigir as medidas).
  */
 export function ArScalePanel({
   productId,
@@ -68,14 +70,14 @@ export function ArScalePanel({
           tone={shown.status === "ok" ? "success" : shown.status === "erro" ? "danger" : "warning"}
           role="status"
           className="mt-2"
-          title={shown.status === "ok" ? "Tamanho real conferido" : "Arquivo do iPhone não publicado"}
+          title={shown.status === "ok" ? "Tamanho real conferido" : shown.status === "erro" ? "Não foi possível conferir" : "Tamanho real não conferido"}
         >
           {shown.message}
         </Notice>
       ) : (
-        <Notice tone="warning" className="mt-2" title="Arquivo do iPhone não publicado">
+        <Notice tone="warning" className="mt-2" title="Tamanho real não conferido">
           {missing.length
-            ? `Cadastre ${missing.join(", ")} nas especificações. Sem as medidas, o AR mostra o tamanho aproximado.`
+            ? `Cadastre ${missing.join(", ")} nas especificações. Sem as medidas, o AR mostra o tamanho aproximado (o cliente ajusta).`
             : "As medidas ainda não foram conferidas com o modelo 3D."}
         </Notice>
       )}

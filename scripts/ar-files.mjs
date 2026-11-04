@@ -505,11 +505,25 @@ export async function glbToUsdz(glbBytes, { maxTextureSize = 1024 } = {}) {
 // Etapa completa: medir, escalar, conferir e gerar
 // ---------------------------------------------------------------------------
 
+/** .usdz do modelo como está (sem conferir a escala), ou null se não der para gerar. */
+async function approximateUsdz(glbBytes) {
+  try {
+    return (await glbToUsdz(glbBytes)).usdz;
+  } catch {
+    return null;
+  }
+}
+
 /**
+ * Sem medidas ou fora da tolerância, `usdz` traz o arquivo do iPhone no tamanho
+ * do próprio modelo (aproximado, o cliente ajusta na câmera): é o mesmo que o
+ * model-viewer geraria na hora, só que pronto, para a câmera abrir no mesmo toque.
+ *
  * @typedef {{ widthCm: number; depthCm: number; heightCm: number }} BoxCm
  * @returns {Promise<
  *   | { status: "ok"; glb: Buffer; usdz: Buffer; boundsCm: BoxCm; catalogCm: BoxCm; scale: number; message: string }
- *   | { status: "sem-medidas" | "fora-da-escala" | "invalido"; message: string; modelCm?: BoxCm; catalogCm?: BoxCm; missing?: string[] }
+ *   | { status: "sem-medidas" | "fora-da-escala"; message: string; usdz: Buffer | null; modelCm?: BoxCm; catalogCm?: BoxCm; missing?: string[] }
+ *   | { status: "invalido"; message: string; catalogCm?: BoxCm }
  * >}
  */
 export async function prepareArFiles(glbBytes, dimensions) {
@@ -519,6 +533,7 @@ export async function prepareArFiles(glbBytes, dimensions) {
     return {
       status: "sem-medidas",
       missing,
+      usdz: await approximateUsdz(glbBytes),
       message: `${missing.length > 1 ? "Faltam" : "Falta"} ${list} no catálogo. Sem as medidas, o arquivo do iPhone em tamanho real não é gerado e o AR mostra o tamanho aproximado.`,
     };
   }
@@ -534,7 +549,13 @@ export async function prepareArFiles(glbBytes, dimensions) {
   }
   const fit = fitScale(modelCm, catalogCm);
   if (!fit.ok) {
-    return { status: "fora-da-escala", modelCm: fit.scaledCm, catalogCm, message: mismatchMessage(fit.scaledCm, catalogCm, fit.deltasCm) };
+    return {
+      status: "fora-da-escala",
+      modelCm: fit.scaledCm,
+      catalogCm,
+      usdz: await approximateUsdz(glbBytes),
+      message: mismatchMessage(fit.scaledCm, catalogCm, fit.deltasCm),
+    };
   }
 
   await scaleDocument(doc, fit.scale);
@@ -546,7 +567,13 @@ export async function prepareArFiles(glbBytes, dimensions) {
   const { usdz, boundsCm } = await glbToUsdz(glb);
   const usdzCheck = checkBox(boundsCm, catalogCm);
   if (!glbCheck.ok || !usdzCheck.ok) {
-    return { status: "fora-da-escala", modelCm: boundsCm, catalogCm, message: mismatchMessage(boundsCm, catalogCm, usdzCheck.deltasCm) };
+    return {
+      status: "fora-da-escala",
+      modelCm: boundsCm,
+      catalogCm,
+      usdz: await approximateUsdz(glbBytes),
+      message: mismatchMessage(boundsCm, catalogCm, usdzCheck.deltasCm),
+    };
   }
   return {
     status: "ok",

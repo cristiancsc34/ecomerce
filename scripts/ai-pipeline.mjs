@@ -480,15 +480,23 @@ async function model3d(supabase, job, product, inputFile, dir, engines, uploaded
   // Tamanho real: com as medidas do catálogo, o .glb é ajustado e o .usdz (iPhone) é
   // gerado e conferido (±2 cm). Sem medidas ou fora da tolerância, o 3D segue como
   // está (tamanho aproximado) e o painel mostra o aviso; nada é prometido na loja.
+  // Mesmo assim vai um .usdz no tamanho do modelo, para o iPhone abrir a câmera no
+  // mesmo toque (o cliente ajusta o tamanho).
   const ar = await prepareArFiles(bytes, product.dimensions);
-  meta.ar = { status: ar.status, message: ar.message, ...(ar.status === "ok" ? { boundsCm: ar.boundsCm, scale: ar.scale } : {}) };
+  const usdz = ar.status === "invalido" ? null : ar.usdz;
+  meta.ar = {
+    status: ar.status,
+    message: ar.message,
+    usdz: ar.status === "ok" ? "tamanho-real" : usdz ? "aproximado" : null,
+    ...(ar.status === "ok" ? { boundsCm: ar.boundsCm, scale: ar.scale } : {}),
+  };
   if (ar.status === "ok") bytes = ar.glb;
   const fileId = randomUUID();
   const glbPath = await upload(supabase, `products/${product.id}/${fileId}.glb`, bytes, "model/gltf-binary");
   uploaded.push(glbPath);
   let usdzPath = null;
-  if (ar.status === "ok") {
-    usdzPath = await upload(supabase, `products/${product.id}/${fileId}.usdz`, ar.usdz, USDZ_MIME);
+  if (usdz) {
+    usdzPath = await upload(supabase, `products/${product.id}/${fileId}.usdz`, usdz, USDZ_MIME);
     uploaded.push(usdzPath);
   }
 

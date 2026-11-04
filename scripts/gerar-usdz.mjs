@@ -2,14 +2,18 @@
 /**
  * Gera o arquivo do iPhone (.usdz) em TAMANHO REAL para modelos 3D que já existem.
  * Mesma conferência do estúdio: escala pelas medidas do catálogo, tolerância de 2 cm.
- * Sem medidas no catálogo, ou fora da tolerância, não gera nada (e diz por quê).
+ * Sem medidas no catálogo, ou fora da tolerância, não promete tamanho real (e diz
+ * por quê); grava só o .usdz no tamanho do próprio modelo (aproximado), para o
+ * iPhone abrir a câmera no mesmo toque.
  *
  * 1) Um arquivo solto (não mexe em banco nenhum):
  *
  *      npm run ar:usdz -- --glb public/demo/poltrona-azul.glb --medidas 78x90x100 [--saida pasta]
+ *      npm run ar:usdz -- --glb public/demo/poltrona-azul.glb --aproximado [--saida pasta]
  *
  *    --medidas é largura × profundidade × altura, em cm. Grava <nome>.usdz e
  *    <nome>-escala-real.glb na pasta de saída (padrão: a pasta do .glb).
+ *    --aproximado (sem medidas) grava só <nome>.usdz, no tamanho do modelo.
  *
  * 2) Os produtos do Supabase (requer NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY
  *    em .env.local, e a migração 20261103000400_ar_real_scale aplicada):
@@ -32,6 +36,7 @@ const { values } = parseArgs({
   options: {
     glb: { type: "string" },
     medidas: { type: "string" },
+    aproximado: { type: "boolean", default: false },
     saida: { type: "string" },
     supabase: { type: "boolean", default: false },
     aplicar: { type: "boolean", default: false },
@@ -47,9 +52,15 @@ async function fromFile() {
   const match = /^(\d+(?:[.,]\d+)?)x(\d+(?:[.,]\d+)?)x(\d+(?:[.,]\d+)?)$/i.exec(values.medidas ?? "");
   const [widthCm, lengthCm, heightCm] = match ? match.slice(1).map((v) => Number(v.replace(",", "."))) : [];
   const result = await prepareArFiles(await readFile(values.glb), match ? { widthCm, lengthCm, heightCm } : {});
-  if (result.status !== "ok") fail(result.message);
   const dir = values.saida ?? path.dirname(values.glb);
   const name = path.basename(values.glb, path.extname(values.glb));
+  if (result.status !== "ok") {
+    if (!values.aproximado || result.status === "invalido" || !result.usdz) fail(result.message);
+    await mkdir(dir, { recursive: true });
+    await writeFile(path.join(dir, `${name}.usdz`), result.usdz);
+    console.log(`${result.message}\nGravado no tamanho do modelo (aproximado): ${path.join(dir, `${name}.usdz`)}`);
+    return;
+  }
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, `${name}.usdz`), result.usdz);
   await writeFile(path.join(dir, `${name}-escala-real.glb`), result.glb);
@@ -81,7 +92,28 @@ async function fromSupabase() {
     }
     const result = await prepareArFiles(Buffer.from(await blob.arrayBuffer()), product.dimensions);
     if (result.status !== "ok") {
-      console.log(`– ${product.name}: ${result.message}`);
+      // Sem tamanho real: grava o .usdz no tamanho do modelo, se ainda não houver um.
+      if (result.status === "invalido" || !result.usdz || media.usdz_storage_path) {
+        console.log(`– ${product.name}: ${result.message}`);
+        continue;
+      }
+      if (!values.aplicar) {
+        console.log(`~ ${product.name}: ${result.message} Geraria o .usdz no tamanho do modelo (aproximado).`);
+        continue;
+      }
+      const approxPath = `products/${product.id}/${randomUUID()}.usdz`;
+      const up = await supabase.storage
+        .from(BUCKET)
+        .upload(approxPath, result.usdz, { cacheControl: "31536000", upsert: false, contentType: USDZ_MIME });
+      const { error: approxError } = up.error
+        ? up
+        : await supabase.from("product_media").update({ usdz_storage_path: approxPath, real_scale: false, bounds_cm: null }).eq("id", media.id);
+      if (approxError) {
+        await supabase.storage.from(BUCKET).remove([approxPath]);
+        console.log(`✗ ${product.name}: falha ao gravar o .usdz aproximado (${approxError.message}).`);
+      } else {
+        console.log(`~ ${product.name}: .usdz no tamanho do modelo (aproximado) gravado.`);
+      }
       continue;
     }
     if (!values.aplicar) {

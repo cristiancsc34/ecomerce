@@ -112,10 +112,11 @@ export function nameWithArticle(name: string): string {
 export const AR_SCALE_TOLERANCE_CM = 2;
 
 /**
- * Arquivos do AR prontos para a loja. "Tamanho real" só vale se o modelo foi
+ * Arquivos do AR prontos para a loja. O .usdz (iPhone) vai sempre que existir:
+ * pronto, a câmera abre no mesmo toque. "Tamanho real" só vale se o modelo foi
  * conferido E a caixa conferida ainda bate com as medidas atuais do catálogo
  * (se alguém mudar as medidas depois, a loja volta a dizer "tamanho aproximado"
- * até o estúdio conferir de novo).
+ * e o cliente pode ajustar o tamanho, até o estúdio conferir de novo).
  */
 export function arFiles(
   product: Pick<Product, "dimensions">,
@@ -127,5 +128,5 @@ export function arFiles(
   const realScale = Boolean(
     model?.realScale && model.usdzUrl && box && close(d.widthCm, box.widthCm) && close(d.lengthCm, box.depthCm) && close(d.heightCm, box.heightCm),
   );
-  return { usdzUrl: realScale ? model!.usdzUrl : null, realScale };
+  return { usdzUrl: model?.usdzUrl ?? null, realScale };
 }
