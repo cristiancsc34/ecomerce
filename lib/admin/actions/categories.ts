@@ -13,7 +13,7 @@ export type CategoryFormState = { ok: boolean; error: string | null; fieldErrors
 
 export async function saveCategoryAction(_prev: CategoryFormState, formData: FormData): Promise<CategoryFormState> {
   try {
-    await requireStaffAction();
+    await requireStaffAction("editor", "itens");
   } catch (e) {
     return { ok: false, error: e instanceof AuthorizationError ? e.message : "Sem permissão." };
   }
@@ -48,7 +48,7 @@ export async function saveCategoryAction(_prev: CategoryFormState, formData: For
 
 export async function deleteCategoryAction(id: string): Promise<ActionResult> {
   try {
-    await requireStaffAction("admin");
+    await requireStaffAction("admin", "itens");
   } catch (e) {
     return { ok: false, error: e instanceof AuthorizationError ? e.message : "Sem permissão." };
   }

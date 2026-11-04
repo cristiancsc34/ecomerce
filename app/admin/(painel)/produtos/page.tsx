@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Produtos" };
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", timeZone: "America/Sao_Paulo" });
 
 export default async function AdminProductsPage({ searchParams }: PageProps<"/admin/produtos">) {
-  await requireStaffPage();
+  await requireStaffPage("editor", "itens");
   const params = await searchParams;
   const status = (PRODUCT_STATUSES as readonly string[]).includes(String(params.status))
     ? (params.status as ProductStatus)

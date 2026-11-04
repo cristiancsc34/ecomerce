@@ -6,31 +6,58 @@ lugar de resolver.
 ![Painel no celular: PIN, Início, Produtos e Novo produto](img/painel-celular-1.jpg)
 ![Página do produto no celular: abas, painel “Pronto para vender” e barra de salvar](img/painel-celular-2.jpg)
 
-## Entrar
+## Entrar: uma senha por área
 
-- Abra **`/admin`**. Com o PIN ligado, a tela pede só o **PIN da loja** (na demonstração: `1234`).
+- Abra **`/admin`** e digite a **senha de acesso**. Cada senha abre só a sua parte do painel:
+
+| Senha | Variável | Abre |
+| --- | --- | --- |
+| **Geral** | `ADMIN_PIN` | Tudo: itens, pedidos, entrega e avisos, publicação e o atalho para o Trama (fábrica e logística) |
+| **Itens** | `ADMIN_SENHA_ITENS` | Produtos, fotos e 3D, categorias e o histórico do catálogo (publicar continua com a geral) |
+| **Pedidos** | `ADMIN_SENHA_PEDIDOS` | Pedidos, avisos ao cliente e o andamento na fábrica e na logística (Trama) |
+| **Entrega** | `ADMIN_SENHA_ENTREGA` | Formas de entrega (frete por região) e os avisos automáticos |
+
+- Quem entra por uma área vê só o menu e as telas dela; abrir o endereço de outra área volta para o início com o aviso
+  "Essa parte é de outra área".
 - “Entrar com e-mail e senha” continua disponível para cada pessoa da equipe usar a própria conta.
 - **Sair** fica no menu lateral (computador) ou no ícone do topo (celular).
+- Depósito, rotas, entregadores, fábrica e financeiro ficam no **Trama**, cada área com a própria senha lá
+  ([`INTEGRACAO-TRAMA.md`](INTEGRACAO-TRAMA.md)); o início do painel, com a senha geral, tem o atalho.
 
-### Como o PIN funciona (e por que é seguro o bastante para o MVP)
+### Como funciona (e por que é seguro o bastante para o MVP)
 
-O PIN **não** substitui as contas da equipe. Quando o PIN confere, o servidor entra numa conta de verdade do Supabase
-(`ADMIN_PIN_EMAIL` / `ADMIN_PIN_PASSWORD`, senha longa que nunca vai ao navegador). Por isso o banco continua aplicando
-as regras de acesso (RLS) e o histórico registra quem fez cada alteração.
+A senha **não** substitui as contas da equipe. Quando confere, o servidor entra numa conta de verdade do Supabase:
+
+- a **geral** entra na conta `ADMIN_PIN_EMAIL` / `ADMIN_PIN_PASSWORD` (administradora, senha longa que nunca vai ao
+  navegador);
+- cada **área** entra numa conta própria, derivada da geral (`painel+itens@…`, `painel+pedidos@…`, com senha calculada
+  no servidor). Ela é criada sozinha no primeiro acesso, com a chave de serviço (`SUPABASE_SERVICE_ROLE_KEY`), e fica
+  ligada só àquela área (`admin_users.areas`).
+
+A separação vale **no banco**, não só na tela: as políticas de acesso (RLS) exigem a área em cada tabela
+(`supabase/migrations/20261104000200_areas_do_painel.sql`). Quem tem a sessão da área de itens não lê pedidos nem
+chamando a API do Supabase direto. O histórico continua registrando quem fez cada alteração (a conta da área).
 
 - Comparação em tempo constante; 5 tentativas a cada 10 minutos por IP.
-- Desligado se faltar qualquer uma das três variáveis (`ADMIN_PIN`, `ADMIN_PIN_EMAIL`, `ADMIN_PIN_PASSWORD`).
-- **`1234` é só para demonstração.** Antes de vender de verdade: troque por um PIN longo, ou apague `ADMIN_PIN` para
-  usar só e-mail e senha.
+- Senha de 4 a 64 caracteres, sem espaço. A mesma senha em duas áreas não vale para nenhuma delas.
+- Desligado sem `ADMIN_PIN_EMAIL` e `ADMIN_PIN_PASSWORD`, ou sem nenhuma senha.
+- **`1234` é só para demonstração.** Antes de vender de verdade, use senhas longas e diferentes em cada área.
+- Trocar uma senha de área: mude a variável e faça um novo deploy. Trocar `ADMIN_PIN_PASSWORD` troca também as senhas das
+  contas das áreas (o próximo acesso acerta sozinho).
+- Contas da equipe criadas antes das áreas (sem área marcada) continuam vendo o que viam.
 
 Para ligar:
 
 ```bash
 ADMIN_PASSWORD='uma-senha-longa-e-aleatoria' npm run admin:create -- painel@sualoja.com.br admin
 # em .env.local (e nas variáveis da Vercel, sem NEXT_PUBLIC_):
-ADMIN_PIN=1234
+ADMIN_PIN=uma-senha-geral-longa
 ADMIN_PIN_EMAIL=painel@sualoja.com.br
 ADMIN_PIN_PASSWORD=uma-senha-longa-e-aleatoria
+ADMIN_SENHA_ITENS=senha-de-quem-cadastra
+ADMIN_SENHA_PEDIDOS=senha-do-atendimento
+ADMIN_SENHA_ENTREGA=senha-de-quem-cuida-do-frete
+SUPABASE_SERVICE_ROLE_KEY=...   # já usada pela IA na nuvem; cria as contas das áreas
 ```
 
 ## Telas

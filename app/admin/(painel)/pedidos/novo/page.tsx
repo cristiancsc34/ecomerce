@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/admin/ui";
 export const metadata: Metadata = { title: "Novo pedido" };
 
 export default async function NewOrderPage() {
-  await requireStaffPage();
+  await requireStaffPage("editor", "pedidos");
   const products = await orderProductOptions();
   return (
     <div className="mx-auto max-w-3xl">

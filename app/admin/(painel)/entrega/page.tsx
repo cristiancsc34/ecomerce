@@ -9,9 +9,10 @@ import { Notice } from "@/components/ui/notice";
 export const metadata: Metadata = { title: "Entrega e avisos" };
 
 export default async function ShippingSettingsPage() {
-  const staff = await requireStaffPage();
+  const staff = await requireStaffPage("editor", "entrega");
   const [settings, options] = await Promise.all([getNotificationSettings(), listShippingOptions()]);
-  const isAdmin = staff.role === "admin";
+  // Muda: a administração geral e quem entrou com a senha da área de entrega (mesma regra do banco).
+  const isAdmin = staff.role === "admin" || staff.areas.includes("entrega");
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

@@ -43,7 +43,7 @@ function toFormField(path: PropertyKey[]): string {
 
 export async function saveProductAction(productId: string | null, input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    await requireStaffAction();
+    await requireStaffAction("editor", "itens");
   } catch (e) {
     return fail(e);
   }
@@ -90,7 +90,7 @@ export async function changeStatusAction(
   const to = parsedStatus.data;
   try {
     // Publicar, arquivar e mexer em produto publicado/arquivado: só administradores.
-    await requireStaffAction(to === "published" || to === "archived" ? "admin" : "editor");
+    await requireStaffAction(to === "published" || to === "archived" ? "admin" : "editor", "itens");
   } catch (e) {
     return fail(e);
   }
@@ -114,7 +114,7 @@ export async function changeStatusAction(
 
 export async function duplicateProductAction(productId: string): Promise<ActionResult<{ id: string }>> {
   try {
-    await requireStaffAction();
+    await requireStaffAction("editor", "itens");
   } catch (e) {
     return fail(e);
   }
@@ -128,7 +128,7 @@ export async function duplicateProductAction(productId: string): Promise<ActionR
 /** Converte demonstração em produto real (só admin, com confirmação explícita na interface). */
 export async function markAsRealProductAction(productId: string): Promise<ActionResult> {
   try {
-    await requireStaffAction("admin");
+    await requireStaffAction("admin", "itens");
   } catch (e) {
     return fail(e);
   }
@@ -142,7 +142,7 @@ export async function markAsRealProductAction(productId: string): Promise<Action
 /** Exclui rascunhos/arquivados (só admin) e limpa arquivos que ficaram sem uso. */
 export async function deleteProductAction(productId: string): Promise<ActionResult> {
   try {
-    await requireStaffAction("admin");
+    await requireStaffAction("admin", "itens");
   } catch (e) {
     return fail(e);
   }
@@ -174,7 +174,7 @@ const draftSchema = z.object({
  */
 export async function createProductDraftAction(input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    await requireStaffAction();
+    await requireStaffAction("editor", "itens");
   } catch (e) {
     return fail(e);
   }

@@ -24,7 +24,7 @@ type Filter = keyof typeof FILTERS;
 const dateFormat = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", timeZone: "America/Sao_Paulo" });
 
 export default async function AdminOrdersPage({ searchParams }: PageProps<"/admin/pedidos">) {
-  await requireStaffPage();
+  await requireStaffPage("editor", "pedidos");
   const params = await searchParams;
   const filter: Filter = String(params.filtro) in FILTERS ? (String(params.filtro) as Filter) : "abertos";
   const all = await listOrders();

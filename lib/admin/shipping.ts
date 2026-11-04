@@ -12,7 +12,7 @@ export type NotificationSettings = { notifyEmail: boolean; notifyWhatsapp: boole
 export type AdminShippingOption = ShippingOption & { cepRanges: CepRange[]; active: boolean; sortOrder: number };
 
 export async function getNotificationSettings(): Promise<NotificationSettings | null> {
-  await requireStaffAction();
+  await requireStaffAction("editor", "entrega");
   const supabase = await createSessionClient();
   const { data, error } = await supabase.from("notification_settings").select("notify_email,notify_whatsapp").maybeSingle();
   if (error || !data) return null;
@@ -20,7 +20,7 @@ export async function getNotificationSettings(): Promise<NotificationSettings | 
 }
 
 export async function listShippingOptions(): Promise<AdminShippingOption[] | null> {
-  await requireStaffAction();
+  await requireStaffAction("editor", "entrega");
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("shipping_options")
@@ -54,7 +54,7 @@ export type OrderNotification = {
 
 /** Avisos automáticos de um pedido (sem o conteúdo das mensagens). */
 export async function listOrderNotifications(orderId: string): Promise<OrderNotification[]> {
-  await requireStaffAction();
+  await requireStaffAction("editor", "pedidos");
   if (!isUuid(orderId)) return [];
   const supabase = await createSessionClient();
   const { data, error } = await supabase.rpc("order_notifications", { p_order_id: orderId });

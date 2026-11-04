@@ -14,7 +14,7 @@ import { removeOrphanFiles } from "../storage";
 
 async function guard(): Promise<{ ok: false; error: string } | null> {
   try {
-    await requireStaffAction();
+    await requireStaffAction("editor", "itens");
     return null;
   } catch (e) {
     return { ok: false, error: e instanceof AuthorizationError ? e.message : "Sem permissão." };

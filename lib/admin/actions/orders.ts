@@ -12,7 +12,7 @@ import type { ActionResult } from "../types";
 
 async function guard(): Promise<{ ok: false; error: string } | null> {
   try {
-    await requireStaffAction();
+    await requireStaffAction("editor", "pedidos");
     return null;
   } catch (e) {
     return { ok: false, error: e instanceof AuthorizationError ? e.message : "Sem permissão." };

@@ -73,7 +73,7 @@ export async function getDashboardStats(): Promise<{ byStatus: Record<ProductSta
 }
 
 export async function listAuditEvents({ limit = 20, productId }: { limit?: number; productId?: string } = {}): Promise<AuditEvent[]> {
-  await requireStaffAction();
+  await requireStaffAction("editor", "itens");
   const supabase = await createSessionClient();
   let query = supabase
     .from("audit_events")

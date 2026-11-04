@@ -8,10 +8,16 @@ import { notificationSettingsSchema, shippingOptionSchema, type NotificationSett
 import { friendlyDbError } from "../errors";
 import type { ActionResult } from "../types";
 
-/** Entrega e avisos: só administradores mudam (o banco confere de novo pelo RLS). */
+/**
+ * Entrega e avisos: mudam o administrador e quem entrou com a senha da área de entrega (o banco confere de novo pelo
+ * RLS, private.has_explicit_area).
+ */
 async function adminOnly(): Promise<{ ok: false; error: string } | null> {
   try {
-    await requireStaffAction("admin");
+    const staff = await requireStaffAction("editor", "entrega");
+    if (staff.role !== "admin" && !staff.areas.includes("entrega")) {
+      throw new AuthorizationError("Somente a administração geral ou a área de entrega mudam isso.");
+    }
     return null;
   } catch (e) {
     return { ok: false, error: e instanceof AuthorizationError ? e.message : "Sem permissão." };

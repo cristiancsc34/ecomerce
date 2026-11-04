@@ -4,7 +4,9 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { isSupabaseConfigured } from "@/config/site";
-import { pinAccount, pinLoginEnabled, pinMatches } from "@/lib/admin/pin";
+import { ensureAreaAccount } from "@/lib/admin/area-accounts";
+import { acessoDaSenha, areaAccount, INICIO_DO_ACESSO, pinAccount, pinLoginEnabled } from "@/lib/admin/pin";
+import { areaDoCaminho } from "@/lib/auth/areas";
 import { rateLimit, resetRateLimit } from "@/lib/auth/rate-limit";
 import { createSessionClient } from "@/lib/supabase/server";
 
@@ -22,7 +24,9 @@ function safeNext(raw: FormDataEntryValue | null): string {
 }
 
 export async function signInAction(_prev: LoginState, formData: FormData): Promise<LoginState> {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
   if (!isSupabaseConfigured()) {
     return { error: "O painel ainda não está conectado ao Supabase. Veja o README.", email };
   }
@@ -61,12 +65,15 @@ export async function signInAction(_prev: LoginState, formData: FormData): Promi
 
 export type PinState = { error: string | null };
 
-/** Entrada por PIN (ver lib/admin/pin.ts). Poucas tentativas por IP: um PIN curto é fácil de adivinhar. */
+/**
+ * Entrada por senha de acesso (ver lib/admin/pin.ts): a senha geral abre tudo; a senha de uma área abre só ela.
+ * Poucas tentativas por IP: uma senha curta é fácil de adivinhar.
+ */
 export async function pinSignInAction(_prev: PinState, formData: FormData): Promise<PinState> {
   if (!isSupabaseConfigured() || !pinLoginEnabled()) {
-    return { error: "O acesso por PIN não está ativado. Entre com e-mail e senha." };
+    return { error: "O acesso por senha não está ativado. Entre com e-mail e senha." };
   }
-  const pin = String(formData.get("pin") ?? "").replace(/\D/g, "");
+  const senha = String(formData.get("pin") ?? "").trim();
 
   const h = await headers();
   const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "desconhecido";
@@ -74,22 +81,36 @@ export async function pinSignInAction(_prev: PinState, formData: FormData): Prom
   if (!limited.allowed) {
     return { error: `Muitas tentativas. Aguarde ${Math.ceil(limited.retryAfterSeconds / 60)} min e tente de novo.` };
   }
-  if (!pinMatches(pin)) return { error: "PIN incorreto." };
+  const acesso = acessoDaSenha(senha);
+  if (!acesso) return { error: "Senha incorreta." };
 
   const supabase = await createSessionClient();
-  const { data, error } = await supabase.auth.signInWithPassword(pinAccount());
+  const conta = acesso.tipo === "geral" ? pinAccount() : areaAccount(acesso.area);
+  let { data, error } = await supabase.auth.signInWithPassword(conta);
+  if ((error || !data.user) && acesso.tipo === "area" && (await ensureAreaAccount(acesso.area))) {
+    // Primeiro acesso da área (ou a senha da conta geral mudou): a conta foi criada ou acertada agora.
+    ({ data, error } = await supabase.auth.signInWithPassword(conta));
+  }
   if (error || !data.user) {
-    console.error("painel: a conta do PIN não conseguiu entrar (confira ADMIN_PIN_EMAIL/ADMIN_PIN_PASSWORD)");
+    console.error(
+      acesso.tipo === "geral"
+        ? "painel: a conta geral não conseguiu entrar (confira ADMIN_PIN_EMAIL/ADMIN_PIN_PASSWORD)"
+        : `painel: a conta da área ${acesso.area} não conseguiu entrar (confira SUPABASE_SERVICE_ROLE_KEY)`,
+    );
     return { error: "Não foi possível entrar agora. Use e-mail e senha." };
   }
-  const { data: staff } = await supabase.from("admin_users").select("role").eq("user_id", data.user.id).maybeSingle();
-  if (!staff) {
+  const { data: staff } = await supabase.from("admin_users").select("role,areas").eq("user_id", data.user.id).maybeSingle();
+  const certo = staff && (acesso.tipo === "geral" || (Array.isArray(staff.areas) && staff.areas.length === 1 && staff.areas[0] === acesso.area));
+  if (!certo) {
     await supabase.auth.signOut();
-    return { error: "A conta do PIN não faz parte da equipe. Use e-mail e senha." };
+    return { error: "Esta senha não está ligada a uma conta da equipe. Use e-mail e senha." };
   }
 
   resetRateLimit(`login:pin:${ip}`);
-  redirect(safeNext(formData.get("next")));
+  const next = safeNext(formData.get("next"));
+  if (acesso.tipo === "geral") redirect(next);
+  // Área: volta para onde ia só se for da mesma área; senão, para o início dela.
+  redirect(areaDoCaminho(next) === acesso.area ? next : INICIO_DO_ACESSO[acesso.area]);
 }
 
 export async function signOutAction() {

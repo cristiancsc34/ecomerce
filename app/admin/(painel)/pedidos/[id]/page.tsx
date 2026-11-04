@@ -23,7 +23,7 @@ export const metadata: Metadata = { title: "Pedido" };
 const dateTime = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
 
 export default async function OrderPage({ params }: PageProps<"/admin/pedidos/[id]">) {
-  await requireStaffPage();
+  await requireStaffPage("editor", "pedidos");
   const { id } = await params;
   const order = await getOrder(id);
   if (!order) notFound();
