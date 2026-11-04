@@ -1,0 +1,15 @@
+{
+  "name": "loja-virtual",
+  "private": true,
+  "description": "Loja virtual estática (HTML/CSS/JS) com SEO, CRO e marketing embutidos",
+  "scripts": {
+    "logos": "node scripts/gerar-logos.js",
+    "logos:ia": "node scripts/gerar-logos-ia.js",
+    "feed": "node scripts/gerar-feed.js",
+    "png": "node scripts/exportar-png.js",
+    "servir": "npx --yes serve ecomerce"
+  },
+  "devDependencies": {
+    "opentype.js": "^1.3.4"
+  }
+}

@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+  <channel>
+    <title>Tcharan</title>
+    <link>https://tcharan.com.br/</link>
+    <description>A loja do momento feliz: achadinhos, eletrônicos, moda, casa e presentes com frete grátis.</description>
+    <item>
+      <g:id>SM-S24-256</g:id>
+      <g:title>Smartphone Samsung Galaxy S24 256GB</g:title>
+      <g:description>Tela AMOLED 6.2&quot;, câmera com IA e bateria para o dia todo. Nota fiscal e garantia de 1 ano.</g:description>
+      <g:link>https://tcharan.com.br/p/smartphone-galaxy-s24-256gb.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>2999.90 BRL</g:price>
+      <g:sale_price>2499.90 BRL</g:sale_price>
+      <g:brand>Samsung</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>yes</g:identifier_exists>
+      <g:product_type>Eletrônicos</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>0.00 BRL</g:price></g:shipping>
+    </item>
+    <item>
+      <g:id>DL-INSP15</g:id>
+      <g:title>Notebook Dell Inspiron 15 i5 16GB 512GB SSD</g:title>
+      <g:description>Leve, rápido e com SSD: abre tudo em segundos. Ideal para trabalho, estudo e home office.</g:description>
+      <g:link>https://tcharan.com.br/p/notebook-dell-inspiron-15.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>3799.90 BRL</g:price>
+      <g:sale_price>3299.90 BRL</g:sale_price>
+      <g:brand>Dell</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>yes</g:identifier_exists>
+      <g:product_type>Eletrônicos</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>0.00 BRL</g:price></g:shipping>
+    </item>
+    <item>
+      <g:id>NK-AM-01</g:id>
+      <g:title>Tênis Nike Air Max Masculino</g:title>
+      <g:description>Amortecimento Air para o dia a dia e corrida leve. Original com nota fiscal.</g:description>
+      <g:link>https://tcharan.com.br/p/tenis-nike-air-max.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>499.90 BRL</g:price>
+      <g:sale_price>399.90 BRL</g:sale_price>
+      <g:brand>Nike</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>yes</g:identifier_exists>
+      <g:product_type>Moda</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>0.00 BRL</g:price></g:shipping>
+    </item>
+    <item>
+      <g:id>PW-CAF30</g:id>
+      <g:title>Cafeteira Elétrica Philips Walita 30 Xícaras</g:title>
+      <g:description>Café fresquinho em minutos, jarra de vidro e sistema corta-pingos. 110V/220V.</g:description>
+      <g:link>https://tcharan.com.br/p/cafeteira-philips-walita.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>249.90 BRL</g:price>
+      <g:sale_price>189.90 BRL</g:sale_price>
+      <g:brand>Philips Walita</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>yes</g:identifier_exists>
+      <g:product_type>Casa e Cozinha</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>19.90 BRL</g:price></g:shipping>
+    </item>
+    <item>
+      <g:id>BK-MTB29</g:id>
+      <g:title>Bicicleta Mountain Bike Aro 29 21 Marchas</g:title>
+      <g:description>Quadro em alumínio, freio a disco e 21 marchas Shimano. Montagem fácil com manual em português.</g:description>
+      <g:link>https://tcharan.com.br/p/bicicleta-mountain-bike-aro-29.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>1199.90 BRL</g:price>
+      <g:sale_price>899.90 BRL</g:sale_price>
+      <g:brand>Genérica</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>no</g:identifier_exists>
+      <g:product_type>Esportes</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>0.00 BRL</g:price></g:shipping>
+    </item>
+    <item>
+      <g:id>LV-PDH</g:id>
+      <g:title>Livro: O Poder do Hábito — Charles Duhigg</g:title>
+      <g:description>O bestseller que explica por que fazemos o que fazemos e como mudar. Capa comum, 408 páginas.</g:description>
+      <g:link>https://tcharan.com.br/p/livro-o-poder-do-habito.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>39.90 BRL</g:price>
+      <g:sale_price>29.90 BRL</g:sale_price>
+      <g:brand>Objetiva</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>yes</g:identifier_exists>
+      <g:product_type>Livros</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>19.90 BRL</g:price></g:shipping>
+    </item>
+    <item>
+      <g:id>LG-CE3</g:id>
+      <g:title>LEGO Creator Expert 3 em 1</g:title>
+      <g:description>Três modelos em uma caixa: horas de diversão para crianças e adultos. Produto original LEGO.</g:description>
+      <g:link>https://tcharan.com.br/p/lego-creator-expert.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>349.90 BRL</g:price>
+      <g:sale_price>299.90 BRL</g:sale_price>
+      <g:brand>LEGO</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>yes</g:identifier_exists>
+      <g:product_type>Brinquedos</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>0.00 BRL</g:price></g:shipping>
+    </item>
+    <item>
+      <g:id>FN-BT-ANC</g:id>
+      <g:title>Fone de Ouvido Bluetooth com Cancelamento de Ruído</g:title>
+      <g:description>30h de bateria, cancelamento ativo de ruído e microfone para chamadas. Estojo de carregamento incluso.</g:description>
+      <g:link>https://tcharan.com.br/p/fone-bluetooth-cancelamento-ruido.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>199.90 BRL</g:price>
+      <g:sale_price>149.90 BRL</g:sale_price>
+      <g:brand>Genérica</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>no</g:identifier_exists>
+      <g:product_type>Eletrônicos</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>19.90 BRL</g:price></g:shipping>
+    </item>
+    <item>
+      <g:id>AF-4L-DG</g:id>
+      <g:title>Air Fryer Digital 4L Antiaderente</g:title>
+      <g:description>Fritura sem óleo com 8 programas e cesto antiaderente removível. Até 60% mais rápida que o forno.</g:description>
+      <g:link>https://tcharan.com.br/p/air-fryer-4l-digital.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>399.90 BRL</g:price>
+      <g:sale_price>279.90 BRL</g:sale_price>
+      <g:brand>Genérica</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>no</g:identifier_exists>
+      <g:product_type>Casa e Cozinha</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>0.00 BRL</g:price></g:shipping>
+    </item>
+    <item>
+      <g:id>SW-GPS-01</g:id>
+      <g:title>Smartwatch com Monitor Cardíaco e GPS</g:title>
+      <g:description>Tela AMOLED, 7 dias de bateria, oxímetro e 100+ modos de treino. Compatível com Android e iPhone.</g:description>
+      <g:link>https://tcharan.com.br/p/smartwatch-monitor-cardiaco.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>329.90 BRL</g:price>
+      <g:sale_price>199.90 BRL</g:sale_price>
+      <g:brand>Genérica</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>no</g:identifier_exists>
+      <g:product_type>Eletrônicos</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>0.00 BRL</g:price></g:shipping>
+    </item>
+    <item>
+      <g:id>KT-ORG10</g:id>
+      <g:title>Kit 10 Potes Organizadores Herméticos</g:title>
+      <g:description>Mantém alimentos frescos por mais tempo. Empilháveis, livres de BPA e com etiquetas inclusas.</g:description>
+      <g:link>https://tcharan.com.br/p/kit-organizadores-cozinha.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>129.90 BRL</g:price>
+      <g:sale_price>89.90 BRL</g:sale_price>
+      <g:brand>Genérica</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>no</g:identifier_exists>
+      <g:product_type>Casa e Cozinha</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>19.90 BRL</g:price></g:shipping>
+    </item>
+    <item>
+      <g:id>PF-AR-100</g:id>
+      <g:title>Perfume Árabe Masculino 100ml Fixação 12h</g:title>
+      <g:description>Fragrância amadeirada de alta fixação — o presente que mais cresce em buscas no Brasil.</g:description>
+      <g:link>https://tcharan.com.br/p/perfume-arabe-masculino-100ml.html</g:link>
+      <g:image_link>https://tcharan.com.br/branding/og/tcharan-og.png</g:image_link>
+      <g:availability>in_stock</g:availability>
+      <g:price>219.90 BRL</g:price>
+      <g:sale_price>159.90 BRL</g:sale_price>
+      <g:brand>Genérica</g:brand>
+      <g:condition>new</g:condition>
+      <g:identifier_exists>no</g:identifier_exists>
+      <g:product_type>Beleza</g:product_type>
+      <g:shipping><g:country>BR</g:country><g:price>19.90 BRL</g:price></g:shipping>
+    </item>
+  </channel>
+</rss>

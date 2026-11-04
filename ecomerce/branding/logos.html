@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logos — propostas de identidade</title>
+<style>
+  :root{--bg:#f6f6f8;--ink:#15121f;--muted:#6b6880;--card:#fff}
+  *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 20px 80px}
+  h1{font-size:28px;margin:0 0 6px} .lead{color:var(--muted);margin:0 0 28px;max-width:760px;line-height:1.5}
+  .marca{background:var(--card);border-radius:20px;padding:24px;margin:0 0 28px;box-shadow:0 8px 30px rgba(20,10,60,.06)}
+  .marca header{display:flex;flex-wrap:wrap;align-items:center;gap:14px 24px;margin-bottom:18px}
+  .marca h2{margin:0;font-size:24px} .tag{margin:0;color:var(--muted);font-style:italic}
+  .swatches{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+  .sw{display:inline-flex;flex-direction:column;justify-content:flex-end;width:92px;height:56px;border-radius:10px;padding:6px;color:#fff;font-size:10px;line-height:1.2;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+  .sw i{font-style:normal;opacity:.9} .sw b{font-weight:700}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  figure{margin:0;border-radius:16px;padding:28px 20px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:190px;border:1px solid rgba(0,0,0,.06)}
+  figure img{max-width:100%;height:64px;width:auto} figure img.tall{height:200px}
+  figure.icons{flex-direction:row;flex-wrap:wrap;align-items:center} figure.icons img{height:auto}
+  figure.icons figcaption{flex-basis:100%}
+  figcaption{font-size:12px;color:var(--muted);text-align:center}
+  .light{background:#fff} .dark{background:#15121f} .dark figcaption,.brand figcaption{color:rgba(255,255,255,.75)}
+  .note{font-size:13px;color:var(--muted);line-height:1.6;background:#fff;border-radius:14px;padding:16px 18px}
+  code{background:#eee;padding:1px 5px;border-radius:5px}
+  @media (prefers-color-scheme:dark){:root{--bg:#121018;--ink:#f3f1f8;--muted:#a9a5bd;--card:#1b1826} .light{background:#f7f7fa} .light figcaption{color:#555}}
+</style></head><body><div class="wrap">
+<h1>Propostas de logo — 3 identidades</h1>
+<p class="lead">Arquivos SVG com texto já convertido em curvas (não dependem de fonte instalada). Cada marca tem versões horizontal, vertical com slogan, ícone/favicon e monocromáticas. Para trocar a marca ativa da loja, edite <code>marcaAtiva</code> em <code>assets/js/config.js</code>.</p>
+
+  <section class="marca" id="tcharan">
+    <header>
+      <h2>Tcharan</h2>
+      <p class="tag">“chegou. abriu. tcharan!”</p>
+      <div class="swatches"><span class="sw" style="background:#6D28D9" title="primaria: #6D28D9"><i>primaria</i><b>#6D28D9</b></span><span class="sw" style="background:#FF5A36" title="acento: #FF5A36"><i>acento</i><b>#FF5A36</b></span><span class="sw" style="background:#FFD23F" title="destaque: #FFD23F"><i>destaque</i><b>#FFD23F</b></span><span class="sw" style="background:#2A1B5E" title="tinta: #2A1B5E"><i>tinta</i><b>#2A1B5E</b></span><span class="sw" style="background:#FFFFFF" title="fundo: #FFFFFF"><i>fundo</i><b>#FFFFFF</b></span></div>
+    </header>
+    <div class="grid">
+      <figure class="light"><img src="logos/tcharan-horizontal.svg" alt=""><figcaption>horizontal (fundo claro)</figcaption></figure>
+      <figure class="dark"><img src="logos/tcharan-horizontal-mono-branco.svg" alt=""><figcaption>horizontal mono branco (fundo escuro)</figcaption></figure>
+      <figure class="brand" style="background:#6D28D9"><img src="logos/tcharan-horizontal-mono-branco.svg" alt=""><figcaption>sobre a cor da marca</figcaption></figure>
+      <figure class="light"><img src="logos/tcharan-vertical.svg" alt="" class="tall"><figcaption>vertical + slogan</figcaption></figure>
+      <figure class="light icons"><img src="logos/tcharan-icone.svg" alt="" style="width:96px"><img src="logos/tcharan-icone.svg" alt="" style="width:48px"><img src="logos/tcharan-icone.svg" alt="" style="width:24px"><figcaption>ícone / app / favicon (96 · 48 · 24 px)</figcaption></figure>
+      <figure class="light"><img src="logos/tcharan-horizontal-mono-preto.svg" alt=""><figcaption>mono preto (impressão, nota fiscal, etiqueta)</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="marca" id="capiva">
+    <header>
+      <h2>Capiva</h2>
+      <p class="tag">“tem de tudo. é de boa.”</p>
+      <div class="swatches"><span class="sw" style="background:#0F9D9A" title="primaria: #0F9D9A"><i>primaria</i><b>#0F9D9A</b></span><span class="sw" style="background:#8B5E34" title="acento: #8B5E34"><i>acento</i><b>#8B5E34</b></span><span class="sw" style="background:#F5B700" title="destaque: #F5B700"><i>destaque</i><b>#F5B700</b></span><span class="sw" style="background:#0B4F4D" title="tinta: #0B4F4D"><i>tinta</i><b>#0B4F4D</b></span><span class="sw" style="background:#FFF7E8" title="fundo: #FFF7E8"><i>fundo</i><b>#FFF7E8</b></span></div>
+    </header>
+    <div class="grid">
+      <figure class="light"><img src="logos/capiva-horizontal.svg" alt=""><figcaption>horizontal (fundo claro)</figcaption></figure>
+      <figure class="dark"><img src="logos/capiva-horizontal-mono-branco.svg" alt=""><figcaption>horizontal mono branco (fundo escuro)</figcaption></figure>
+      <figure class="brand" style="background:#0F9D9A"><img src="logos/capiva-horizontal-mono-branco.svg" alt=""><figcaption>sobre a cor da marca</figcaption></figure>
+      <figure class="light"><img src="logos/capiva-vertical.svg" alt="" class="tall"><figcaption>vertical + slogan</figcaption></figure>
+      <figure class="light icons"><img src="logos/capiva-icone.svg" alt="" style="width:96px"><img src="logos/capiva-icone.svg" alt="" style="width:48px"><img src="logos/capiva-icone.svg" alt="" style="width:24px"><figcaption>ícone / app / favicon (96 · 48 · 24 px)</figcaption></figure>
+      <figure class="light"><img src="logos/capiva-horizontal-mono-preto.svg" alt=""><figcaption>mono preto (impressão, nota fiscal, etiqueta)</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="marca" id="xodoria">
+    <header>
+      <h2>Xodoria</h2>
+      <p class="tag">“a loja dos seus xodós”</p>
+      <div class="swatches"><span class="sw" style="background:#FF4F6E" title="primaria: #FF4F6E"><i>primaria</i><b>#FF4F6E</b></span><span class="sw" style="background:#5B2A86" title="acento: #5B2A86"><i>acento</i><b>#5B2A86</b></span><span class="sw" style="background:#FFE08A" title="destaque: #FFE08A"><i>destaque</i><b>#FFE08A</b></span><span class="sw" style="background:#3D1A5C" title="tinta: #3D1A5C"><i>tinta</i><b>#3D1A5C</b></span><span class="sw" style="background:#FFF5F7" title="fundo: #FFF5F7"><i>fundo</i><b>#FFF5F7</b></span></div>
+    </header>
+    <div class="grid">
+      <figure class="light"><img src="logos/xodoria-horizontal.svg" alt=""><figcaption>horizontal (fundo claro)</figcaption></figure>
+      <figure class="dark"><img src="logos/xodoria-horizontal-mono-branco.svg" alt=""><figcaption>horizontal mono branco (fundo escuro)</figcaption></figure>
+      <figure class="brand" style="background:#FF4F6E"><img src="logos/xodoria-horizontal-mono-branco.svg" alt=""><figcaption>sobre a cor da marca</figcaption></figure>
+      <figure class="light"><img src="logos/xodoria-vertical.svg" alt="" class="tall"><figcaption>vertical + slogan</figcaption></figure>
+      <figure class="light icons"><img src="logos/xodoria-icone.svg" alt="" style="width:96px"><img src="logos/xodoria-icone.svg" alt="" style="width:48px"><img src="logos/xodoria-icone.svg" alt="" style="width:24px"><figcaption>ícone / app / favicon (96 · 48 · 24 px)</figcaption></figure>
+      <figure class="light"><img src="logos/xodoria-horizontal-mono-preto.svg" alt=""><figcaption>mono preto (impressão, nota fiscal, etiqueta)</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="marca" id="ia">
+    <header><h2>Propostas geradas por IA (OpenAI gpt-image)</h2><p class="tag">PNG com fundo transparente · para virar vetor, use Illustrator (Image Trace), Inkscape (Trace Bitmap) ou vectorizer.ai</p></header>
+    <div class="grid">
+      <figure class="light"><img src="logos/ia/capiva-logo-horizontal.png" alt="" style="height:110px"><figcaption>capiva-logo-horizontal</figcaption></figure><figure class="light"><img src="logos/ia/capiva-mascote.png" alt="" style="height:200px"><figcaption>capiva-mascote</figcaption></figure><figure class="light"><img src="logos/ia/tcharan-icone.png" alt="" style="height:200px"><figcaption>tcharan-icone</figcaption></figure><figure class="light"><img src="logos/ia/tcharan-logo-horizontal.png" alt="" style="height:110px"><figcaption>tcharan-logo-horizontal</figcaption></figure><figure class="light"><img src="logos/ia/xodoria-icone.png" alt="" style="height:200px"><figcaption>xodoria-icone</figcaption></figure><figure class="light"><img src="logos/ia/xodoria-logo-horizontal.png" alt="" style="height:110px"><figcaption>xodoria-logo-horizontal</figcaption></figure>
+    </div>
+  </section>
+<p class="note"><b>Como usar:</b> ícone → favicon, app, foto de perfil (Instagram/TikTok/WhatsApp); horizontal → cabeçalho do site, e-mails, nota fiscal; vertical → embalagem, cartão, capa de redes; mono → carimbo, etiqueta térmica, bordado. Área de proteção mínima: a altura do ícone ÷ 4 em todos os lados. Tamanho mínimo do horizontal: 110 px de largura.</p>
+</div></body></html>

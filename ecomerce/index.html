@@ -1,788 +1,294 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoyalMarket - E-commerce</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
-            color: #333;
-            line-height: 1.6;
-        }
-
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
-            color: white;
-            padding: 1rem 0;
-            box-shadow: 0 2px 10px rgba(30, 58, 138, 0.3);
-        }
-
-        .header-top {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-
-        .logo {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #fbbf24;
-            text-decoration: none;
-        }
-
-        .search-container {
-            flex: 1;
-            max-width: 600px;
-            position: relative;
-        }
-
-        .search-box {
-            width: 100%;
-            padding: 12px 50px 12px 20px;
-            border: none;
-            border-radius: 25px;
-            font-size: 16px;
-            outline: none;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .search-btn {
-            position: absolute;
-            right: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #fbbf24;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
-            cursor: pointer;
-            color: #1e3a8a;
-            font-weight: bold;
-        }
-
-        .user-actions {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
-
-        .user-link {
-            color: white;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            padding: 8px 15px;
-            border-radius: 20px;
-            transition: background 0.3s;
-        }
-
-        .user-link:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .cart-badge {
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            padding: 2px 6px;
-            font-size: 12px;
-            margin-left: 5px;
-        }
-
-        /* Navigation */
-        .nav {
-            background: #1e40af;
-            padding: 10px 0;
-        }
-
-        .nav-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            gap: 30px;
-            overflow-x: auto;
-        }
-
-        .nav-link {
-            color: white;
-            text-decoration: none;
-            white-space: nowrap;
-            padding: 8px 15px;
-            border-radius: 15px;
-            transition: background 0.3s;
-        }
-
-        .nav-link:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        /* Banner */
-        .banner {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
-            padding: 60px 20px;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .banner h1 {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .banner p {
-            font-size: 1.2rem;
-            margin-bottom: 30px;
-            opacity: 0.9;
-        }
-
-        .cta-button {
-            background: #fbbf24;
-            color: #1e3a8a;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 25px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .cta-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(251, 191, 36, 0.4);
-        }
-
-        /* Main Content */
-        .main-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        .section-title {
-            font-size: 2rem;
-            color: #1e3a8a;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        /* Categories */
-        .categories {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 50px;
-        }
-
-        .category-card {
-            background: white;
-            border-radius: 15px;
-            padding: 30px 20px;
-            text-align: center;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s, box-shadow 0.3s;
-            cursor: pointer;
-            border: 2px solid transparent;
-        }
-
-        .category-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(30, 58, 138, 0.2);
-            border-color: #3b82f6;
-        }
-
-        .category-icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
-            color: #3b82f6;
-        }
-
-        .category-name {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #1e3a8a;
-            margin-bottom: 10px;
-        }
-
-        .category-count {
-            color: #6b7280;
-            font-size: 0.9rem;
-        }
-
-        /* Products Grid */
-        .products-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 25px;
-            margin-bottom: 50px;
-        }
-
-        .product-card {
-            background: white;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s, box-shadow 0.3s;
-            cursor: pointer;
-            border: 2px solid transparent;
-        }
-
-        .product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(30, 58, 138, 0.2);
-            border-color: #3b82f6;
-        }
-
-        .product-image {
-            width: 100%;
-            height: 200px;
-            background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 4rem;
-            color: #3b82f6;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .product-badge {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: #ef4444;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .product-info {
-            padding: 20px;
-        }
-
-        .product-title {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #1e3a8a;
-            margin-bottom: 10px;
-            line-height: 1.4;
-        }
-
-        .product-price {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #059669;
-            margin-bottom: 5px;
-        }
-
-        .product-old-price {
-            font-size: 1rem;
-            color: #6b7280;
-            text-decoration: line-through;
-            margin-left: 10px;
-        }
-
-        .product-rating {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin-bottom: 15px;
-        }
-
-        .stars {
-            color: #fbbf24;
-        }
-
-        .rating-text {
-            color: #6b7280;
-            font-size: 0.9rem;
-        }
-
-        .add-to-cart {
-            width: 100%;
-            background: #1e3a8a;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s, transform 0.2s;
-        }
-
-        .add-to-cart:hover {
-            background: #1e40af;
-            transform: translateY(-1px);
-        }
-
-        .add-to-cart:active {
-            transform: translateY(0);
-        }
-
-        /* Footer */
-        .footer {
-            background: #1e3a8a;
-            color: white;
-            padding: 50px 0 20px;
-            margin-top: 50px;
-        }
-
-        .footer-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 40px;
-        }
-
-        .footer-section h3 {
-            color: #fbbf24;
-            margin-bottom: 20px;
-            font-size: 1.3rem;
-        }
-
-        .footer-section ul {
-            list-style: none;
-        }
-
-        .footer-section ul li {
-            margin-bottom: 10px;
-        }
-
-        .footer-section ul li a {
-            color: white;
-            text-decoration: none;
-            transition: color 0.3s;
-        }
-
-        .footer-section ul li a:hover {
-            color: #fbbf24;
-        }
-
-        .footer-bottom {
-            text-align: center;
-            padding-top: 30px;
-            margin-top: 30px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            color: #c7d2fe;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .header-top {
-                flex-direction: column;
-                gap: 15px;
-            }
-
-            .search-container {
-                order: 3;
-                width: 100%;
-            }
-
-            .banner h1 {
-                font-size: 2rem;
-            }
-
-            .nav-container {
-                justify-content: center;
-            }
-
-            .categories {
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            }
-
-            .products-grid {
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            }
-        }
-
-        /* Loading Animation */
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .loading {
-            animation: pulse 2s infinite;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- SEO básico (o app.js atualiza título/descrição com a marca ativa de config.js) -->
+  <title>Tcharan | Achadinhos, Ofertas e Presentes com Frete Grátis</title>
+  <meta name="description" content="Eletrônicos, moda, casa, esportes, livros e brinquedos com até 50% OFF, Pix com 5% de desconto e frete grátis acima de R$ 199. Entrega rápida e compra 100% segura.">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <link rel="canonical" href="https://tcharan.com.br/">
+  <meta name="theme-color" content="#6D28D9">
+  <link rel="icon" type="image/svg+xml" href="branding/logos/tcharan-favicon.svg">
+  <link rel="apple-touch-icon" href="branding/logos/png/tcharan-apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+  <!-- Open Graph / WhatsApp / Instagram / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="Tcharan">
+  <meta property="og:title" content="Tcharan | Achadinhos, Ofertas e Presentes com Frete Grátis">
+  <meta property="og:description" content="Eletrônicos, moda, casa, esportes, livros e brinquedos com até 50% OFF, Pix com 5% de desconto e frete grátis acima de R$ 199.">
+  <meta property="og:url" content="https://tcharan.com.br/">
+  <meta property="og:image" content="https://tcharan.com.br/branding/og/tcharan-og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Tcharan | Achadinhos, Ofertas e Presentes com Frete Grátis">
+  <meta name="twitter:description" content="Até 50% OFF, Pix com 5% de desconto e frete grátis acima de R$ 199.">
+  <meta name="twitter:image" content="https://tcharan.com.br/branding/og/tcharan-og.png">
+  <!-- Fontes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Fredoka:wght@600;700&family=Inter:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/produtos.js"></script>
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="header-top">
-            <a href="#" class="logo">RoyalMarket</a>
-            
-            <div class="search-container">
-                <input type="text" class="search-box" placeholder="Buscar produtos, marcas e muito mais..." id="searchInput">
-                <button class="search-btn" onclick="performSearch()">🔍</button>
-            </div>
-            
-            <div class="user-actions">
-                <a href="#" class="user-link">👤 Minha Conta</a>
-                <a href="#" class="user-link">❤️ Favoritos</a>
-                <a href="#" class="user-link" onclick="toggleCart()">
-                    🛒 Carrinho
-                    <span class="cart-badge" id="cartBadge">0</span>
-                </a>
-            </div>
-        </div>
-    </header>
+  <a class="skip-link" href="#produtos">Pular para os produtos</a>
 
-    <!-- Navigation -->
-    <nav class="nav">
-        <div class="nav-container">
-            <a href="#" class="nav-link" onclick="filterByCategory('all')">Todos os Produtos</a>
-            <a href="#" class="nav-link" onclick="filterByCategory('electronics')">Eletrônicos</a>
-            <a href="#" class="nav-link" onclick="filterByCategory('fashion')">Moda</a>
-            <a href="#" class="nav-link" onclick="filterByCategory('home')">Casa e Jardim</a>
-            <a href="#" class="nav-link" onclick="filterByCategory('sports')">Esportes</a>
-            <a href="#" class="nav-link" onclick="filterByCategory('books')">Livros</a>
-            <a href="#" class="nav-link" onclick="filterByCategory('toys')">Brinquedos</a>
-        </div>
-    </nav>
+  <!-- Ícones (sprite SVG) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.5L21 8H7"/><circle cx="10" cy="21" r="1"/><circle cx="18" cy="21" r="1"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.3-9A5.3 5.3 0 0 1 12 6.5 5.3 5.3 0 0 1 21.3 12C19 16.4 12 21 12 21z"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-whats" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 1.8a8.2 8.2 0 0 1 0 16.4 8.1 8.1 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 0 1 12 3.8zm-3.3 4.4c-.2 0-.5 0-.7.3-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.2 5 4.4 2.5 1 3 .8 3.5.7.5 0 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3l-2-1c-.3-.1-.5-.2-.7.1l-.9 1.1c-.2.2-.3.2-.6.1-.3-.2-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.5-.5.3-.5v-.5l-.9-2.2c-.2-.5-.4-.5-.7-.5h-.5z"/></symbol>
+    <symbol id="i-pix" viewBox="0 0 24 24"><path d="m12 3 4.2 4.2a3 3 0 0 0 2.1.9H20l1 1-5.3 5.3-1.4-1.4L17.6 10l-3.3-3.3L12 9 9.7 6.7 6.4 10l3.3 3.3-1.4 1.4L3 9l1-1h1.7a3 3 0 0 0 2.1-.9L12 3zm0 18-4.2-4.2a3 3 0 0 0-2.1-.9H4l-1-1 1.4-1.4L7.7 16l3.3 3.3L12 18l1 1.3 3.3-3.3 3.3-2.5L21 15l-1 1h-1.7a3 3 0 0 0-2.1.9L12 21z"/></symbol>
+    <symbol id="i-instagram" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></symbol>
+    <symbol id="i-tiktok" viewBox="0 0 24 24"><path d="M14 3v10.5a3.5 3.5 0 1 1-3.5-3.5M14 3a5 5 0 0 0 5 5"/></symbol>
+    <symbol id="i-youtube" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="4"/><path d="m10 9 5 3-5 3z" fill="currentColor"/></symbol>
+  </svg>
 
-    <!-- Banner -->
-    <section class="banner">
-        <h1>Bem-vindo ao RoyalMarket</h1>
-        <p>Encontre os melhores produtos com os melhores preços</p>
-        <a href="#products" class="cta-button">Ver Ofertas</a>
+  <div class="topbar" id="topbar" aria-live="polite"></div>
+
+  <header class="header" id="header">
+    <div class="container header__inner">
+      <button class="menu-btn" id="menuBtn" type="button" aria-label="Abrir menu de categorias" aria-expanded="false"><svg class="icon"><use href="#i-menu"/></svg></button>
+      <a href="./" class="logo" aria-label="Página inicial"><img data-logo src="branding/logos/tcharan-horizontal.svg" alt="Tcharan" width="180" height="48"></a>
+      <form class="search" role="search" id="searchForm" autocomplete="off">
+        <label for="searchInput" class="sr-only">Buscar produtos</label>
+        <input type="search" id="searchInput" placeholder="O que você procura hoje?" enterkeyhint="search">
+        <button type="submit" aria-label="Buscar"><svg class="icon"><use href="#i-search"/></svg></button>
+        <ul class="search__sug" id="searchSug" role="listbox" hidden></ul>
+      </form>
+      <nav class="actions" aria-label="Ações">
+        <a class="action" data-wa href="#" aria-label="Atendimento pelo WhatsApp"><svg class="icon"><use href="#i-whats"/></svg><span>Atendimento</span></a>
+        <button class="action" id="favBtn" type="button" aria-label="Favoritos"><svg class="icon"><use href="#i-heart"/></svg><span>Favoritos</span><b class="badge" id="favBadge" data-zero="true">0</b></button>
+        <button class="action action--cart" id="cartBtn" type="button" aria-label="Abrir carrinho"><svg class="icon"><use href="#i-cart"/></svg><span>Carrinho</span><b class="badge" id="cartBadge" data-zero="true">0</b></button>
+      </nav>
+    </div>
+    <nav class="catnav" aria-label="Categorias"><div class="container" id="catNav"></div></nav>
+    <nav class="mobile-nav" id="mobileNav" aria-label="Menu"></nav>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero" aria-labelledby="heroTitle">
+      <div class="container hero__inner">
+        <div class="hero__text">
+          <span class="eyebrow">⚡ Ofertas do dia · Pix com <span data-pix-off>5%</span> OFF · Frete grátis acima de <span data-frete-gratis>R$ 199</span></span>
+          <h1 id="heroTitle">Achadinhos, eletrônicos e presentes com <em>até 50% OFF</em></h1>
+          <p>Compra segura com nota fiscal, troca fácil em 7 dias e envio em até 24h para todo o Brasil. <span data-slogan>Chegou. Abriu. Tcharan!</span></p>
+          <div class="hero__cta">
+            <a href="#ofertas" class="btn btn--light btn--lg">Ver ofertas do dia</a>
+            <a href="#" class="btn btn--ghost btn--lg" data-wa><svg class="icon"><use href="#i-whats"/></svg> Tirar dúvida no WhatsApp</a>
+          </div>
+          <ul class="trust" aria-label="Garantias">
+            <li>🔒 Compra 100% segura</li><li>🧾 Nota fiscal</li><li>🔁 7 dias para trocar</li><li>🚚 Envio em 24h</li>
+          </ul>
+        </div>
+        <div class="hero__art" aria-hidden="true"><img data-icone src="branding/logos/tcharan-icone.svg" alt="" width="300" height="300"></div>
+      </div>
     </section>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <!-- Categories -->
-        <section class="categories-section">
-            <h2 class="section-title">Categorias em Destaque</h2>
-            <div class="categories">
-                <div class="category-card" onclick="filterByCategory('electronics')">
-                    <div class="category-icon">📱</div>
-                    <div class="category-name">Eletrônicos</div>
-                    <div class="category-count">1.234 produtos</div>
-                </div>
-                <div class="category-card" onclick="filterByCategory('fashion')">
-                    <div class="category-icon">👕</div>
-                    <div class="category-name">Moda</div>
-                    <div class="category-count">2.567 produtos</div>
-                </div>
-                <div class="category-card" onclick="filterByCategory('home')">
-                    <div class="category-icon">🏠</div>
-                    <div class="category-name">Casa e Jardim</div>
-                    <div class="category-count">890 produtos</div>
-                </div>
-                <div class="category-card" onclick="filterByCategory('sports')">
-                    <div class="category-icon">⚽</div>
-                    <div class="category-name">Esportes</div>
-                    <div class="category-count">456 produtos</div>
-                </div>
-                <div class="category-card" onclick="filterByCategory('books')">
-                    <div class="category-icon">📚</div>
-                    <div class="category-name">Livros</div>
-                    <div class="category-count">789 produtos</div>
-                </div>
-                <div class="category-card" onclick="filterByCategory('toys')">
-                    <div class="category-icon">🧸</div>
-                    <div class="category-name">Brinquedos</div>
-                    <div class="category-count">345 produtos</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Products -->
-        <section class="products-section" id="products">
-            <h2 class="section-title">Produtos em Destaque</h2>
-            <div class="products-grid" id="productsGrid">
-                <!-- Products will be loaded here -->
-            </div>
-        </section>
-    </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-content">
-            <div class="footer-section">
-                <h3>Sobre o RoyalMarket</h3>
-                <ul>
-                    <li><a href="#">Quem Somos</a></li>
-                    <li><a href="#">Trabalhe Conosco</a></li>
-                    <li><a href="#">Investidores</a></li>
-                    <li><a href="#">Sustentabilidade</a></li>
-                </ul>
-            </div>
-            <div class="footer-section">
-                <h3>Atendimento</h3>
-                <ul>
-                    <li><a href="#">Central de Ajuda</a></li>
-                    <li><a href="#">Como Comprar</a></li>
-                    <li><a href="#">Como Vender</a></li>
-                    <li><a href="#">Resolução de Problemas</a></li>
-                </ul>
-            </div>
-            <div class="footer-section">
-                <h3>Minha Conta</h3>
-                <ul>
-                    <li><a href="#">Resumo da Conta</a></li>
-                    <li><a href="#">Meus Pedidos</a></li>
-                    <li><a href="#">Dados Pessoais</a></li>
-                    <li><a href="#">Endereços</a></li>
-                </ul>
-            </div>
-            <div class="footer-section">
-                <h3>Siga-nos</h3>
-                <ul>
-                    <li><a href="#">📘 Facebook</a></li>
-                    <li><a href="#">📷 Instagram</a></li>
-                    <li><a href="#">🐦 Twitter</a></li>
-                    <li><a href="#">📺 YouTube</a></li>
-                </ul>
-            </div>
+    <!-- OFERTA RELÂMPAGO -->
+    <section class="section section--tight" id="ofertas" aria-labelledby="dealsLabel">
+      <div class="container">
+        <div class="section__head">
+          <div><h2>⚡ <span id="dealsLabel">Oferta relâmpago</span></h2><p>Preços válidos só hoje ou enquanto durar o estoque.</p></div>
+          <div class="countdown" id="countdown" aria-live="off">termina em <b>00:00:00</b></div>
         </div>
-        <div class="footer-bottom">
-            <p>&copy; 2024 RoyalMarket. Todos os direitos reservados.</p>
+        <div class="grid grid--deals" id="dealsGrid"></div>
+      </div>
+    </section>
+
+    <!-- CATEGORIAS -->
+    <section class="section section--tight" id="categorias" aria-labelledby="catTitle">
+      <div class="container">
+        <div class="section__head"><h2 id="catTitle">Navegue por categoria</h2></div>
+        <div class="cats" id="catsGrid"></div>
+      </div>
+    </section>
+
+    <!-- PRODUTOS -->
+    <section class="section" id="produtos" aria-labelledby="productsTitle">
+      <div class="container">
+        <div class="section__head">
+          <div><h2 id="productsTitle">Produtos em destaque</h2><p id="productsCount"></p></div>
+          <div class="toolbar">
+            <div class="chips" id="chips" role="group" aria-label="Filtros rápidos">
+              <button class="chip is-active" type="button" data-chip="all">Todos</button>
+              <button class="chip" type="button" data-chip="achadinhos">✨ Achadinhos</button>
+              <button class="chip" type="button" data-chip="ate100">Até R$ 100</button>
+              <button class="chip" type="button" data-chip="frete">🚚 Frete grátis</button>
+              <button class="chip" type="button" data-chip="favoritos">❤️ Favoritos</button>
+            </div>
+            <label class="sr-only" for="sortSelect">Ordenar por</label>
+            <select id="sortSelect">
+              <option value="relevancia">Relevância</option>
+              <option value="desconto">Maior desconto</option>
+              <option value="menor">Menor preço</option>
+              <option value="maior">Maior preço</option>
+              <option value="novidades">Novidades</option>
+            </select>
+          </div>
         </div>
-    </footer>
+        <div class="grid" id="productsGrid"></div>
+        <div class="empty" id="emptyState" hidden>
+          <h3>Nenhum produto encontrado 😕</h3>
+          <p>Tente outra palavra ou <a href="#categoria/all">veja todos os produtos</a>. Quer que a gente procure pra você? <a data-wa="Olá! Não achei o que procurava no site. Vocês têm" href="#">Chama no WhatsApp</a>.</p>
+        </div>
+      </div>
+    </section>
 
-    <script>
-        // Sample products data
-        const products = [
-            {
-                id: 1,
-                title: "Smartphone Samsung Galaxy S24",
-                price: 2499.99,
-                oldPrice: 2999.99,
-                category: "electronics",
-                icon: "📱",
-                rating: 4.8,
-                reviews: 1234,
-                badge: "OFERTA"
-            },
-            {
-                id: 2,
-                title: "Notebook Dell Inspiron 15",
-                price: 3299.99,
-                oldPrice: 3799.99,
-                category: "electronics",
-                icon: "💻",
-                rating: 4.6,
-                reviews: 856,
-                badge: "DESCONTO"
-            },
-            {
-                id: 3,
-                title: "Tênis Nike Air Max",
-                price: 399.99,
-                oldPrice: 499.99,
-                category: "fashion",
-                icon: "👟",
-                rating: 4.7,
-                reviews: 2341,
-                badge: "POPULAR"
-            },
-            {
-                id: 4,
-                title: "Cafeteira Elétrica Philips",
-                price: 189.99,
-                oldPrice: 249.99,
-                category: "home",
-                icon: "☕",
-                rating: 4.5,
-                reviews: 567,
-                badge: "OFERTA"
-            },
-            {
-                id: 5,
-                title: "Bicicleta Mountain Bike",
-                price: 899.99,
-                oldPrice: 1199.99,
-                category: "sports",
-                icon: "🚴",
-                rating: 4.9,
-                reviews: 234,
-                badge: "SUPER OFERTA"
-            },
-            {
-                id: 6,
-                title: "Livro: O Poder do Hábito",
-                price: 29.99,
-                oldPrice: 39.99,
-                category: "books",
-                icon: "📖",
-                rating: 4.8,
-                reviews: 1567,
-                badge: "BESTSELLER"
-            },
-            {
-                id: 7,
-                title: "LEGO Creator Expert",
-                price: 299.99,
-                oldPrice: 349.99,
-                category: "toys",
-                icon: "🧩",
-                rating: 4.9,
-                reviews: 789,
-                badge: "NOVIDADE"
-            },
-            {
-                id: 8,
-                title: "Fone de Ouvido Bluetooth",
-                price: 149.99,
-                oldPrice: 199.99,
-                category: "electronics",
-                icon: "🎧",
-                rating: 4.4,
-                reviews: 1890,
-                badge: "OFERTA"
-            }
-        ];
+    <!-- GARANTIAS -->
+    <section class="section section--tight" aria-label="Por que comprar aqui">
+      <div class="container garantias">
+        <div class="garantia"><div class="garantia__icon">💠</div><div><h3><span data-pix-off>5%</span> OFF no Pix</h3><p>Pagou, caiu na hora e já separamos seu pedido.</p></div></div>
+        <div class="garantia"><div class="garantia__icon">💳</div><div><h3>Até <span data-parcelas>12x</span> sem juros</h3><p>Nos principais cartões, sem letra miúda.</p></div></div>
+        <div class="garantia"><div class="garantia__icon">🚚</div><div><h3>Frete grátis acima de <span data-frete-gratis>R$ 199</span></h3><p>Envio em até 24h com código de rastreio.</p></div></div>
+        <div class="garantia"><div class="garantia__icon">🔁</div><div><h3>Troca fácil em 7 dias</h3><p>Não gostou? Devolvemos seu dinheiro. Sem drama.</p></div></div>
+      </div>
+    </section>
 
-        let cart = [];
-        let currentFilter = 'all';
+    <!-- DEPOIMENTOS (aparece só se houver depoimentos reais em produtos.js) -->
+    <section class="section" id="depoimentos" hidden aria-labelledby="depoTitle">
+      <div class="container">
+        <div class="section__head"><h2 id="depoTitle">Quem comprou, recomenda</h2></div>
+        <div class="depos" id="deposGrid"></div>
+      </div>
+    </section>
 
-        function renderProducts(productsToRender = products) {
-            const grid = document.getElementById('productsGrid');
-            grid.innerHTML = '';
+    <!-- FAQ -->
+    <section class="section" id="faq" aria-labelledby="faqTitle">
+      <div class="container">
+        <div class="section__head" style="justify-content:center;text-align:center"><div><h2 id="faqTitle">Dúvidas frequentes</h2><p>Tudo o que você precisa saber antes de comprar.</p></div></div>
+        <div class="faq" id="faqList"></div>
+      </div>
+    </section>
 
-            productsToRender.forEach(product => {
-                const productCard = document.createElement('div');
-                productCard.className = 'product-card';
-                productCard.innerHTML = `
-                    <div class="product-image">
-                        ${product.icon}
-                        <div class="product-badge">${product.badge}</div>
-                    </div>
-                    <div class="product-info">
-                        <h3 class="product-title">${product.title}</h3>
-                        <div class="product-price">
-                            R$ ${product.price.toFixed(2).replace('.', ',')}
-                            <span class="product-old-price">R$ ${product.oldPrice.toFixed(2).replace('.', ',')}</span>
-                        </div>
-                        <div class="product-rating">
-                            <span class="stars">${'⭐'.repeat(Math.floor(product.rating))}</span>
-                            <span class="rating-text">${product.rating} (${product.reviews} avaliações)</span>
-                        </div>
-                        <button class="add-to-cart" onclick="addToCart(${product.id})">
-                            Adicionar ao Carrinho
-                        </button>
-                    </div>
-                `;
-                grid.appendChild(productCard);
-            });
-        }
+    <!-- CAPTURA DE LEAD -->
+    <section class="section lead" aria-labelledby="leadTitle">
+      <div class="container lead__inner">
+        <h2 id="leadTitle">Entre pro grupo VIP de achadinhos 🎁</h2>
+        <p>Ganhe <b><span data-cupom-off>10%</span> OFF</b> na primeira compra e receba as ofertas antes de todo mundo.</p>
+        <form data-lead id="leadForm">
+          <label class="sr-only" for="leadNome">Seu nome</label>
+          <input type="text" id="leadNome" name="nome" placeholder="Seu nome" required minlength="2">
+          <label class="sr-only" for="leadZap">Seu WhatsApp</label>
+          <input type="tel" id="leadZap" name="whatsapp" placeholder="WhatsApp (DDD + número)" required inputmode="numeric">
+          <button class="btn btn--light" type="submit">Quero meu cupom</button>
+        </form>
+        <small>Sem spam. Você sai quando quiser. Ao continuar você concorda com nossa <a href="privacidade.html" style="color:inherit">política de privacidade</a>.</small>
+      </div>
+    </section>
+  </main>
 
-        function filterByCategory(category) {
-            currentFilter = category;
-            const filteredProducts = category === 'all' 
-                ? products 
-                : products.filter(product => product.category === category);
-            
-            // Add loading effect
-            const grid = document.getElementById('productsGrid');
-            grid.classList.add('loading');
-            
-            setTimeout(() => {
-                renderProducts(filteredProducts);
-                grid.classList.remove('loading');
-            }, 300);
-        }
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__grid">
+        <div class="footer__brand">
+          <img data-logo-branco src="branding/logos/tcharan-horizontal-mono-branco.svg" alt="Tcharan" width="160" height="42">
+          <p data-descricao-marca>A loja do momento feliz.</p>
+          <div class="social">
+            <a data-instagram href="#" target="_blank" rel="noopener" aria-label="Instagram"><svg class="icon"><use href="#i-instagram"/></svg></a>
+            <a data-tiktok href="#" target="_blank" rel="noopener" aria-label="TikTok"><svg class="icon"><use href="#i-tiktok"/></svg></a>
+            <a data-wa href="#" aria-label="WhatsApp"><svg class="icon"><use href="#i-whats"/></svg></a>
+          </div>
+          <div class="pay" aria-label="Formas de pagamento"><span>PIX</span><span>VISA</span><span>MASTER</span><span>ELO</span><span>BOLETO</span><span>🔒 SSL</span></div>
+        </div>
+        <div>
+          <h3>Institucional</h3>
+          <ul>
+            <li><a href="sobre.html">Sobre a <span data-marca>loja</span></a></li>
+            <li><a href="trocas-e-devolucoes.html">Trocas e devoluções</a></li>
+            <li><a href="privacidade.html">Privacidade e termos</a></li>
+            <li><a href="#faq">Dúvidas frequentes</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Categorias</h3>
+          <ul>
+            <li><a href="#categoria/eletronicos">Eletrônicos</a></li>
+            <li><a href="#categoria/moda">Moda</a></li>
+            <li><a href="#categoria/casa">Casa e Cozinha</a></li>
+            <li><a href="#categoria/brinquedos">Brinquedos</a></li>
+            <li><a href="#ofertas">Ofertas do dia</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Atendimento</h3>
+          <ul>
+            <li><a data-wa href="#">WhatsApp</a></li>
+            <li><a data-email href="#">contato</a></li>
+            <li><span data-horario>Seg a Sex, 9h às 18h</span></li>
+            <li><a href="#carrinho">Meu carrinho</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <span>© <span data-ano>2026</span> <span data-marca>Loja</span> · CNPJ <span data-cnpj>00.000.000/0001-00</span> · <span data-endereco>Brasil</span></span>
+        <span>Preços e estoque sujeitos a alteração sem aviso. Imagens meramente ilustrativas.</span>
+      </div>
+    </div>
+  </footer>
 
-        function addToCart(productId) {
-            const product = products.find(p => p.id === productId);
-            if (product) {
-                cart.push(product);
-                updateCartBadge();
-                
-                // Visual feedback
-                const button = event.target;
-                const originalText = button.textContent;
-                button.textContent = 'Adicionado!';
-                button.style.background = '#059669';
-                
-                setTimeout(() => {
-                    button.textContent = originalText;
-                    button.style.background = '#1e3a8a';
-                }, 1000);
-            }
-        }
+  <!-- DRAWER DO CARRINHO -->
+  <div class="drawer" id="cartDrawer" aria-hidden="true">
+    <div class="drawer__backdrop" data-close></div>
+    <aside class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="cartTitle">
+      <div class="drawer__head"><h2 id="cartTitle">Seu carrinho</h2><button class="x" type="button" data-close aria-label="Fechar carrinho"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <div class="shipbar"><div class="shipbar__track"><div class="shipbar__fill" id="shipFill"></div></div><p id="shipMsg"></p></div>
+      <div class="drawer__items" id="cartItems"></div>
+      <div class="coupon">
+        <label class="sr-only" for="couponInput">Cupom de desconto</label>
+        <input id="couponInput" placeholder="Cupom de desconto" autocomplete="off">
+        <button class="btn btn--ghost btn--sm" type="button" id="couponBtn">Aplicar</button>
+        <small id="couponMsg"></small>
+      </div>
+      <div class="totals" id="cartTotals"></div>
+      <div class="drawer__foot">
+        <button class="btn btn--accent btn--lg btn--block" type="button" id="checkoutBtn">Finalizar compra</button>
+        <button class="btn btn--whats btn--block" type="button" id="checkoutWa"><svg class="icon"><use href="#i-whats"/></svg> Fechar pedido no WhatsApp</button>
+        <p class="secure">🔒 Pagamento seguro · Pix, cartão até <span data-parcelas>12x</span>, boleto</p>
+      </div>
+    </aside>
+  </div>
 
-        function updateCartBadge() {
-            document.getElementById('cartBadge').textContent = cart.length;
-        }
+  <!-- MODAL DO PRODUTO -->
+  <div class="modal" id="productModal" aria-hidden="true">
+    <div class="modal__backdrop"></div>
+    <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+      <button class="x" type="button" data-close aria-label="Fechar"><svg class="icon"><use href="#i-x"/></svg></button>
+      <div id="productModalBody"></div>
+    </div>
+  </div>
 
-        function toggleCart() {
-            if (cart.length === 0) {
-                alert('Seu carrinho está vazio!');
-                return;
-            }
-            
-            const cartItems = cart.map(item => `• ${item.title} - R$ ${item.price.toFixed(2).replace('.', ',')}`).join('\n');
-            const total = cart.reduce((sum, item) => sum + item.price, 0);
-            
-            alert(`Itens no carrinho:\n\n${cartItems}\n\nTotal: R$ ${total.toFixed(2).replace('.', ',')}`);
-        }
+  <!-- MODAL CUPOM DE BOAS-VINDAS -->
+  <div class="modal modal--promo" id="promoModal" aria-hidden="true">
+    <div class="modal__backdrop"></div>
+    <div class="modal__box promo" role="dialog" aria-modal="true" aria-labelledby="promoTitle">
+      <button class="x" type="button" data-close aria-label="Fechar"><svg class="icon"><use href="#i-x"/></svg></button>
+      <div class="gift">🎁</div>
+      <h2 id="promoTitle">Ganhe <span data-cupom-off>10%</span> OFF agora</h2>
+      <p>Deixe seu WhatsApp e receba o cupom <b data-cupom>BEMVINDO10</b> + ofertas exclusivas antes de todo mundo.</p>
+      <form data-lead>
+        <label class="sr-only" for="promoNome">Seu nome</label>
+        <input type="text" id="promoNome" name="nome" placeholder="Seu nome" required minlength="2">
+        <label class="sr-only" for="promoZap">Seu WhatsApp</label>
+        <input type="tel" id="promoZap" name="whatsapp" placeholder="WhatsApp (DDD + número)" required inputmode="numeric">
+        <button class="btn btn--accent btn--lg" type="submit">Quero meu cupom</button>
+      </form>
+      <small>Sem spam. Você sai quando quiser.</small>
+    </div>
+  </div>
 
-        function performSearch() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            if (!searchTerm) {
-                renderProducts();
-                return;
-            }
-            
-            const filteredProducts = products.filter(product => 
-                product.title.toLowerCase().includes(searchTerm)
-            );
-            
-            renderProducts(filteredProducts);
-            
-            if (filteredProducts.length === 0) {
-                document.getElementById('productsGrid').innerHTML = `
-                    <div style="grid-column: 1/-1; text-align: center; padding: 50px; color: #6b7280;">
-                        <h3>Nenhum produto encontrado para "${searchTerm}"</h3>
-                        <p>Tente buscar por outros termos ou navegue pelas categorias.</p>
-                    </div>
-                `;
-            }
-        }
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <a class="wa-float" data-wa href="#" aria-label="Falar no WhatsApp"><svg class="icon"><use href="#i-whats"/></svg></a>
+  <button class="totop" id="toTop" type="button" aria-label="Voltar ao topo">↑</button>
 
-        // Search on Enter key
-        document.getElementById('searchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                performSearch();
-            }
-        });
-
-        // Smooth scroll for CTA button
-        document.querySelector('.cta-button').addEventListener('click', function(e) {
-            e.preventDefault();
-            document.getElementById('products').scrollIntoView({
-                behavior: 'smooth'
-            });
-        });
-
-        // Initialize
-        renderProducts();
-    </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96ea4b6960873183',t:'MTc1NTEwOTk0MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+  <script src="assets/js/app.js" defer></script>
+</body>
 </html>

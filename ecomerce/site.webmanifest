@@ -1,0 +1,14 @@
+{
+  "name": "Tcharan — Achadinhos, Ofertas e Presentes",
+  "short_name": "Tcharan",
+  "description": "Eletrônicos, moda, casa, esportes, livros e brinquedos com frete grátis e Pix com desconto.",
+  "start_url": "./?utm_source=pwa&utm_medium=app",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#6D28D9",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "branding/logos/png/tcharan-icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "branding/logos/png/tcharan-icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
