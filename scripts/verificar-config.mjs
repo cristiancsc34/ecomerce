@@ -177,17 +177,6 @@ async function checkOptional() {
     else ok("Painel", "Entrada por PIN configurada.");
   } else if (pin.some(Boolean)) fail("Painel", "PIN do painel incompleto: precisa de ADMIN_PIN, ADMIN_PIN_EMAIL e ADMIN_PIN_PASSWORD.", "docs/PAINEL.md");
   else ok("Painel", "Entrada só por e-mail e senha (PIN desligado).");
-
-  // Senhas por área (docs/PAINEL.md): cada uma diferente das outras; as contas das áreas precisam da chave de serviço.
-  const areas = { ADMIN_SENHA_ITENS: "itens", ADMIN_SENHA_PEDIDOS: "pedidos", ADMIN_SENHA_ENTREGA: "entrega" };
-  const usadas = Object.keys(areas).filter((k) => env[k]);
-  if (usadas.length) {
-    const todas = [env.ADMIN_PIN, ...usadas.map((k) => env[k])].filter(Boolean);
-    if (new Set(todas).size !== todas.length) fail("Painel", "Há senhas repetidas entre as áreas: a repetida não abre nenhuma.", "docs/PAINEL.md");
-    else if (!env.ADMIN_PIN_EMAIL || !env.ADMIN_PIN_PASSWORD) fail("Painel", "Senhas por área precisam de ADMIN_PIN_EMAIL e ADMIN_PIN_PASSWORD.", "docs/PAINEL.md");
-    else if (!env.SUPABASE_SERVICE_ROLE_KEY) warn("Painel", "Sem SUPABASE_SERVICE_ROLE_KEY: as contas das áreas não são criadas sozinhas.", "docs/PAINEL.md");
-    else ok("Painel", `Senhas por área: ${usadas.map((k) => areas[k]).join(", ")}.`);
-  }
 }
 
 checkSite();

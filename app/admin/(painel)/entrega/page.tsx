@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Entrega e avisos" };
 export default async function ShippingSettingsPage() {
   const staff = await requireStaffPage("editor", "entrega");
   const [settings, options] = await Promise.all([getNotificationSettings(), listShippingOptions()]);
-  // Muda: a administração geral e quem entrou com a senha da área de entrega (mesma regra do banco).
+  // Muda: a administração geral e quem entrou por um link da área de entrega (mesma regra do banco).
   const isAdmin = staff.role === "admin" || staff.areas.includes("entrega");
 
   return (

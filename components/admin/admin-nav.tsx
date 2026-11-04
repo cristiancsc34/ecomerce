@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { AreaDoPainel } from "@/lib/auth/areas";
-import { BoxIcon, ClockIcon, HomeIcon, MapPinIcon, PlusIcon, TagIcon, TruckIcon } from "@/components/ui/icons";
+import { BoxIcon, ClockIcon, HomeIcon, MapPinIcon, PlusIcon, ShieldIcon, TagIcon, TruckIcon } from "@/components/ui/icons";
 
-type Item = { href: string; label: string; icon: typeof HomeIcon; exact?: boolean; area?: AreaDoPainel };
+type Item = { href: string; label: string; icon: typeof HomeIcon; exact?: boolean; area?: AreaDoPainel; soAdmin?: boolean };
 
 const ITEMS: Item[] = [
   { href: "/admin", label: "Início", icon: HomeIcon, exact: true },
@@ -14,10 +14,12 @@ const ITEMS: Item[] = [
   { href: "/admin/categorias", label: "Categorias", icon: TagIcon, area: "itens" },
   { href: "/admin/atividade", label: "Atividade", icon: ClockIcon, area: "itens" },
   { href: "/admin/entrega", label: "Entrega e avisos", icon: MapPinIcon, area: "entrega" },
+  { href: "/admin/acessos", label: "Acessos", icon: ShieldIcon, soAdmin: true },
 ];
 
-/** Só o que a senha usada abre (a regra de verdade está no banco e nas páginas). */
-const visiveis = (areas: readonly AreaDoPainel[]) => ITEMS.filter((i) => !i.area || areas.includes(i.area));
+/** Só o que o acesso abre (a regra de verdade está no banco e nas páginas). "Acessos" é só da administração geral. */
+const visiveis = (areas: readonly AreaDoPainel[], admin: boolean) =>
+  ITEMS.filter((i) => (i.soAdmin ? admin : !i.area || areas.includes(i.area)));
 
 function isActive(pathname: string, href: string, exact = false) {
   if (exact) return pathname === href;
@@ -27,7 +29,7 @@ function isActive(pathname: string, href: string, exact = false) {
 }
 
 /** Menu lateral (computador). */
-export function AdminSidebarNav({ areas }: { areas: readonly AreaDoPainel[] }) {
+export function AdminSidebarNav({ areas, admin }: { areas: readonly AreaDoPainel[]; admin: boolean }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Painel">
@@ -41,7 +43,7 @@ export function AdminSidebarNav({ areas }: { areas: readonly AreaDoPainel[] }) {
         </Link>
       ) : null}
       <ul className="space-y-1">
-        {visiveis(areas).map(({ href, label, icon: Icon, exact }) => (
+        {visiveis(areas, admin).map(({ href, label, icon: Icon, exact }) => (
           <li key={href}>
             <Link
               href={href}
@@ -59,10 +61,11 @@ export function AdminSidebarNav({ areas }: { areas: readonly AreaDoPainel[] }) {
 
 /** Barra de abas fixa embaixo (celular), com o "+" de novo produto no meio (só para quem cuida dos itens). */
 export function AdminBottomNav({ areas }: { areas: readonly AreaDoPainel[] }) {
+  // No celular, "Acessos" fica no Início (como a atividade).
   const pathname = usePathname();
   // No celular: Início, Pedidos, +, Produtos, Categorias (o que a área abre). A atividade fica no Início.
   const novo = areas.includes("itens");
-  const abas = visiveis(areas)
+  const abas = visiveis(areas, false)
     .filter((i) => i.href !== "/admin/atividade")
     .slice(0, novo ? 4 : 5);
   const meio = Math.min(2, abas.length);

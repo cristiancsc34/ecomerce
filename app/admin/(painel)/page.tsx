@@ -100,7 +100,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
       ) : null}
       {params.motivo === "sem-area" ? (
         <Notice tone="warning" role="alert" title="Essa parte é de outra área">
-          Saia e entre com a senha dessa área, ou com a senha geral.
+          Peça ao administrador um link de acesso dessa área.
         </Notice>
       ) : null}
 
@@ -120,10 +120,24 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
         </ul>
       ) : null}
 
+      {staff.role === "admin" ? (
+        <Card
+          title="Acessos"
+          description="Dê acesso a só uma parte do painel (itens, pedidos ou entrega) com um link. Revogue quando quiser."
+          actions={
+            <Link href="/admin/acessos" className="link text-sm">
+              Gerenciar links
+            </Link>
+          }
+        >
+          <p className="text-sm text-muted">Quem entra pelo link vê só as áreas dele; o banco não deixa passar o resto.</p>
+        </Card>
+      ) : null}
+
       {trama ? (
         <Card
           title="Fábrica e logística (Trama)"
-          description="Depósito, rotas, entregadores, fábrica e financeiro: cada área entra lá com a própria senha."
+          description="Depósito, rotas, entregadores, fábrica e financeiro."
         >
           <a href={`${trama.baseUrl}/entrar`} target="_blank" rel="noopener" className="link inline-flex items-center gap-1 text-sm">
             Abrir o Trama <ExternalIcon className="h-4 w-4" />

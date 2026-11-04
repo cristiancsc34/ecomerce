@@ -26,7 +26,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           <span className="font-bold">{brand.name}</span>
           <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">Painel</span>
         </Link>
-        <AdminSidebarNav areas={areas} />
+        <AdminSidebarNav areas={areas} admin={staff.role === "admin"} />
         <div className="mt-auto space-y-1 border-t border-white/15 pt-4 text-sm">
           <a
             href="/"

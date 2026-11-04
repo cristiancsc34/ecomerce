@@ -9,7 +9,7 @@ import { friendlyDbError } from "../errors";
 import type { ActionResult } from "../types";
 
 /**
- * Entrega e avisos: mudam o administrador e quem entrou com a senha da área de entrega (o banco confere de novo pelo
+ * Entrega e avisos: mudam o administrador e quem entrou por um link da área de entrega (o banco confere de novo pelo
  * RLS, private.has_explicit_area).
  */
 async function adminOnly(): Promise<{ ok: false; error: string } | null> {

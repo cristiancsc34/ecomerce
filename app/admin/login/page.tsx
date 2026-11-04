@@ -50,7 +50,7 @@ async function LoginContent({ searchParams }: Pick<PageProps<"/admin/login">, "s
 
   return (
     <>
-      <p className="mt-1 text-muted">{withPin ? "Digite a senha da sua área." : "Acesso restrito à equipe da loja."}</p>
+      <p className="mt-1 text-muted">{withPin ? "Digite o PIN da loja." : "Acesso restrito à equipe da loja."}</p>
       {motivo === "sem-acesso" ? (
         <Notice tone="info" className="mt-5" title="Faça login para continuar">
           Sua sessão expirou ou esta área exige login.
@@ -60,7 +60,7 @@ async function LoginContent({ searchParams }: Pick<PageProps<"/admin/login">, "s
       {pinLoginEnabled() ? (
         <p className="mt-6 text-center text-sm">
           <Link href={switchHref(withPin ? "email" : null)} className="link">
-            {withPin ? "Entrar com e-mail e senha" : "Entrar com a senha de acesso"}
+            {withPin ? "Entrar com e-mail e senha" : "Entrar com o PIN da loja"}
           </Link>
         </p>
       ) : null}

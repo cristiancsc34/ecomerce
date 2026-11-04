@@ -1,7 +1,8 @@
 /**
- * Áreas do painel (instrução do dono, 04/11/2026): cada senha abre só a sua parte; a senha geral abre tudo.
+ * Áreas do painel (instrução do dono, 04/11/2026): o administrador cria links de acesso que abrem só algumas áreas
+ * (lib/admin/access-links.ts) e pode revogá-los; o acesso geral (PIN ou e-mail) abre tudo.
  * A regra de verdade está no banco (supabase/migrations/20261104000200_areas_do_painel.sql); aqui ficam o menu, as
- * páginas e as ações, para a pessoa nem ver o que não é dela. Ver docs/PAINEL.md.
+ * páginas e as ações, para a pessoa nem ver o que não é dela. Ver docs/PAINEL.md, "Links de acesso".
  */
 
 export const AREAS = ["itens", "pedidos", "entrega"] as const;

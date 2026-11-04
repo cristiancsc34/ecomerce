@@ -58,7 +58,7 @@ export async function requireStaffAction(minRole: StaffRole = "editor", area?: A
     throw new AuthorizationError("Somente administradores podem fazer isso.");
   }
   if (area && !podeUsar(staff, area)) {
-    throw new AuthorizationError(`Isso é da área "${ROTULO_AREA[area]}". Entre com a senha dessa área.`);
+    throw new AuthorizationError(`Isso é da área "${ROTULO_AREA[area]}". Peça ao administrador um link de acesso dessa área.`);
   }
   return staff;
 }
