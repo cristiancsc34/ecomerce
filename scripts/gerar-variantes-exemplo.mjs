@@ -5,7 +5,8 @@
  * produto sem cadastrar cores que a loja não vende.
  *
  *   npm run demo:variantes          # fotos recoloridas por computador (grátis, na hora)
- *   npm run demo:variantes:gpt      # tom da cor pelo GPT (precisa de OPENAI_API_KEY)
+ *   npm run demo:variantes:gpt      # tom da cor pelo GPT (OPENAI_API_KEY aqui, ou
+ *                                   #   CORES_GPT_URL + CORES_GPT_SENHA: o GPT roda no site)
  *
  * Gera em public/demo/exemplo/:
  * - as 4 fotos de catálogo de cada cor (só o tecido muda de cor: a madeira, o
@@ -597,17 +598,47 @@ async function gptPhotos(color, engine, report) {
   }
 }
 
+/**
+ * Motor que pede a foto ao site (rota temporária /api/interno/cores-exemplo), que chama o GPT com a chave do
+ * servidor: a chave nunca vem para cá. Mesmo formato do openaiRecolorEngine.
+ */
+export function siteRecolorEngine(url, password, { fetchImpl = fetch } = {}) {
+  return {
+    async recolor(inputFile, _colorName, hex, output) {
+      const vista = path.basename(inputFile).replace(/^poltrona-azul-/, "").replace(/\.jpg$/, "");
+      const cor = EXAMPLE_COLORS.find((c) => c.hex === hex)?.slug;
+      const res = await fetchImpl(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${password}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ cor, vista }),
+        signal: AbortSignal.timeout(6 * 60_000),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(`Site: ${body?.error ?? `erro ${res.status}`}`.slice(0, 300));
+      }
+      await writeFile(output, Buffer.from(await res.arrayBuffer()));
+    },
+  };
+}
+
 async function main(args) {
   await mkdir(OUT, { recursive: true });
   const useGpt = args.includes("--gpt");
   let engine = null;
   if (useGpt) {
-    if (!process.env.OPENAI_API_KEY) {
-      console.error("Modo --gpt precisa da variável OPENAI_API_KEY. Sem ela, rode sem --gpt (recolor por computador).");
+    const { CORES_GPT_URL: url, CORES_GPT_SENHA: password, OPENAI_API_KEY: key } = process.env;
+    if (url && password) {
+      engine = siteRecolorEngine(url, password);
+    } else if (key) {
+      const { openaiRecolorEngine } = await import("./ai-pipeline.mjs");
+      engine = openaiRecolorEngine();
+    } else {
+      console.error(
+        "Modo --gpt precisa de OPENAI_API_KEY, ou de CORES_GPT_URL e CORES_GPT_SENHA (o GPT roda no site, com a chave do servidor). Sem elas, rode sem --gpt (recolor por computador).",
+      );
       process.exit(1);
     }
-    const { openaiRecolorEngine } = await import("./ai-pipeline.mjs");
-    engine = openaiRecolorEngine();
   }
 
   // Fotos de catálogo: cada cor nos 4 ângulos. A cor do 3D segue a cor das fotos.

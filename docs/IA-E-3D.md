@@ -88,7 +88,11 @@ encaixar quando o provedor for escolhido.
   adulteração de foto fiel refeita — sofá ou almofadas acrescentados, apoio de cabeça apagado, madeira mais escura e
   estampas passavam, e uma foto fiel deslocada 12 px era recusada. Calibrado com 41 casos (fiéis refeitas, cor
   errada, foto que não corresponde) e testado em `tests/unit/variantes-gpt.test.ts`. Relatório por cor e por foto em
-  `public/demo/exemplo/relatorio-gpt.json`. Marcadas como ilustrativas e sem
+  `public/demo/exemplo/relatorio-gpt.json`. **Sem a chave aqui:** a `OPENAI_API_KEY` da Vercel é protegida e só
+  existe no servidor de produção, então o GPT pode rodar lá: a rota temporária `POST /api/interno/cores-exemplo`
+  (`lib/ai/cores-exemplo.ts`) gera a foto da Poltrona Azul numa das 4 cores de exemplo e devolve a imagem; o script
+  usa `CORES_GPT_URL` e `CORES_GPT_SENHA` no lugar da chave. A rota só aceita a senha (no código vai só o SHA-256),
+  não aceita outra foto, cor ou instrução e fecha sozinha em 08/11/2026. Marcadas como ilustrativas e sem
   preço. Não aparecem na loja de verdade. Proposta para o painel: [`CORES-NO-ESTUDIO.md`](CORES-NO-ESTUDIO.md).
 - **Para arquitetos e designers** (fase de teste): enquanto as medidas não forem conferidas com o modelo 3D, a página
   mostra só uma linha discreta no fim — “É arquiteto ou designer de interiores? Peça o arquivo 3D e a ficha técnica” —
