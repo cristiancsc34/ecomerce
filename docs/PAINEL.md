@@ -24,6 +24,17 @@ lugar de resolver.
 - Depósito, rotas, entregadores, fábrica e financeiro ficam no **Trama**, cada área com a própria senha lá
   ([`INTEGRACAO-TRAMA.md`](INTEGRACAO-TRAMA.md)); o início do painel, com a senha geral, tem o atalho.
 
+### Senhas de teste
+
+Para testar agora, use senhas fáceis em sequência (troque por senhas longas antes de vender de verdade):
+
+| Variável (Vercel ou `.env.local`) | Senha de teste | Abre |
+| --- | --- | --- |
+| `ADMIN_PIN` | `1234` | Tudo (geral) |
+| `ADMIN_SENHA_ITENS` | `2345` | Itens |
+| `ADMIN_SENHA_PEDIDOS` | `3456` | Pedidos |
+| `ADMIN_SENHA_ENTREGA` | `4567` | Entrega e avisos |
+
 ### Como funciona (e por que é seguro o bastante para o MVP)
 
 A senha **não** substitui as contas da equipe. Quando confere, o servidor entra numa conta de verdade do Supabase:
