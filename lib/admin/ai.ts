@@ -50,7 +50,7 @@ function workerStatus(local: { capabilities: string[]; engines: Record<string, s
 }
 
 export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSnapshot> {
-  await requireStaffAction();
+  await requireStaffAction("editor", "itens");
   if (!isUuid(productId)) return { jobs: [], copyDraft: null, worker: workerStatus([]) };
   const supabase = await createSessionClient();
   const [{ data: jobs }, { data: workers }] = await Promise.all([

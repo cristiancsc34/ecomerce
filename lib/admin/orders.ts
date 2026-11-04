@@ -63,7 +63,7 @@ type Row = Record<string, unknown>;
 const toSource = (v: unknown): OrderSource => (v === "site" ? "site" : "painel");
 
 export async function listOrders(): Promise<OrderSummary[]> {
-  await requireStaffAction();
+  await requireStaffAction("editor", "pedidos");
   const supabase = await createSessionClient();
   const { data, error } = await supabase
     .from("orders")
@@ -87,7 +87,7 @@ export async function listOrders(): Promise<OrderSummary[]> {
 }
 
 export async function getOrder(id: string): Promise<OrderDetail | null> {
-  await requireStaffAction();
+  await requireStaffAction("editor", "pedidos");
   if (!isUuid(id)) return null;
   const supabase = await createSessionClient();
   const { data, error } = await supabase

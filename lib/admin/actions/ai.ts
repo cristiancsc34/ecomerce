@@ -24,7 +24,7 @@ import type { ActionResult } from "../types";
 
 async function guard(): Promise<{ ok: false; error: string } | null> {
   try {
-    await requireStaffAction();
+    await requireStaffAction("editor", "itens");
     return null;
   } catch (e) {
     return { ok: false, error: e instanceof AuthorizationError ? e.message : "Sem permissão." };
@@ -265,7 +265,7 @@ export type CopyDraftResult = { status: "ready"; draft: CopyDraft } | { status: 
 export async function copyDraftAction(productId: string): Promise<ActionResult<CopyDraftResult>> {
   let staffId: string;
   try {
-    staffId = (await requireStaffAction()).userId;
+    staffId = (await requireStaffAction("editor", "itens")).userId;
   } catch (e) {
     return { ok: false, error: e instanceof AuthorizationError ? e.message : "Sem permissão." };
   }

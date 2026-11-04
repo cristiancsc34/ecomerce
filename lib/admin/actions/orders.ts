@@ -4,13 +4,15 @@ import { AuthorizationError, requireStaffAction } from "@/lib/auth/staff";
 import { isUuid } from "@/lib/catalog/slug";
 import { kickOrderNotifications } from "@/lib/notifications/order-dispatch";
 import { createSessionClient } from "@/lib/supabase/server";
+import { tramaLigada } from "@/lib/trama/config";
+import { atualizarDaTrama, kickTrama } from "@/lib/trama/sincronizar";
 import { orderInputSchema, orderStatusInputSchema, orderToRpc, type OrderInput, type OrderStatusInput } from "@/lib/validation/order";
 import { friendlyDbError } from "../errors";
 import type { ActionResult } from "../types";
 
 async function guard(): Promise<{ ok: false; error: string } | null> {
   try {
-    await requireStaffAction();
+    await requireStaffAction("editor", "pedidos");
     return null;
   } catch (e) {
     return { ok: false, error: e instanceof AuthorizationError ? e.message : "Sem permissão." };
@@ -37,6 +39,8 @@ export async function createOrderAction(input: OrderInput): Promise<ActionResult
   if (error || !data) return { ok: false, error: friendlyDbError(error, "Não foi possível registrar o pedido.") };
   // Avisos automáticos da etapa (só se o dono ligou e há provedor configurado).
   kickOrderNotifications();
+  // Pedido que já nasce pago vai para a fábrica e a logística (Trama), se a integração estiver ligada.
+  kickTrama();
   return { ok: true, data: { id: data as string } };
 }
 
@@ -74,6 +78,32 @@ export async function setOrderStatusAction(orderId: string, input: OrderStatusIn
   });
   if (error) return { ok: false, error: friendlyDbError(error, "Não foi possível mudar a etapa.") };
   kickOrderNotifications();
+  // Confirmado (pago ou em preparação) → Trama; cancelado depois do envio → cancelamento lá.
+  kickTrama();
+  return { ok: true };
+}
+
+/** Envia de novo ao Trama (depois de corrigir SKU, preço ou a chave) ou repete um cancelamento recusado. */
+export async function requeueTramaAction(orderId: string): Promise<ActionResult> {
+  const denied = await guard();
+  if (denied) return denied;
+  if (!isUuid(orderId)) return { ok: false, error: "Pedido inválido." };
+  if (!tramaLigada()) return { ok: false, error: "A integração com o Trama não está configurada neste site." };
+  const supabase = await createSessionClient();
+  const { error } = await supabase.rpc("requeue_order_integration", { p_order_id: orderId });
+  if (error) return { ok: false, error: friendlyDbError(error, "Não foi possível colocar o pedido na fila do Trama.") };
+  kickTrama();
+  return { ok: true };
+}
+
+/** Confere agora a etapa do pedido no Trama (além dos webhooks automáticos). */
+export async function refreshFromTramaAction(orderId: string): Promise<ActionResult> {
+  const denied = await guard();
+  if (denied) return denied;
+  if (!isUuid(orderId)) return { ok: false, error: "Pedido inválido." };
+  const result = await atualizarDaTrama({ orderId });
+  if (!result.ok) return { ok: false, error: result.erro };
+  if (result.passos) kickOrderNotifications();
   return { ok: true };
 }
 

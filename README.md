@@ -20,6 +20,7 @@ A especificação completa está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md). 
 | Assistente de vendas (chat “Ajuda”) | ✅ Claude Haiku, só com dados do catálogo, com trava contra preço/medida/prazo inventados — liga com `ANTHROPIC_API_KEY` ([`docs/ASSISTENTE.md`](docs/ASSISTENTE.md)) |
 | Avisos de pedido (WhatsApp e e-mail) | 🧱 Estrutura pronta e testada (mensagens, fila idempotente, novas tentativas); falta checkout e provedor ([`docs/NOTIFICACOES.md`](docs/NOTIFICACOES.md)) |
 | Pedidos e entregas (pós-compra) | ✅ Painel **Pedidos**: venda fechada no atendimento vira pedido, com etapas (pago, preparação, enviado/agendado, saiu para entrega, entregue, troca), aviso ao cliente no WhatsApp com um toque e página **Acompanhar pedido** para o cliente — [`docs/LOGISTICA.md`](docs/LOGISTICA.md) |
+| Fábrica e logística (Trama) | ✅ Pedido confirmado vai sozinho para o Trama, que reserva do estoque (expedição) ou abre a ordem de produção (fábrica); cada etapa (produção, entrega agendada, saiu, entregue, cancelado) volta por webhook para a página do cliente. Liga com `TRAMA_API_URL` e `TRAMA_API_KEY` — [`docs/INTEGRACAO-TRAMA.md`](docs/INTEGRACAO-TRAMA.md) |
 | Checkout, pagamento online, frete automático | ⏳ Depende das decisões do dono (opções e preços em [`docs/LOGISTICA.md`](docs/LOGISTICA.md)) |
 | Estúdio de fotos e 3D no painel | ✅ Tudo na nuvem (Vercel), sem computador ligado — [`docs/ESTUDIO-IA.md`](docs/ESTUDIO-IA.md). Fotos do celular com limpeza de fundo pelo ChatGPT (~20 s), 4 fotos de catálogo recriadas por IA (~45 s, com conferência humana), nome e descrição lidos das fotos uma vez e guardados (“Aprimorar descrição”), 3D pela API do Tripo. |
 
@@ -64,6 +65,7 @@ Copie [`.env.example`](.env.example) para `.env.local`.
 | `OPENAI_API_KEY`, `TRIPO_API_KEY` | **não** | Limpeza do fundo, fotos de catálogo e textos (OpenAI) e modelo 3D (Tripo) do estúdio |
 | `AI_CLOUD` | não | `0` desliga a IA na nuvem (para usar só o processador local). Vazio: ligada quando as chaves existem |
 | `ADMIN_PIN`, `ADMIN_PIN_EMAIL`, `ADMIN_PIN_PASSWORD` | **não** | Entrada no painel por PIN (veja [`docs/PAINEL.md`](docs/PAINEL.md)). Vazio = só e-mail e senha |
+| `TRAMA_API_URL`, `TRAMA_API_KEY`, `TRAMA_WEBHOOK_SEGREDO` | **não** | Fábrica e logística: envia os pedidos confirmados ao Trama e recebe as etapas ([`docs/INTEGRACAO-TRAMA.md`](docs/INTEGRACAO-TRAMA.md)) |
 | `IMAGE_AI_*`, `THREE_D_MODEL_*`, `PAYMENT_*`, `EMAIL_*` | não | Reservadas para integrações futuras. Não configure ainda |
 
 `NEXT_PUBLIC_*` vai para o navegador: nunca coloque segredos com esse prefixo. Se um segredo vazar para o Git,
@@ -191,6 +193,7 @@ docs/                 segurança, decisões, referências de UX, IA e 3D
 
 ## Documentação
 
+- [Fábrica e logística: integração com o Trama](docs/INTEGRACAO-TRAMA.md)
 - [Frete por região e avisos automáticos (WhatsApp e e-mail)](docs/FRETE-E-AVISOS.md)
 - [Painel da loja: acesso por PIN, telas e cadastro](docs/PAINEL.md)
 - [Checklist de segurança](docs/SEGURANCA.md)

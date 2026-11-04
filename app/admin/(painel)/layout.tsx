@@ -2,6 +2,7 @@ import Link from "next/link";
 import { brand } from "@/config/brand";
 import { isSupabaseConfigured } from "@/config/site";
 import { signOutAction } from "@/lib/admin/actions/auth";
+import { areasDe, rotuloDoAcesso } from "@/lib/auth/areas";
 import { requireStaffPage } from "@/lib/auth/staff";
 import { AdminBottomNav, AdminSidebarNav } from "@/components/admin/admin-nav";
 import { SetupRequired } from "@/components/admin/setup-required";
@@ -11,7 +12,8 @@ import { ExternalIcon, LogoMark, LogoutIcon } from "@/components/ui/icons";
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
   if (!isSupabaseConfigured()) return <SetupRequired />;
   const staff = await requireStaffPage();
-  const roleLabel = staff.role === "admin" ? "Administrador" : "Editor";
+  const roleLabel = rotuloDoAcesso(staff);
+  const areas = areasDe(staff);
 
   return (
     <div className="min-h-svh bg-cloud">
@@ -24,7 +26,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           <span className="font-bold">{brand.name}</span>
           <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">Painel</span>
         </Link>
-        <AdminSidebarNav />
+        <AdminSidebarNav areas={areas} admin={staff.role === "admin"} />
         <div className="mt-auto space-y-1 border-t border-white/15 pt-4 text-sm">
           <a
             href="/"
@@ -71,7 +73,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
 
-      <AdminBottomNav />
+      <AdminBottomNav areas={areas} />
     </div>
   );
 }

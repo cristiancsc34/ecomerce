@@ -9,7 +9,7 @@ import { ProductView } from "@/components/product/product-view";
 export const metadata: Metadata = { title: "Pré-visualização", robots: { index: false, follow: false } };
 
 export default async function PreviewPage({ params }: PageProps<"/admin/produtos/[id]/preview">) {
-  await requireStaffPage();
+  await requireStaffPage("editor", "itens");
   const { id } = await params;
   const product = await getAdminProduct(id);
   if (!product) notFound();

@@ -8,6 +8,10 @@ como melhorar sempre em [`MELHORIA-CONTINUA.md`](MELHORIA-CONTINUA.md).
 **Como a venda fecha hoje:** o cliente faz o pedido no site (ou no WhatsApp), a loja confirma pagamento (Pix ou link)
 e entrega **pelo WhatsApp**, e a equipe avança cada etapa no painel. Não há pagamento online.
 
+**Fábrica e logística:** com a integração ligada, o pedido confirmado segue para o Trama, que reserva do estoque ou abre
+a ordem de produção, agenda, roteiriza e entrega; cada etapa volta para a página do cliente
+([`INTEGRACAO-TRAMA.md`](INTEGRACAO-TRAMA.md)).
+
 ## 1. Visão geral
 
 ```

@@ -5,6 +5,11 @@ pelo atendimento, avança cada etapa no painel, avisa o cliente no WhatsApp com 
 página própria. Frete automático, pagamento online e avisos automáticos dependem de decisões do dono (fim deste
 documento).
 
+> **Com o Trama ligado** ([`INTEGRACAO-TRAMA.md`](INTEGRACAO-TRAMA.md)), a partir do pagamento confirmado (ou "preparar
+> sem pagamento") o pedido vai para a fábrica e a logística do Trama, e as etapas seguintes (preparação, entrega agendada,
+> saiu para entrega, entregue) passam a vir de lá sozinhas. Os botões abaixo continuam funcionando para os pedidos que a
+> loja entrega por conta própria.
+
 ## O caminho do pedido
 
 ```

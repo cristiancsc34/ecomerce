@@ -33,6 +33,31 @@ ADMIN_PIN_EMAIL=painel@sualoja.com.br
 ADMIN_PIN_PASSWORD=uma-senha-longa-e-aleatoria
 ```
 
+## Links de acesso (só uma parte do painel)
+
+O acesso geral continua igual (PIN da loja ou e-mail e senha). Para alguém usar só uma parte do painel, a
+administração geral cria um **link de acesso** em **Acessos** (menu lateral; no celular, pelo Início):
+
+1. **Para quem é** (ex.: "Depósito do João"), as **áreas** que o link abre e **por quanto tempo vale** (7, 30 ou 90
+   dias, ou sem prazo até revogar).
+2. O link aparece **uma vez**: copie ou mande pelo WhatsApp. O banco guarda só o hash do código.
+3. Quem abre o link vê uma página dizendo o que ele abre e toca em **Entrar no painel**. Abrir o link sozinho não entra
+   (a prévia de link do WhatsApp não conta como uso).
+4. **Revogar** (em Acessos) corta na hora: o link para de abrir e quem entrou por ele sai na próxima tela.
+
+| Área | Abre |
+| --- | --- |
+| **Itens** | Produtos, fotos e 3D, categorias e o histórico do catálogo (publicar continua com a administração geral) |
+| **Pedidos** | Pedidos, avisos ao cliente e o andamento na fábrica e na logística (Trama) |
+| **Entrega** | Formas de entrega (frete por região) e os avisos automáticos |
+
+Como funciona: cada link tem uma conta própria no Supabase, criada no primeiro uso com a chave de serviço
+(`SUPABASE_SERVICE_ROLE_KEY`, a mesma da IA na nuvem), com papel "editor" e só as áreas do link. A separação vale
+**no banco** (políticas por área em `supabase/migrations/20261104000200_areas_do_painel.sql`): quem entrou pelo link de
+itens não lê pedidos nem chamando a API do Supabase direto. Ao revogar, a conta sai da equipe e fica bloqueada no Auth,
+mas não é apagada, para o histórico continuar dizendo quem fez cada alteração. Código: `lib/admin/access-links.ts`,
+`app/admin/(painel)/acessos/`, `app/acesso/[codigo]/`, `supabase/migrations/20261104000300_links_de_acesso.sql`.
+
 ## Telas
 
 | Tela | Para quê |

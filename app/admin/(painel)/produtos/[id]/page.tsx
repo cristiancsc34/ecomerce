@@ -24,7 +24,7 @@ export const metadata: Metadata = { title: "Editar produto" };
 export const maxDuration = 300;
 
 export default async function EditProductPage({ params, searchParams }: PageProps<"/admin/produtos/[id]">) {
-  const staff = await requireStaffPage();
+  const staff = await requireStaffPage("editor", "itens");
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const [product, categories, events, studio] = await Promise.all([
     getAdminProduct(id),

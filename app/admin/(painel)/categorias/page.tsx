@@ -6,7 +6,7 @@ import { CategoryForm } from "@/components/admin/category-form";
 export const metadata: Metadata = { title: "Categorias" };
 
 export default async function CategoriesPage() {
-  const staff = await requireStaffPage();
+  const staff = await requireStaffPage("editor", "itens");
   const categories = await listAdminCategories();
   return (
     <div className="max-w-4xl space-y-8">

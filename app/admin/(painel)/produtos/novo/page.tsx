@@ -14,7 +14,7 @@ const STEPS = [
 ];
 
 export default async function NewProductPage() {
-  await requireStaffPage();
+  await requireStaffPage("editor", "itens");
   const categories = await listAdminCategories();
   return (
     <div className="mx-auto max-w-xl">

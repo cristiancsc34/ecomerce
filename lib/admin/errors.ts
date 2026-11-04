@@ -12,6 +12,9 @@ const FRIENDLY_PREFIXES = [
   "Um pedido novo",
   "Os itens só podem",
   "Não dá para passar",
+  // Integração com o Trama (supabase/migrations/20261104000100_integracao_trama.sql)
+  "Este pedido já está no Trama",
+  "Só vai para a fábrica",
   // Pedido pelo site (supabase/migrations/20261103000200_site_checkout.sql)
   "Envie os dados do pedido",
   "Informe ",

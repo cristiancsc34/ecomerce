@@ -6,7 +6,7 @@ import { AuditList } from "@/components/admin/audit-list";
 export const metadata: Metadata = { title: "Atividade" };
 
 export default async function ActivityPage() {
-  await requireStaffPage();
+  await requireStaffPage("editor", "itens");
   const events = await listAuditEvents({ limit: 100 });
   return (
     <div className="max-w-4xl space-y-6">

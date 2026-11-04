@@ -4,9 +4,11 @@ import { getAiWorkerOnline } from "@/lib/admin/ai";
 import { listAdminProducts, listAuditEvents } from "@/lib/admin/data";
 import { listOrders, type OrderSummary } from "@/lib/admin/orders";
 import { missingLabel, pendingAiPhotos, readinessSummary } from "@/lib/admin/readiness";
+import { acessoGeral, DESCRICAO_AREA, podeUsar, ROTULO_AREA } from "@/lib/auth/areas";
 import { requireStaffPage } from "@/lib/auth/staff";
 import { STATUS_LABELS, type Product, type ProductStatus } from "@/lib/catalog/types";
 import { isOpen } from "@/lib/orders/status";
+import { tramaConfig } from "@/lib/trama/config";
 import { AuditList } from "@/components/admin/audit-list";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { Card, PageHeader, ProductThumb } from "@/components/admin/ui";
@@ -15,6 +17,8 @@ import { CameraIcon, CheckIcon, ChevronRightIcon, ExternalIcon, TruckIcon } from
 import { Notice } from "@/components/ui/notice";
 
 export const metadata: Metadata = { title: "Início" };
+
+const INICIO_DA_AREA = { itens: "/admin/produtos", pedidos: "/admin/pedidos", entrega: "/admin/entrega" } as const;
 
 type Todo = { product: Product; text: string; href: string; tone: "action" | "ready" | "review" };
 
@@ -57,12 +61,17 @@ async function orderCounts(): Promise<{ waiting: number; waitingFromSite: number
 }
 
 export default async function DashboardPage({ searchParams }: PageProps<"/admin">) {
-  await requireStaffPage();
+  const staff = await requireStaffPage();
+  // Cada senha abre só a sua área: o início mostra e carrega só o que é dela.
+  const itens = podeUsar(staff, "itens");
+  const pedidos = podeUsar(staff, "pedidos");
+  const geral = acessoGeral(staff);
+  const trama = geral ? tramaConfig() : null;
   const [products, events, workerOnline, orders, params] = await Promise.all([
-    listAdminProducts(),
-    listAuditEvents({ limit: 6 }),
-    getAiWorkerOnline(),
-    orderCounts(),
+    itens ? listAdminProducts() : Promise.resolve([] as Product[]),
+    itens ? listAuditEvents({ limit: 6 }) : Promise.resolve([]),
+    itens ? getAiWorkerOnline() : Promise.resolve(false),
+    pedidos ? orderCounts() : Promise.resolve(null),
     searchParams,
   ]);
   const count = (s: ProductStatus) => products.filter((p) => p.status === s && !p.isDemo).length;
@@ -73,13 +82,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
     <div className="space-y-6">
       <PageHeader
         title="Início"
-        subtitle="O que precisa da sua atenção na loja."
+        subtitle={geral ? "O que precisa da sua atenção na loja." : `Sua área: ${staff.areas.map((a) => ROTULO_AREA[a]).join(", ")}.`}
         actions={
           <>
             <a href="/" target="_blank" rel="noopener" className={buttonClasses({ variant: "secondary" })}>
               <ExternalIcon className="h-4 w-4" /> Ver loja
             </a>
-            <ButtonLink href="/admin/produtos/novo">Novo produto</ButtonLink>
+            {itens ? <ButtonLink href="/admin/produtos/novo">Novo produto</ButtonLink> : null}
           </>
         }
       />
@@ -89,128 +98,184 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
           Essa área é só para administradores.
         </Notice>
       ) : null}
+      {params.motivo === "sem-area" ? (
+        <Notice tone="warning" role="alert" title="Essa parte é de outra área">
+          Peça ao administrador um link de acesso dessa área.
+        </Notice>
+      ) : null}
 
-      <ul aria-label="Produtos por status" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {order.map((s) => (
-          <li key={s}>
-            <Link
-              href={`/admin/produtos?status=${s}`}
-              className="flex items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 hover:border-deep-fjord"
-            >
-              <span className="text-sm font-medium text-muted">{STATUS_LABELS[s]}</span>
-              <span className="text-2xl font-bold text-deep-fjord">{count(s)}</span>
+      {!geral ? (
+        <ul aria-label="Sua área" className="grid gap-3 sm:grid-cols-3">
+          {staff.areas.map((a) => (
+            <li key={a}>
+              <Link
+                href={INICIO_DA_AREA[a]}
+                className="flex h-full flex-col rounded-2xl border border-line bg-white px-4 py-3 hover:border-deep-fjord"
+              >
+                <span className="font-semibold text-deep-fjord">{ROTULO_AREA[a]}</span>
+                <span className="mt-1 text-sm text-muted">{DESCRICAO_AREA[a]}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {staff.role === "admin" ? (
+        <Card
+          title="Acessos"
+          description="Dê acesso a só uma parte do painel (itens, pedidos ou entrega) com um link. Revogue quando quiser."
+          actions={
+            <Link href="/admin/acessos" className="link text-sm">
+              Gerenciar links
             </Link>
-          </li>
-        ))}
-      </ul>
+          }
+        >
+          <p className="text-sm text-muted">Quem entra pelo link vê só as áreas dele; o banco não deixa passar o resto.</p>
+        </Card>
+      ) : null}
+
+      {trama ? (
+        <Card
+          title="Fábrica e logística (Trama)"
+          description="Depósito, rotas, entregadores, fábrica e financeiro."
+        >
+          <a href={`${trama.baseUrl}/entrar`} target="_blank" rel="noopener" className="link inline-flex items-center gap-1 text-sm">
+            Abrir o Trama <ExternalIcon className="h-4 w-4" />
+          </a>
+        </Card>
+      ) : null}
+
+      {itens ? (
+        <ul aria-label="Produtos por status" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {order.map((s) => (
+            <li key={s}>
+              <Link
+                href={`/admin/produtos?status=${s}`}
+                className="flex items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 hover:border-deep-fjord"
+              >
+                <span className="text-sm font-medium text-muted">{STATUS_LABELS[s]}</span>
+                <span className="text-2xl font-bold text-deep-fjord">{count(s)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <Card id="afazer" title="O que fazer agora" description="O próximo passo de cada produto. Toque para resolver.">
-          {tasks.length ? (
-            <ul className="-mx-2 divide-y divide-line">
-              {tasks.map((t, i) => (
-                <li key={`${t.product.id}-${i}`}>
-                  <Link href={t.href} className="flex items-center gap-3 rounded-xl px-2 py-3 hover:bg-cloud">
-                    <ProductThumb product={t.product} size="sm" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold text-deep-fjord">{t.product.name}</span>
-                      <span
-                        className={`block text-sm ${t.tone === "ready" ? "font-semibold text-success" : t.tone === "review" ? "font-semibold text-[#8a4b0f]" : "text-muted"}`}
-                      >
-                        {t.tone === "ready" ? <CheckIcon className="mr-1 inline h-4 w-4 align-[-3px]" /> : null}
-                        {t.text}
+        {itens ? (
+          <Card id="afazer" title="O que fazer agora" description="O próximo passo de cada produto. Toque para resolver.">
+            {tasks.length ? (
+              <ul className="-mx-2 divide-y divide-line">
+                {tasks.map((t, i) => (
+                  <li key={`${t.product.id}-${i}`}>
+                    <Link href={t.href} className="flex items-center gap-3 rounded-xl px-2 py-3 hover:bg-cloud">
+                      <ProductThumb product={t.product} size="sm" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold text-deep-fjord">{t.product.name}</span>
+                        <span
+                          className={`block text-sm ${t.tone === "ready" ? "font-semibold text-success" : t.tone === "review" ? "font-semibold text-[#8a4b0f]" : "text-muted"}`}
+                        >
+                          {t.tone === "ready" ? <CheckIcon className="mr-1 inline h-4 w-4 align-[-3px]" /> : null}
+                          {t.text}
+                        </span>
                       </span>
-                    </span>
-                    <ChevronRightIcon className="h-5 w-5 shrink-0 text-muted" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="flex items-center gap-2 font-medium text-success">
-              <CheckIcon className="h-5 w-5" /> Tudo em dia.
-            </p>
-          )}
-        </Card>
-
-        <div className="space-y-6">
-          <Card
-            id="pedidos"
-            title="Pedidos"
-            actions={
-              <Link href="/admin/pedidos" className="link text-sm">
-                Ver pedidos
-              </Link>
-            }
-          >
-            {orders ? (
-              <>
-                <ul className="grid grid-cols-2 gap-3" data-testid="resumo-pedidos">
-                  <li>
-                    <Link
-                      href="/admin/pedidos"
-                      className={`flex h-full flex-col justify-between rounded-xl border px-4 py-3 hover:border-deep-fjord ${
-                        orders.waiting ? "border-linen bg-linen/40" : "border-line bg-white"
-                      }`}
-                    >
-                      <span className="text-sm font-medium text-muted">Aguardando confirmação</span>
-                      <span className="mt-1 text-2xl font-bold text-deep-fjord">{orders.waiting}</span>
+                      <ChevronRightIcon className="h-5 w-5 shrink-0 text-muted" />
                     </Link>
                   </li>
-                  <li>
-                    <Link
-                      href="/admin/pedidos"
-                      className="flex h-full flex-col justify-between rounded-xl border border-line bg-white px-4 py-3 hover:border-deep-fjord"
-                    >
-                      <span className="text-sm font-medium text-muted">Em andamento</span>
-                      <span className="mt-1 text-2xl font-bold text-deep-fjord">{orders.inProgress}</span>
-                    </Link>
-                  </li>
-                </ul>
-                <p className="mt-3 flex items-start gap-2 text-sm">
-                  <TruckIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
-                  {orders.waiting
-                    ? `${orders.waiting === 1 ? "1 pedido espera" : `${orders.waiting} pedidos esperam`} você confirmar o pagamento e o frete com o cliente${
-                        orders.waitingFromSite ? ` (${orders.waitingFromSite} pelo site)` : ""
-                      }.`
-                    : "Nenhum pedido esperando confirmação."}
-                </p>
-              </>
+                ))}
+              </ul>
             ) : (
-              <p className="text-sm text-muted">Não foi possível carregar os pedidos agora. Abra a página de pedidos para tentar de novo.</p>
+              <p className="flex items-center gap-2 font-medium text-success">
+                <CheckIcon className="h-5 w-5" /> Tudo em dia.
+              </p>
             )}
           </Card>
+        ) : null}
 
-          <Card title="Cadastrar com o celular">
-            <Link href="/admin/produtos/novo" className="flex items-center gap-4 rounded-xl bg-pale-blue p-4 hover:bg-sky-mist">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-deep-fjord text-white">
-                <CameraIcon className="h-6 w-6" />
-              </span>
-              <span className="text-sm text-ink">
-                <strong className="block text-base text-deep-fjord">Novo produto</strong>
-                Envie as fotos tiradas no celular: o fundo é limpo, as fotos de catálogo e o 3D são feitos pela IA.
-              </span>
-            </Link>
-            <p className="mt-3 flex items-center gap-2 text-sm">
-              <span className={`h-2.5 w-2.5 rounded-full ${workerOnline ? "bg-success" : "bg-line"}`} aria-hidden="true" />
-              {workerOnline ? "IA de fotos e 3D pronta." : "IA de fotos e 3D ainda não configurada (as fotos ficam na fila)."}
-            </p>
-          </Card>
+        <div className="space-y-6">
+          {pedidos ? (
+            <Card
+              id="pedidos"
+              title="Pedidos"
+              actions={
+                <Link href="/admin/pedidos" className="link text-sm">
+                  Ver pedidos
+                </Link>
+              }
+            >
+              {orders ? (
+                <>
+                  <ul className="grid grid-cols-2 gap-3" data-testid="resumo-pedidos">
+                    <li>
+                      <Link
+                        href="/admin/pedidos"
+                        className={`flex h-full flex-col justify-between rounded-xl border px-4 py-3 hover:border-deep-fjord ${
+                          orders.waiting ? "border-linen bg-linen/40" : "border-line bg-white"
+                        }`}
+                      >
+                        <span className="text-sm font-medium text-muted">Aguardando confirmação</span>
+                        <span className="mt-1 text-2xl font-bold text-deep-fjord">{orders.waiting}</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/admin/pedidos"
+                        className="flex h-full flex-col justify-between rounded-xl border border-line bg-white px-4 py-3 hover:border-deep-fjord"
+                      >
+                        <span className="text-sm font-medium text-muted">Em andamento</span>
+                        <span className="mt-1 text-2xl font-bold text-deep-fjord">{orders.inProgress}</span>
+                      </Link>
+                    </li>
+                  </ul>
+                  <p className="mt-3 flex items-start gap-2 text-sm">
+                    <TruckIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+                    {orders.waiting
+                      ? `${orders.waiting === 1 ? "1 pedido espera" : `${orders.waiting} pedidos esperam`} você confirmar o pagamento e o frete com o cliente${
+                          orders.waitingFromSite ? ` (${orders.waitingFromSite} pelo site)` : ""
+                        }.`
+                      : "Nenhum pedido esperando confirmação."}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-muted">Não foi possível carregar os pedidos agora. Abra a página de pedidos para tentar de novo.</p>
+              )}
+            </Card>
+          ) : null}
 
-          <Card
-            title="Atividade recente"
-            actions={
-              <Link href="/admin/atividade" className="link text-sm">
-                Ver tudo
-              </Link>
-            }
-          >
-            <AuditList events={events} />
-          </Card>
+          {itens ? (
+            <>
+              <Card title="Cadastrar com o celular">
+                <Link href="/admin/produtos/novo" className="flex items-center gap-4 rounded-xl bg-pale-blue p-4 hover:bg-sky-mist">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-deep-fjord text-white">
+                    <CameraIcon className="h-6 w-6" />
+                  </span>
+                  <span className="text-sm text-ink">
+                    <strong className="block text-base text-deep-fjord">Novo produto</strong>
+                    Envie as fotos tiradas no celular: o fundo é limpo, as fotos de catálogo e o 3D são feitos pela IA.
+                  </span>
+                </Link>
+                <p className="mt-3 flex items-center gap-2 text-sm">
+                  <span className={`h-2.5 w-2.5 rounded-full ${workerOnline ? "bg-success" : "bg-line"}`} aria-hidden="true" />
+                  {workerOnline ? "IA de fotos e 3D pronta." : "IA de fotos e 3D ainda não configurada (as fotos ficam na fila)."}
+                </p>
+              </Card>
+
+              <Card
+                title="Atividade recente"
+                actions={
+                  <Link href="/admin/atividade" className="link text-sm">
+                    Ver tudo
+                  </Link>
+                }
+              >
+                <AuditList events={events} />
+              </Card>
+            </>
+          ) : null}
         </div>
       </div>
 
-      {products.length ? (
+      {itens && products.length ? (
         <Card
           title="Produtos"
           actions={
