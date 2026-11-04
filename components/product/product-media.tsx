@@ -96,6 +96,12 @@ function loadViewerLibrary(): Promise<unknown> {
 /** O navegador ainda considera o último toque recente (exigido para abrir a câmera)? */
 const recentTap = () => navigator.userActivation?.isActive ?? true;
 
+/** Endereço do modelo para a tentativa `n` (a primeira usa o endereço do catálogo). */
+function withRetry(url: string, n: number): string {
+  if (!n) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}tentativa=${n}`;
+}
+
 const NO_AR = "Este aparelho ou navegador não abre a realidade aumentada. Você ainda pode girar o produto em 3D aqui.";
 
 /** Reserva: o app não deixou abrir o Safari/Chrome sozinho, então oferece copiar o link. */
@@ -163,7 +169,7 @@ export function ProductMedia({
 }: {
   media: Media[];
   model: Media | null;
-  /** Arquivo do iPhone em tamanho real (só quando a escala foi conferida). */
+  /** Arquivo do iPhone (.usdz): em tamanho real com `realScale`, senão no tamanho do modelo (aproximado). */
   usdzUrl?: string | null;
   /** Modelo conferido com as medidas do catálogo: no AR o cliente não redimensiona a peça. */
   realScale?: boolean;
@@ -176,6 +182,8 @@ export function ProductMedia({
 }) {
   const [mode, setMode] = useState<"fotos" | "3d">("fotos");
   const [state, setState] = useState<State>("idle");
+  /** Tentativas depois de um erro: o model-viewer guarda a falha por endereço, então cada nova tentativa usa outro. */
+  const [retry, setRetry] = useState(0);
   const [pending, setPending] = useState<"3d" | "ar" | null>(null);
   const [arProblem, setArProblem] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
@@ -216,7 +224,11 @@ export function ProductMedia({
   }, [needsModel]);
 
   async function load(want: "3d" | "ar") {
+    // Um pedido vale só para o toque que o fez: qualquer ida para o 3D cancela o da foto.
+    wantsDirect.current = false;
     wantsAr.current = want === "ar";
+    if (want === "3d") setPreparing(false);
+    if (state === "error") setRetry((n) => n + 1);
     setMode("3d");
     // Já carregado: o visualizador volta a ser montado e o efeito abaixo abre a câmera, se pedida.
     if (state === "ready" || state === "loading") return;
@@ -257,6 +269,7 @@ export function ProductMedia({
     setPending("ar");
     try {
       await loadViewerLibrary();
+      // Se nesse meio-tempo o cliente foi para o 3D, o pedido já foi cancelado (load).
       setState((s) => (s === "idle" || s === "loading" ? "ready" : s));
     } catch {
       wantsDirect.current = false;
@@ -267,6 +280,7 @@ export function ProductMedia({
 
   function showPhotos() {
     wantsAr.current = false;
+    wantsDirect.current = false;
     setPreparing(false);
     setAskTap(false);
     setMode("fotos");
@@ -302,6 +316,8 @@ export function ProductMedia({
     setArProblem(null);
     if (support.mode === "camera") {
       if (state === "ready" && mode === "3d") openCamera();
+      // Depois de um erro, tenta de novo pelo 3D (que baixa tudo de novo e mostra o erro se falhar).
+      else if (state === "error") void load("ar");
       else if (openCameraDirectly()) return;
       else if (direct) void openDirectlyWhenReady();
       else void load("ar");
@@ -393,6 +409,11 @@ export function ProductMedia({
       clearTimeout(timer);
     };
   }, [model, support.mode]);
+
+  // Cor pintada escolhida durante a espera: o pedido da foto não vale mais.
+  useEffect(() => {
+    if (!direct) wantsDirect.current = false;
+  }, [direct]);
 
   // Visualizador escondido (abre a câmera da foto). Toque feito antes de ele ficar
   // pronto: abre assim que puder, ainda dentro do toque, ou pede outro toque. Se o
@@ -516,12 +537,13 @@ export function ProductMedia({
     originalColor.current = null;
   }, [activeModel?.url]);
 
+  const modelSrc = activeModel ? withRetry(activeModel.url, retry) : null;
   const stage =
-    activeModel && mode === "3d" ? (
+    activeModel && modelSrc && mode === "3d" ? (
       state === "ready" ? (
         <model-viewer
           ref={viewerRef}
-          src={activeModel.url}
+          src={modelSrc}
           alt={color ? `${activeModel.altText} Cor: ${color.name}.` : activeModel.altText}
           camera-controls
           touch-action="pan-y"
@@ -573,7 +595,7 @@ export function ProductMedia({
     direct && activeModel && state === "ready" && mode === "fotos" ? (
       <model-viewer
         ref={launcherRef}
-        src={activeModel.url}
+        src={modelSrc ?? activeModel.url}
         alt=""
         aria-hidden="true"
         ar
@@ -639,6 +661,10 @@ export function ProductMedia({
         onSelectPhoto={showPhotos}
       />
       {launcher}
+      {/* O botão muda para "Abrindo a câmera…", mas o nome acessível é fixo: avisa o leitor de tela. */}
+      <p role="status" className="sr-only">
+        {openingFromPhoto ? "Abrindo a câmera…" : ""}
+      </p>
 
       <div className="space-y-3 px-4 lg:px-0">
         {ready3d ? (

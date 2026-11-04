@@ -533,7 +533,16 @@ async function model3d(supabase, job, product, inputFile, dir, engines, uploaded
   if (previousIds.length) {
     const { data: removed } = await supabase.from("product_media").delete().in("id", previousIds).select("storage_path,usdz_storage_path");
     const paths = (removed ?? []).flatMap((m) => [m.storage_path, m.usdz_storage_path].filter(Boolean));
-    if (paths.length) await supabase.storage.from(BUCKET).remove(paths);
+    // Um produto duplicado usa os mesmos arquivos: só apaga o que nenhuma outra mídia usa.
+    const [{ data: asGlb }, { data: asUsdz }] = paths.length
+      ? await Promise.all([
+          supabase.from("product_media").select("storage_path").in("storage_path", paths),
+          supabase.from("product_media").select("usdz_storage_path").in("usdz_storage_path", paths),
+        ])
+      : [{ data: [] }, { data: [] }];
+    const used = new Set([...(asGlb ?? []).map((r) => r.storage_path), ...(asUsdz ?? []).map((r) => r.usdz_storage_path)]);
+    const orphans = paths.filter((p) => !used.has(p));
+    if (orphans.length) await supabase.storage.from(BUCKET).remove(orphans);
   }
   return { output_media_id: media.id, details: meta };
 }

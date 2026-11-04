@@ -15,7 +15,9 @@ function contentSecurityPolicy() {
   const remote = supabaseOrigin ? ` ${supabaseOrigin}` : "";
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+    // 'wasm-unsafe-eval' libera só WebAssembly (não libera eval de JavaScript): o
+    // visualizador 3D (model-viewer/three.js) usa para decodificar modelos.
+    `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob:${remote}`,
     `media-src 'self' blob:${remote}`,

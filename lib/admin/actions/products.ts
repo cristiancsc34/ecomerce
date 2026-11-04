@@ -149,14 +149,15 @@ export async function deleteProductAction(productId: string): Promise<ActionResu
   if (!isUuid(productId)) return { ok: false, error: "Produto inválido." };
   const supabase = await createSessionClient();
 
-  const { data: media } = await supabase.from("product_media").select("storage_path").eq("product_id", productId);
+  const { data: media } = await supabase.from("product_media").select("storage_path,usdz_storage_path").eq("product_id", productId);
   const { data: deleted, error } = await supabase.from("products").delete().eq("id", productId).select("id");
   if (error) return { ok: false, error: friendlyDbError(error) };
   if (!deleted?.length) {
     return { ok: false, error: "Só é possível excluir rascunhos ou arquivados. Despublique antes." };
   }
 
-  await removeOrphanFiles((media ?? []).map((m) => m.storage_path as string));
+  // Inclui o arquivo do iPhone (.usdz) ao lado do .glb.
+  await removeOrphanFiles((media ?? []).flatMap((m) => [m.storage_path as string, ...(m.usdz_storage_path ? [m.usdz_storage_path as string] : [])]));
   updateTag(CATALOG_TAG);
   return { ok: true };
 }

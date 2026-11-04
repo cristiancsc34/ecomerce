@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { architectsContactHref, ArchitectsSection } from "@/components/product/architects";
+import { brand, type BrandConfig } from "@/config/brand";
 import { makeMedia, makeProduct } from "./factories";
 
 const model = makeMedia({
@@ -17,15 +18,26 @@ const realScaleModel = {
   realScale: true,
   boundsCm: { widthCm: 77.6, depthCm: 90.4, heightCm: 100.1 },
 };
-const render = (p: Parameters<typeof ArchitectsSection>[0]["product"]) => renderToStaticMarkup(createElement(ArchitectsSection, { product: p }));
+type Props = Parameters<typeof ArchitectsSection>[0];
+/** Canais de contato da loja para o teste (a configuração real está vazia). */
+const contact = (c: Partial<BrandConfig["contact"]>) => ({ contact: { ...brand.contact, email: "", whatsapp: "", phone: "", ...c } });
+const render = (p: Props["product"], config?: Props["config"]) => renderToStaticMarkup(createElement(ArchitectsSection, { product: p, config }));
 
 describe("área de arquitetos e designers", () => {
   it("sem medidas conferidas: só a linha discreta, sem arquivo para baixar", () => {
-    const html = render(makeProduct({ slug: "poltrona-x", name: "Poltrona X", media: [makeMedia(), model] }));
+    const product = makeProduct({ slug: "poltrona-x", name: "Poltrona X", media: [makeMedia(), model] });
+    const html = render(product, contact({ email: "contato@exemplo.com" }));
     expect(html).toContain("É arquiteto ou designer de interiores?");
     expect(html).toContain('href="/atendimento"');
     expect(html).not.toContain("Baixar");
     expect(html).not.toContain("Para arquitetos e designers");
+    // Com WhatsApp, o pedido vai direto com a mensagem pronta.
+    expect(render(product, contact({ whatsapp: "(11) 98765-4321" }))).toContain('href="https://wa.me/11987654321?text=');
+  });
+
+  it("sem nenhum canal de contato cadastrado: a linha não aparece (o pedido não chegaria à loja)", () => {
+    const product = makeProduct({ media: [makeMedia(), model] });
+    expect(render(product, contact({}))).toBe("");
   });
 
   it("com tamanho real conferido: downloads com nome legível e texto correto sobre os programas", () => {
@@ -52,9 +64,10 @@ describe("área de arquitetos e designers", () => {
     expect(render(makeProduct({ media: [makeMedia()] }))).toBe("");
   });
 
-  it("pedido pelo WhatsApp já vem com a mensagem pronta; sem WhatsApp, a página de atendimento", () => {
-    expect(architectsContactHref("Poltrona X", "")).toBe("/atendimento");
-    const wa = architectsContactHref("Poltrona X", "(11) 98765-4321");
+  it("pedido pelo WhatsApp já vem com a mensagem pronta; sem WhatsApp, a página de atendimento; sem canal, nada", () => {
+    expect(architectsContactHref("Poltrona X", contact({ phone: "(11) 3333-4444" }))).toBe("/atendimento");
+    expect(architectsContactHref("Poltrona X", contact({}))).toBeNull();
+    const wa = architectsContactHref("Poltrona X", contact({ whatsapp: "(11) 98765-4321" }))!;
     expect(wa.startsWith("https://wa.me/11987654321?text=")).toBe(true);
     expect(decodeURIComponent(wa.split("text=")[1])).toBe(
       "Olá! Sou arquiteto(a) ou designer de interiores e quero o arquivo 3D e a ficha técnica de Poltrona X.",

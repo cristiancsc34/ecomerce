@@ -19,8 +19,9 @@ Novo passo no Estúdio: **5. Cores (opcional)**.
 2. **Gerar** (fila do estúdio, como as outras etapas):
    - as 4 fotos de catálogo na cor nova pelo GPT (`openaiRecolorEngine`, mesma chave das fotos de catálogo);
    - cada foto passa pela **conferência automática** (`fidelityCheck`): fora do tecido, madeira, fundo e sombra têm de
-     continuar iguais à foto original. Se a IA mexeu na peça, a foto é refeita ou fica a versão recolorida por
-     computador, com aviso;
+     continuar iguais à foto original; dentro do tecido, nada pode fugir do sombreado e da cor do resto do tecido
+     (almofada, manta, encosto cortado); e a cor medida tem de ser a pedida. Se a IA mexeu na peça em qualquer
+     ângulo, a cor é refeita ou fica a versão recolorida por computador, com aviso;
    - o 3D: o mesmo modelo, com a cor nova como variante dentro do `.glb` (`KHR_materials_variants`), pintado com a cor
      medida nas fotos geradas; e o `.usdz` dessa cor para o iPhone, quando o tamanho real estiver conferido.
 3. **Conferir e aprovar**: antes × depois lado a lado, foto por foto (como as fotos de catálogo). Até alguém aprovar,

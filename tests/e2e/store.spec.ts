@@ -392,6 +392,62 @@ test.describe("vitrine em modo demonstração", () => {
     await context.close();
   });
 
+  test("celular: depois de um erro no 3D, 'Ver no seu ambiente' tenta de novo e abre a câmera", async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
+    test.skip(testInfo.project.name !== "mobile", "câmera só no celular");
+    const camera = await watchCamera(page);
+    // A primeira tentativa de baixar o modelo falha (rede caiu); as outras funcionam.
+    let failed = false;
+    await page.route(/poltrona-azul\.glb/, (route) => {
+      if (failed) return route.continue();
+      failed = true;
+      return route.abort("internetdisconnected");
+    });
+    await page.goto("/produtos/poltrona-azul");
+    await expect(page.locator("model-viewer[data-abre-camera]")).toHaveCount(1, { timeout: 30_000 });
+    await page.getByRole("button", { name: "Girar em 3D" }).tap();
+    await expect(page.getByText("Não foi possível carregar o modelo 3D.")).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "Ver no seu ambiente" }).tap();
+    // Baixa o modelo de novo. Se demorar mais que o toque permite, a página pede mais um toque
+    // ("Abrir no seu ambiente"), que abre na hora.
+    const again = page.getByRole("button", { name: /^Abrir no seu ambiente/ });
+    await expect
+      .poll(async () => (await camera()).length > 0 || (await again.isVisible()), { timeout: 60_000 })
+      .toBe(true);
+    if (!(await camera()).length) await again.tap();
+    await expect.poll(camera, { timeout: 30_000 }).toHaveLength(1);
+    // Baixou o modelo de novo (outro endereço: o model-viewer guarda a falha do primeiro).
+    expect((await camera())[0].href).toMatch(/^intent:\/\/arvr\.google\.com\/scene-viewer\/.*tentativa%3D1/);
+  });
+
+  test("celular: um pedido de câmera feito antes de o 3D chegar não abre a câmera sozinho depois", async ({ page, context }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "câmera só no celular");
+    const camera = await watchCamera(page);
+    // Economia de dados: a biblioteca do 3D não é baixada antes do toque.
+    await page.addInitScript(() => Object.defineProperty(navigator, "connection", { value: { saveData: true } }));
+    await page.goto("/produtos/poltrona-azul");
+    await page.waitForLoadState("networkidle");
+    // Rede lenta: a biblioteca demora a chegar depois do toque.
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Network.enable");
+    await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 200, downloadThroughput: 40_000, uploadThroughput: 40_000 });
+    await page.getByRole("button", { name: "Ver no seu ambiente" }).tap();
+    // O botão mostra "Abrindo a câmera…" e o leitor de tela é avisado.
+    await expect(page.getByRole("status").filter({ hasText: "Abrindo a câmera…" })).toHaveCount(1);
+    // Impaciente, o cliente vai para o 3D: o pedido da foto é cancelado.
+    await page.getByRole("button", { name: "Girar em 3D" }).tap();
+    await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await expect(page.locator("model-viewer:not([data-abre-camera])")).toBeVisible({ timeout: 60_000 });
+    // Volta para as fotos: o visualizador escondido aparece, mas a câmera não abre sozinha.
+    await page.getByRole("button", { name: "Ver fotos" }).tap();
+    await expect(page.locator("model-viewer[data-abre-camera]")).toHaveCount(1);
+    await page.waitForTimeout(1500);
+    expect(await camera()).toEqual([]);
+    // Um toque de verdade abre na hora.
+    await page.getByRole("button", { name: "Ver no seu ambiente" }).tap();
+    await expect.poll(camera).toHaveLength(1);
+  });
+
   test("celular: o link do código QR (?ar=1) abre o 3D pronto e pede um toque para a câmera", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "chegada no celular");
     await page.goto("/produtos/poltrona-azul?ar=1");
@@ -402,24 +458,15 @@ test.describe("vitrine em modo demonstração", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
-  test("arquitetos e designers: sem medidas conferidas, só uma linha discreta que leva ao atendimento", async ({ page }) => {
+  test("arquitetos e designers: sem medidas conferidas e sem canal de contato, nada de pedido nem de download", async ({ page }) => {
     await page.goto("/produtos/poltrona-azul");
     await page.waitForLoadState("networkidle");
-    // Enquanto a página termina de chegar, o Next pode manter uma cópia escondida: mede só a visível.
-    const line = page.getByTestId("arquitetos").filter({ visible: true });
-    await expect(line).toHaveText("É arquiteto ou designer de interiores? Peça o arquivo 3D e a ficha técnica.");
+    // A loja ainda não tem WhatsApp, e-mail nem telefone: a linha "Peça o arquivo 3D" não convida a um pedido
+    // que não chegaria (com contato, ela aparece; ver tests/unit/architects.test.ts).
+    await expect(page.getByTestId("arquitetos")).toHaveCount(0);
     // Nenhum arquivo com escala aproximada é oferecido para download.
     await expect(page.getByRole("link", { name: /Baixar \.(glb|usdz)/ })).toHaveCount(0);
     await expect(page.getByText("Para arquitetos e designers")).toHaveCount(0);
-    // Fica no fim da página, depois do conteúdo do produto.
-    const lineBox = await line.boundingBox();
-    const description = await page.getByRole("heading", { name: "Descrição do produto" }).filter({ visible: true }).boundingBox();
-    expect(lineBox && description && lineBox.y > description.y).toBe(true);
-    // O pedido vai ao atendimento e o interesse é medido.
-    const link = line.getByRole("link", { name: "Peça o arquivo 3D e a ficha técnica" });
-    await expect(link).toHaveAttribute("href", "/atendimento");
-    await link.click();
-    await expect(page).toHaveURL(/\/atendimento$/);
     // Sem cor cadastrada, o seletor de cor fica escondido.
     await page.goto("/produtos/poltrona-azul");
     await expect(page.getByTestId("seletor-cor")).toHaveCount(0);
@@ -427,27 +474,6 @@ test.describe("vitrine em modo demonstração", () => {
     // Produto sem 3D: nem a linha.
     await page.goto("/produtos/cadeira-cinza-trama");
     await expect(page.getByTestId("arquitetos")).toHaveCount(0);
-  });
-
-  test("arquitetos: o clique no pedido do arquivo 3D é registrado", async ({ page }) => {
-    await page.goto("/produtos/poltrona-azul");
-    await page.evaluate(() => {
-      const seen: unknown[] = [];
-      Object.assign(window, { seen });
-      window.addEventListener("cuxoes:evento", (e) => {
-        seen.push((e as CustomEvent).detail);
-        e.stopImmediatePropagation();
-      });
-      // Não navega: só queremos o evento.
-      document.addEventListener("click", (e) => {
-        if ((e.target as HTMLElement).closest("[data-testid=arquitetos] a")) e.preventDefault();
-      });
-    });
-    await page.getByRole("link", { name: "Peça o arquivo 3D e a ficha técnica" }).click();
-    const seen = () => page.evaluate(() => (window as unknown as { seen: { event: string; produto_id: string }[] }).seen);
-    await expect.poll(seen).toContainEqual(
-      expect.objectContaining({ event: "arquitetos_interesse", produto_id: "dcdaee90-64b9-4b91-832b-f5049a237cb9" }),
-    );
   });
 
   test("galeria: miniaturas, contador e zoom acessível", async ({ page }) => {

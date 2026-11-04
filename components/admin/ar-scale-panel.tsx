@@ -54,7 +54,11 @@ export function ArScalePanel({
     if (r.ok) router.refresh();
   }
 
-  const shown = result ?? (realScale ? null : lastCheck);
+  // A última conferência do estúdio pode ter ficado para trás: "ok" com as medidas
+  // de antes (alguém mudou o catálogo depois) ou "faltam medidas" já cadastradas.
+  const outdatedOk = lastCheck?.status === "ok" && !realScale;
+  const outdated = outdatedOk || (lastCheck?.status === "sem-medidas" && missing.length === 0);
+  const shown = result ?? (realScale || outdated ? null : lastCheck);
   return (
     <div className="mt-4 rounded-2xl border border-line bg-white p-3" data-testid="ar-tamanho-real">
       <p className="flex items-center gap-2 text-sm font-semibold">
@@ -78,7 +82,9 @@ export function ArScalePanel({
         <Notice tone="warning" className="mt-2" title="Tamanho real não conferido">
           {missing.length
             ? `Cadastre ${missing.join(", ")} nas especificações. Sem as medidas, o AR mostra o tamanho aproximado (o cliente ajusta).`
-            : "As medidas ainda não foram conferidas com o modelo 3D."}
+            : outdatedOk
+              ? "As medidas do catálogo mudaram depois da conferência. Confira de novo para voltar ao tamanho real."
+              : "As medidas ainda não foram conferidas com o modelo 3D."}
         </Notice>
       )}
       {canEdit ? (

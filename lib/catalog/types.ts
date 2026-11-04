@@ -68,7 +68,11 @@ export type ProductMedia = {
   pendingReview: boolean;
   width: number | null;
   height: number | null;
-  /** Modelo 3D: arquivo do iPhone (.usdz, AR Quick Look) em tamanho real. */
+  /**
+   * Modelo 3D: arquivo do iPhone (.usdz, AR Quick Look). Em tamanho real só com
+   * `realScale`; sem ele, no tamanho do próprio modelo (aproximado), só para a
+   * câmera abrir no mesmo toque.
+   */
   usdzUrl: string | null;
   /** Modelo 3D conferido com as medidas do catálogo (±2 cm). Ver `arFiles()`. */
   realScale: boolean;

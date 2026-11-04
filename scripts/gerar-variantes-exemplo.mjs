@@ -10,8 +10,10 @@
  * Gera em public/demo/exemplo/:
  * - as 4 fotos de catálogo de cada cor (só o tecido muda de cor: a madeira, o
  *   fundo e as sombras ficam como na foto original). No modo GPT, cada foto
- *   gerada é conferida com a original fora do tecido; se a IA mexeu na peça ou
- *   no fundo, a foto é descartada e fica a versão recolorida por computador;
+ *   gerada é conferida com a original (fidelityCheck: fora do tecido, madeira,
+ *   forma do tecido e cor pedida); se a IA mexeu na peça, acrescentou algo ou
+ *   errou a cor em qualquer ângulo, a cor inteira fica com a versão recolorida
+ *   por computador;
  * - poltrona-cores.glb: o modelo 3D com as 5 cores no mesmo arquivo
  *   (extensão KHR_materials_variants; o visualizador troca pelo nome da cor).
  *   No modo GPT, a cor do 3D é a cor medida no tecido das fotos geradas.
@@ -113,77 +115,328 @@ export async function recolor(input, hex, { reference } = {}) {
 
 const toHex = (rgb) => `#${rgb.map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 
-/**
- * Confere uma foto gerada pela IA com a original: fora do tecido (madeira, fundo,
- * sombra) as duas têm de ser praticamente iguais. Compara as duas desfocadas de
- * leve (a IA redesenha a imagem inteira, pixel a pixel nunca bate) e devolve a
- * diferença média fora do tecido (0–255), quanto da área "mudou de verdade" e a
- * cor média do tecido na foto gerada.
- */
-export async function fidelityCheck(original, generated, { maxMeanDiff = 12, maxChangedShare = 0.04 } = {}) {
-  const a = await sharp(original).removeAlpha().blur(2).raw().toBuffer({ resolveWithObject: true });
-  const { width, height } = a.info;
-  const b = await sharp(generated).removeAlpha().resize(width, height, { fit: "fill" }).blur(2).raw().toBuffer();
-  const raw = await sharp(original).removeAlpha().raw().toBuffer();
-  let sum = 0;
-  let count = 0;
-  let changed = 0;
-  const fabric = [0, 0, 0];
-  let fabricCount = 0;
-  for (let i = 0; i < raw.length; i += 3) {
-    const w = fabricWeight(raw[i] / 255, raw[i + 1] / 255, raw[i + 2] / 255);
-    if (w > 0.5) {
-      for (let c = 0; c < 3; c++) fabric[c] += toLinear(b[i + c] / 255);
-      fabricCount++;
-      continue;
-    }
-    if (w > 0) continue; // borda do tecido: não conta
-    const d = (Math.abs(a.data[i] - b[i]) + Math.abs(a.data[i + 1] - b[i + 1]) + Math.abs(a.data[i + 2] - b[i + 2])) / 3;
-    sum += d;
-    count++;
-    if (d > 40) changed++;
-  }
-  const meanDiff = count ? sum / count : 0;
-  const changedShare = count ? changed / count : 0;
-  const fabricHex = fabricCount ? toHex(fabric.map((v) => toSrgb(v / fabricCount))) : null;
-  return { ok: meanDiff <= maxMeanDiff && changedShare <= maxChangedShare, meanDiff, changedShare, fabricHex };
+// ---------------------------------------------------------------------------
+// Conferência da foto gerada pela IA (regra da loja: o produto não muda e nenhum
+// objeto é acrescentado; só a cor do tecido troca)
+// ---------------------------------------------------------------------------
+
+/** Tamanho da célula da conferência, em pixels (a IA redesenha tudo: pixel a pixel nunca bate). */
+const CELL = 4;
+
+/** Média de cada célula de CELL×CELL pixels (RGB 0–255). */
+async function cellImage(input, width, height) {
+  const w = Math.round(width / CELL);
+  const h = Math.round(height / CELL);
+  const data = await sharp(input).removeAlpha().resize(w, h, { fit: "fill", kernel: "cubic" }).raw().toBuffer();
+  return { w, h, data };
 }
 
-/** Fotos de uma cor pelo GPT, com conferência; sem passar, fica a versão por computador. */
+/** Erosão (todas as células da janela) ou dilatação (alguma célula) num quadrado de lado 2r+1. */
+function morph(mask, w, h, r, isErode) {
+  const pass = (src, horizontal) => {
+    const out = new Uint8Array(src.length);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let v = isErode ? 1 : 0;
+        for (let d = -r; d <= r; d++) {
+          const xx = horizontal ? x + d : x;
+          const yy = horizontal ? y : y + d;
+          const m = xx < 0 || yy < 0 || xx >= w || yy >= h ? 0 : src[yy * w + xx];
+          if (isErode ? !m : m) {
+            v = isErode ? 0 : 1;
+            break;
+          }
+        }
+        out[y * w + x] = v;
+      }
+    }
+    return out;
+  };
+  return pass(pass(mask, true), false);
+}
+const erode = (m, w, h, r) => morph(m, w, h, r, true);
+const dilate = (m, w, h, r) => morph(m, w, h, r, false);
+
+/** Maior mancha contínua da máscara (vizinhança de 4), em células. */
+function largestBlob(mask, w) {
+  const seen = new Uint8Array(mask.length);
+  const stack = [];
+  let best = 0;
+  for (let i = 0; i < mask.length; i++) {
+    if (!mask[i] || seen[i]) continue;
+    let size = 0;
+    seen[i] = 1;
+    stack.push(i);
+    while (stack.length) {
+      const j = stack.pop();
+      size++;
+      const x = j % w;
+      for (const k of [j - w, j + w, x > 0 ? j - 1 : -1, x < w - 1 ? j + 1 : -1]) {
+        if (k >= 0 && k < mask.length && mask[k] && !seen[k]) {
+          seen[k] = 1;
+          stack.push(k);
+        }
+      }
+    }
+    best = Math.max(best, size);
+  }
+  return best;
+}
+
+/** sRGB (0–1) → Lab (D65). */
+function lab([r, g, b]) {
+  const [R, G, B] = [r, g, b].map(toLinear);
+  const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (t * 24389) / 27 / 116 + 16 / 116);
+  const x = f((0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047);
+  const y = f(0.2126 * R + 0.7152 * G + 0.0722 * B);
+  const z = f((0.0193 * R + 0.1192 * G + 0.9505 * B) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+const deltaE = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+const median = (values) => {
+  const v = Float64Array.from(values).sort();
+  return v.length ? v[v.length >> 1] : 0;
+};
+
+/** Limites da conferência (calibrados com as 16 fotos recoloridas por computador e com fotos adulteradas). */
+export const FIDELITY_LIMITS = {
+  /** Diferença média fora do tecido (0–255). */
+  maxMeanDiff: 10,
+  /** Célula "mudou" fora do tecido a partir desta diferença (0–255). */
+  changedCell: 28,
+  /** Maior mancha mudada aceita, em fração da imagem (0,1% ≈ 44 × 44 px em 1600 × 1200). */
+  maxBlobShare: 0.001,
+  /** Diferença de cor média (ΔE) aceita na madeira e no resto da peça fora do tecido. */
+  maxFrameDeltaE: 6,
+  /** Fração do tecido que pode fugir do sombreado e da cor do resto do tecido. */
+  maxFabricAnomalyShare: 0.03,
+  /** Distância (ΔE) aceita entre a cor medida no tecido e a cor pedida. */
+  maxColorDeltaE: 28,
+};
+
+/**
+ * Confere uma foto gerada pela IA com a original. Recusa (ok = false, com os
+ * motivos) quando:
+ * - fora do tecido (madeira, fundo, sombra), alguma mancha mudou (objeto novo,
+ *   peça deslocada, parte apagada) ou a imagem inteira mudou;
+ * - a madeira (e o resto da peça fora do tecido) mudou de tom ou de acabamento;
+ * - dentro do tecido, alguma região não segue o sombreado da original nem a cor
+ *   do resto do tecido (almofada ou manta acrescentada, encosto cortado, outra
+ *   forma);
+ * - com `targetHex`, a cor medida no tecido não é a pedida (ou continua a original).
+ * Trabalha em células de 4×4 px: a IA redesenha a imagem inteira e pixel a pixel
+ * nunca bate. Na dúvida recusa: a reserva (recolor por computador) é fiel.
+ *
+ * @param {Buffer} original
+ * @param {Buffer} generated
+ * @param {{ targetHex?: string | null; limits?: Partial<typeof FIDELITY_LIMITS> }} [options]
+ */
+export async function fidelityCheck(original, generated, { targetHex = null, limits = {} } = {}) {
+  const L = { ...FIDELITY_LIMITS, ...limits };
+  const { width, height } = await sharp(original).metadata();
+  const A = await cellImage(original, width, height);
+  const B = await cellImage(await sharp(generated).removeAlpha().resize(width, height, { fit: "fill" }).toBuffer(), width, height);
+  const { w, h } = A;
+  const n = w * h;
+  const px = (img, i) => [img.data[i * 3] / 255, img.data[i * 3 + 1] / 255, img.data[i * 3 + 2] / 255];
+
+  // Regiões da original: tecido, borda do tecido, resto da peça (madeira, sombra) e fundo.
+  const weight = new Float32Array(n);
+  const anyFabric = new Uint8Array(n);
+  const fabric = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    weight[i] = fabricWeight(...px(A, i));
+    anyFabric[i] = weight[i] > 0 ? 1 : 0;
+    fabric[i] = weight[i] > 0.5 ? 1 : 0;
+  }
+  const nearFabric = dilate(anyFabric, w, h, 2);
+  const fabricCore = erode(fabric, w, h, 1);
+  const ring = [];
+  for (let i = 0; i < n; i++) {
+    const x = i % w;
+    const y = (i / w) | 0;
+    if (x < 2 || y < 2 || x >= w - 2 || y >= h - 2) ring.push(i);
+  }
+  const bg = [0, 1, 2].map((c) => median(ring.map((i) => A.data[i * 3 + c])));
+  const diff = (i) => (Math.abs(A.data[i * 3] - B.data[i * 3]) + Math.abs(A.data[i * 3 + 1] - B.data[i * 3 + 1]) + Math.abs(A.data[i * 3 + 2] - B.data[i * 3 + 2])) / 3;
+  const fromBg = (i) => (Math.abs(A.data[i * 3] - bg[0]) + Math.abs(A.data[i * 3 + 1] - bg[1]) + Math.abs(A.data[i * 3 + 2] - bg[2])) / 3;
+
+  // 1) Fora do tecido: diferença média e maior mancha mudada (abertura de 5 × 5
+  // células descarta faixas finas, como um deslocamento de poucos pixels na borda).
+  const changed = new Uint8Array(n);
+  let sum = 0;
+  let count = 0;
+  let changedCount = 0;
+  const frameA = [0, 0, 0];
+  const frameB = [0, 0, 0];
+  let frameCount = 0;
+  for (let i = 0; i < n; i++) {
+    if (nearFabric[i]) continue;
+    const d = diff(i);
+    sum += d;
+    count++;
+    if (d > L.changedCell) {
+      changed[i] = 1;
+      changedCount++;
+    }
+    // Resto da peça (madeira, base, sombra): o que difere do fundo na original.
+    if (fromBg(i) > 24) {
+      for (let c = 0; c < 3; c++) {
+        frameA[c] += toLinear(A.data[i * 3 + c] / 255);
+        frameB[c] += toLinear(B.data[i * 3 + c] / 255);
+      }
+      frameCount++;
+    }
+  }
+  const meanDiff = count ? sum / count : 0;
+  const changedShare = count ? changedCount / count : 0;
+  const blobShare = largestBlob(dilate(erode(changed, w, h, 2), w, h, 2), w) / n;
+
+  // 2) Madeira e resto da peça: mesma cor média (ΔE).
+  const meanLab = (acc, k) => lab(acc.map((v) => toSrgb(v / k)));
+  const frameDeltaE = frameCount ? deltaE(meanLab(frameA, frameCount), meanLab(frameB, frameCount)) : 0;
+
+  // 3) Dentro do tecido: a luminância da gerada tem de seguir a da original por uma
+  // curva crescente (a cor nova comprime os brilhos de outro jeito; por isso não
+  // é uma reta) e a cromaticidade tem de ser a do resto do tecido. O que foge dos
+  // dois é forma nova ou algo por cima. Faixas finas na borda (deslocamento de
+  // poucos pixels) não contam.
+  const core = [];
+  for (let i = 0; i < n; i++) if (fabricCore[i]) core.push(i);
+  const lum = (img, i) => luminance(...px(img, i));
+  const la = core.map((i) => lum(A, i));
+  const lb = core.map((i) => lum(B, i));
+  const order = core.map((_, k) => k).sort((p, q) => la[p] - la[q]);
+  const BINS = 32;
+  const knots = [];
+  for (let bIdx = 0; bIdx < BINS && order.length; bIdx++) {
+    const slice = order.slice(Math.floor((bIdx * order.length) / BINS), Math.floor(((bIdx + 1) * order.length) / BINS));
+    if (slice.length) knots.push([median(slice.map((k) => la[k])), median(slice.map((k) => lb[k]))]);
+  }
+  const curve = (x) => {
+    if (!knots.length) return 0;
+    if (x <= knots[0][0]) return knots[0][1];
+    for (let k = 1; k < knots.length; k++) {
+      if (x <= knots[k][0]) {
+        const [x0, y0] = knots[k - 1];
+        const [x1, y1] = knots[k];
+        return x1 > x0 ? y0 + ((x - x0) / (x1 - x0)) * (y1 - y0) : y1;
+      }
+    }
+    return knots[knots.length - 1][1];
+  };
+  const res = core.map((_, k) => lb[k] - curve(la[k]));
+  const sigma = 1.4826 * median(res.map(Math.abs));
+  const chroma = (img, i) => {
+    const rgb = px(img, i);
+    if (Math.max(...rgb) > 0.96) return null; // brilho estourado: sem cor para comparar
+    const [r, g, b] = rgb.map(toLinear);
+    const t = r + g + b;
+    return t > 0.03 ? [r / t, g / t] : null;
+  };
+  const chromaB = core.map((i) => chroma(B, i));
+  const lit = chromaB.filter(Boolean);
+  const chromaRef = [median(lit.map((c) => c[0])), median(lit.map((c) => c[1]))];
+  const anomaly = new Uint8Array(n);
+  const fabricSum = [0, 0, 0];
+  core.forEach((i, k) => {
+    const c = chromaB[k];
+    const expected = curve(la[k]);
+    const offShade = Math.abs(res[k]) > Math.max(0.035, 5 * sigma) && Math.abs(res[k]) > 0.35 * Math.max(lb[k], expected);
+    const offHue = c !== null && Math.hypot(c[0] - chromaRef[0], c[1] - chromaRef[1]) > 0.07;
+    if (offShade || offHue) anomaly[i] = 1;
+    for (let ch = 0; ch < 3; ch++) fabricSum[ch] += toLinear(B.data[i * 3 + ch] / 255);
+  });
+  const opened = dilate(erode(anomaly, w, h, 2), w, h, 2);
+  let anomalyCount = 0;
+  for (const i of core) if (opened[i]) anomalyCount++;
+  const fabricAnomalyShare = core.length ? anomalyCount / core.length : 1;
+  const fabricBlobShare = largestBlob(opened, w) / n;
+  const fabricRgb = core.length ? fabricSum.map((v) => toSrgb(v / core.length)) : null;
+  const fabricHex = fabricRgb ? toHex(fabricRgb) : null;
+
+  // 4) Cor pedida: a medida tem de estar perto dela e mais perto dela que da original.
+  let colorDeltaE = null;
+  let colorOk = true;
+  if (targetHex && fabricRgb) {
+    const origSum = [0, 0, 0];
+    for (const i of core) for (let ch = 0; ch < 3; ch++) origSum[ch] += toLinear(A.data[i * 3 + ch] / 255);
+    const origLab = lab(origSum.map((v) => toSrgb(v / core.length)));
+    const gotLab = lab(fabricRgb);
+    colorDeltaE = deltaE(gotLab, lab(hexRgb(targetHex)));
+    colorOk = colorDeltaE <= L.maxColorDeltaE && colorDeltaE < deltaE(gotLab, origLab);
+  }
+
+  const reasons = [];
+  if (meanDiff > L.maxMeanDiff) reasons.push("a imagem inteira mudou fora do tecido");
+  if (blobShare > L.maxBlobShare) reasons.push("uma região mudou fora do tecido (objeto novo, peça deslocada ou parte apagada)");
+  if (frameDeltaE > L.maxFrameDeltaE) reasons.push("a madeira ou o resto da peça mudou de tom");
+  if (fabricAnomalyShare > L.maxFabricAnomalyShare || fabricBlobShare > L.maxBlobShare) {
+    reasons.push("o tecido mudou de forma ou ganhou algo por cima (não é só a cor)");
+  }
+  if (!colorOk) reasons.push("a cor do tecido não é a pedida");
+  return {
+    ok: reasons.length === 0,
+    reasons,
+    meanDiff,
+    changedShare,
+    blobShare,
+    frameDeltaE,
+    fabricAnomalyShare,
+    fabricBlobShare,
+    colorDeltaE,
+    fabricHex,
+  };
+}
+
+/**
+ * Fotos de uma cor pelo GPT, com conferência. A cor só usa o GPT se os 4 ângulos
+ * passarem (assim o tom é o mesmo em todas as fotos); senão, a cor inteira fica
+ * com a versão recolorida por computador. Devolve a cor medida na frente (para o
+ * 3D) ou null.
+ */
 async function gptPhotos(color, engine, report) {
   const dir = await mkdtemp(path.join(tmpdir(), "cuxoes-cores-"));
-  const measured = [];
   try {
+    const shots = [];
     for (const view of VIEWS) {
       const sourceFile = path.join(DEMO, `poltrona-azul-${view}.jpg`);
       const original = await readFile(sourceFile);
       const output = path.join(dir, `${color.slug}-${view}.jpg`);
-      const target = path.join(OUT, `poltrona-${color.slug}-${view}.jpg`);
-      let entry;
       try {
         await engine.recolor(sourceFile, color.name.toLowerCase(), color.hex, output);
         const generated = await readFile(output);
-        const check = await fidelityCheck(original, generated);
-        entry = { cor: color.slug, vista: view, fonte: check.ok ? "gpt" : "computador", ...check };
-        if (check.ok) {
-          const { width, height } = await sharp(original).metadata();
-          await writeFile(target, await sharp(generated).resize(width, height, { fit: "fill" }).jpeg({ quality: 84, mozjpeg: true }).toBuffer());
-          if (check.fabricHex) measured.push(check.fabricHex);
-        }
+        shots.push({ view, original, generated, check: await fidelityCheck(original, generated, { targetHex: color.hex }) });
       } catch (e) {
-        entry = { cor: color.slug, vista: view, fonte: "computador", erro: (e instanceof Error ? e.message : String(e)).slice(0, 200) };
+        shots.push({ view, original, error: (e instanceof Error ? e.message : String(e)).slice(0, 200) });
       }
-      if (entry.fonte === "computador") {
-        const { image } = await recolor(original, color.hex);
+    }
+    const allOk = shots.every((shot) => shot.check?.ok);
+    for (const shot of shots) {
+      const target = path.join(OUT, `poltrona-${color.slug}-${shot.view}.jpg`);
+      if (allOk) {
+        const { width, height } = await sharp(shot.original).metadata();
+        await writeFile(target, await sharp(shot.generated).resize(width, height, { fit: "fill" }).jpeg({ quality: 84, mozjpeg: true }).toBuffer());
+      } else {
+        const { image } = await recolor(shot.original, color.hex);
         await writeFile(target, await image.jpeg({ quality: 84, mozjpeg: true }).toBuffer());
       }
+      const entry = {
+        cor: color.slug,
+        vista: shot.view,
+        fonte: allOk ? "gpt" : "computador",
+        ...(shot.check ?? {}),
+        ...(shot.error ? { erro: shot.error } : {}),
+        ...(!allOk && shot.check?.ok ? { observacao: "passou, mas outro ângulo desta cor não passou: a cor inteira fica pelo computador" } : {}),
+      };
       report.push(entry);
-      console.log(`${color.name} · ${view}: ${entry.fonte}${entry.erro ? ` (${entry.erro})` : entry.meanDiff !== undefined ? ` (diferença fora do tecido ${entry.meanDiff.toFixed(1)}, área mudada ${(entry.changedShare * 100).toFixed(1)}%)` : ""}`);
+      const why = shot.error ?? (shot.check.ok ? (allOk ? "conferida" : entry.observacao) : shot.check.reasons.join("; "));
+      console.log(`${color.name} · ${shot.view}: ${entry.fonte} (${why})`);
     }
+    return allOk ? (shots.find((shot) => shot.view === "frente")?.check.fabricHex ?? null) : null;
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
-  return measured[0] ?? null; // a frente manda na cor do 3D
 }
 
 async function main(args) {

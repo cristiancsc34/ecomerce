@@ -1,7 +1,9 @@
 # Programa de indicação para arquitetos e designers (proposta, não implementado)
 
-> Status (04/11/2026): **ideia para mais à frente.** Hoje a página do produto só mostra uma linha discreta (“É arquiteto
-> ou designer de interiores? Peça o arquivo 3D”) e mede o interesse pelo evento `arquitetos_interesse`. Se os pedidos
+> Status (04/11/2026): **ideia para mais à frente.** A página do produto tem uma linha discreta (“É arquiteto ou
+> designer de interiores? Peça o arquivo 3D”), que só aparece quando a loja tiver WhatsApp, e-mail ou telefone
+> cadastrado em `config/brand.ts` (hoje não tem). Para medir o interesse, falta ligar um provedor de analytics em
+> `lib/analytics.ts`: o evento `arquitetos_interesse` já é disparado, mas ainda não é guardado. Se os pedidos
 > aparecerem, este é o desenho sugerido.
 
 ## Como funcionaria

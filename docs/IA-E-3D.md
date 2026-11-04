@@ -75,14 +75,22 @@ encaixar quando o provedor for escolhido.
 - **Cores de exemplo (só desenvolvimento)**: `CATALOG_DEV_EXAMPLES=1` com `CATALOG_SOURCE=demo`, fora da Vercel, mostra
   a Poltrona Azul em azul, marrom, branco, vermelho e bege. As fotos e o `.glb` com as 5 cores
   (`public/demo/exemplo`) saem de `npm run demo:variantes` (**recolor por computador**: só o tecido muda; madeira, fundo
-  e sombras ficam) ou de `npm run demo:variantes:gpt` (**pelo GPT**, com `OPENAI_API_KEY`: cada foto gerada é conferida
-  com a original fora do tecido e, se a IA mexeu na peça ou no fundo, fica a versão por computador; o 3D usa a cor
-  medida nas fotos geradas; relatório em `public/demo/exemplo/relatorio-gpt.json`). Marcadas como ilustrativas e sem
+  e sombras ficam) ou de `npm run demo:variantes:gpt` (**pelo GPT**, com `OPENAI_API_KEY`). No modo GPT, cada foto
+  gerada passa pela conferência `fidelityCheck`, em células de 4×4 px: fora do tecido, nenhuma mancha mudou (objeto
+  novo, peça deslocada ou parte apagada; a partir de ~44 × 44 px); a madeira não mudou de tom (ΔE ≤ 6); dentro do
+  tecido, tudo segue o sombreado da original e a cor do resto do tecido (pega almofada ou manta acrescentada, encosto
+  cortado, outra forma); e a cor medida é a pedida (ΔE ≤ 28, e mais perto dela que do azul). Se qualquer um dos 4
+  ângulos de uma cor não passar, a cor inteira fica com a versão por computador (o tom fica igual em todas as fotos);
+  o 3D usa a cor medida na frente. Calibrada com as 16 fotos recoloridas (passam) e com fotos adulteradas (recusadas),
+  em `tests/unit/variantes-gpt.test.ts`. Relatório em `public/demo/exemplo/relatorio-gpt.json`. Marcadas como ilustrativas e sem
   preço. Não aparecem na loja de verdade. Proposta para o painel: [`CORES-NO-ESTUDIO.md`](CORES-NO-ESTUDIO.md).
 - **Para arquitetos e designers** (fase de teste): enquanto as medidas não forem conferidas com o modelo 3D, a página
   mostra só uma linha discreta no fim — “É arquiteto ou designer de interiores? Peça o arquivo 3D e a ficha técnica” —
-  que leva ao atendimento (ou ao WhatsApp com a mensagem pronta, quando configurado) e registra o evento
-  `arquitetos_interesse`. Nenhum arquivo com escala aproximada é oferecido. Com o tamanho real conferido, aparece a
+  que leva ao WhatsApp com a mensagem pronta (ou ao atendimento, com e-mail/telefone) e dispara o evento
+  `arquitetos_interesse`. **A linha só aparece com algum canal de contato cadastrado** (`config/brand.ts`); hoje não
+  há nenhum, então ela fica escondida. O evento só é guardado quando houver um provedor de analytics ligado em
+  `lib/analytics.ts` (hoje vai para `window.dataLayer`, que não existe, e para o evento do navegador). Nenhum arquivo
+  com escala aproximada é oferecido. Com o tamanho real conferido, aparece a
   seção recolhida com o download do `.glb` e do `.usdz` (nome legível, `cuxoes-<produto>.glb`; no Storage, via
   `?download=`) e a ficha técnica só com dados do catálogo. O texto diz o que cada programa abre, conferido nas
   documentações: `.glb` no Blender, no SketchUp para computador 2024+ (Pro/Studio), Lumion, D5, Twinmotion e Rhino;

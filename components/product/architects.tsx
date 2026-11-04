@@ -1,4 +1,4 @@
-import { brand, whatsappHref } from "@/config/brand";
+import { brand, hasAnyContact, whatsappHref, type BrandConfig } from "@/config/brand";
 import { arFiles, model3d } from "@/lib/catalog/product-helpers";
 import { colorOptions } from "@/lib/catalog/variants";
 import type { Product, ProductMedia } from "@/lib/catalog/types";
@@ -44,11 +44,12 @@ function FileLink({ url, name, label, detail }: { url: string; name: string; lab
 
 /**
  * Contato para o pedido do arquivo: WhatsApp com a mensagem pronta (se a loja
- * tiver WhatsApp), senão a página de atendimento.
+ * tiver WhatsApp), senão a página de atendimento (e-mail ou telefone). Sem nenhum
+ * canal cadastrado, null: o pedido não teria para onde ir.
  */
-export function architectsContactHref(productName: string, whatsapp = brand.contact.whatsapp): string {
-  const wa = whatsapp ? whatsappHref(whatsapp) : null;
-  if (!wa) return "/atendimento";
+export function architectsContactHref(productName: string, config: Pick<BrandConfig, "contact"> = brand): string | null {
+  const wa = config.contact.whatsapp ? whatsappHref(config.contact.whatsapp) : null;
+  if (!wa) return hasAnyContact(config as BrandConfig) ? "/atendimento" : null;
   const text = `Olá! Sou arquiteto(a) ou designer de interiores e quero o arquivo 3D e a ficha técnica de ${productName}.`;
   return `${wa}?text=${encodeURIComponent(text)}`;
 }
@@ -58,31 +59,37 @@ export function architectsContactHref(productName: string, whatsapp = brand.cont
  *
  * - Enquanto as medidas do produto não forem conferidas com o modelo 3D, só uma
  *   linha discreta: "É arquiteto ou designer? Peça o arquivo 3D". O pedido vai ao
- *   atendimento e o clique é medido (evento arquitetos_interesse). Assim a loja
- *   não entrega um arquivo com escala errada e descobre se há interesse.
+ *   WhatsApp (ou ao atendimento) e o clique sai como evento arquitetos_interesse
+ *   (registrado quando houver um provedor de analytics, ver lib/analytics.ts).
+ *   Sem nenhum canal de contato cadastrado, a linha não aparece: não convida a
+ *   pedir algo que não teria como chegar à loja.
  * - Com o tamanho real conferido: seção recolhida com o download do .glb e do
  *   .usdz (nome legível) e a ficha técnica só com dados do catálogo.
  *
  * Mais à frente pode virar um programa de indicação (ver docs/PROGRAMA-INDICACAO.md).
  * Aparece só em produto com modelo 3D.
  */
-export function ArchitectsSection({ product }: { product: Product }) {
+export function ArchitectsSection({ product, config = brand }: { product: Product; config?: Pick<BrandConfig, "contact"> }) {
   const model = model3d(product);
   if (!model) return null;
   const base = product.media.find((m) => m.type === "model_3d" && m.variantId === null) ?? model;
   const ar = arFiles(product, base);
 
   if (!ar.realScale) {
+    const href = architectsContactHref(product.name, config);
+    if (!href) return null;
     return (
       <p className="px-4 py-2 text-sm text-muted sm:px-6" data-testid="arquitetos">
-        É arquiteto ou designer de interiores?{" "}
-        <ArchitectsInterestLink href={architectsContactHref(product.name)} productId={product.id} />.
+        É arquiteto ou designer de interiores? <ArchitectsInterestLink href={href} productId={product.id} />.
       </p>
     );
   }
   const d = product.dimensions;
   const a = product.attributes;
-  const ownModels = colorOptions(product).filter((c) => c.model.own && c.model.model) as (ReturnType<typeof colorOptions>[number] & {
+  // Modelo próprio de uma cor só entra se a escala dele também foi conferida (o texto promete tamanho real).
+  const ownModels = colorOptions(product).filter((c) => c.model.own && c.model.model && c.model.realScale) as (ReturnType<
+    typeof colorOptions
+  >[number] & {
     model: { model: ProductMedia };
   })[];
 
