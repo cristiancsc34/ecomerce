@@ -50,6 +50,14 @@ export async function requestColorVariantAction(productId: string, input: { name
   if (colorNameTaken(product.variants, name)) return { ok: false, error: `Este produto já tem a cor “${name}”.` };
   const sources = colorSources(product.media);
   if (!sources.length) return { ok: false, error: "Aprove as fotos de catálogo (etapa 2) antes de criar cores." };
+  // O banco só aceita tarefa com arquivo da pasta do próprio produto; a cópia de um produto usa os arquivos do original.
+  const entry = sources.find((s) => s.media.storagePath.startsWith(`products/${productId}/`));
+  if (!entry) {
+    return {
+      ok: false,
+      error: "Este produto é uma cópia: as fotos de catálogo ainda são as do original. Gere as fotos de catálogo deste produto (etapa 2) para criar cores.",
+    };
+  }
 
   const supabase = await createSessionClient();
   const { data: pending } = await supabase
@@ -71,8 +79,8 @@ export async function requestColorVariantAction(productId: string, input: { name
   const { error } = await supabase.from("ai_jobs").insert({
     product_id: productId,
     kind: "color_variant",
-    input_path: sources[0].media.storagePath,
-    source_media_id: sources[0].media.id,
+    input_path: entry.media.storagePath,
+    source_media_id: entry.media.id,
     params: {
       colorName: name,
       colorHex: hex,

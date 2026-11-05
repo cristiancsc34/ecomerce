@@ -57,6 +57,14 @@ real. **“Descartar estas fotos”** apaga as fotos geradas e a tarefa.
 - Foto de origem apagada ou trocada entre o pedido e o processamento: a tarefa falha com aviso, sem gastar o GPT.
 - **Tirar a cor em “Preço e estoque” apaga as fotos dela** (sem isso, elas virariam fotos da cor atual). O arquivo no
   Storage fica (limpeza futura).
+- **Formulário aberto enquanto a cor é publicada**: as cores novas entram no formulário (salvar não as apaga). Um
+  formulário velho (outra aba, outra pessoa) é recusado pelo banco: “O produto mudou desde que você abriu esta
+  página… Recarregue a página para não perder nada.” (`save_product` com `expectedUpdatedAt`).
+- Dois cliques em “Publicar” (ou duas abas): uma publicação por vez em cada produto; a segunda recebe “Alguma foto
+  escolhida não é desta cor ou já foi publicada.”
+- Nome da cor comparado como no link `?cor=`: “Café” e “cafe” são a mesma cor.
+- Produto duplicado: as fotos de catálogo da cópia são as do original; o passo pede para gerar as fotos de catálogo
+  da cópia antes de criar cores.
 - Duplicar o produto: as fotos de IA ainda sem conferência ficam de fora da cópia (antes iam como fotos comuns), as
   aprovadas seguem aprovadas, e cada foto de cor segue a cor correspondente da cópia. O 3D leva o arquivo do iPhone e o
   tamanho real conferido.
@@ -69,6 +77,13 @@ real. **“Descartar estas fotos”** apaga as fotos geradas e a tarefa.
   (`KHR_materials_variants`) com a textura do tecido repintada, como no exemplo de desenvolvimento.
 - **AR da cor**: sem modelo próprio, a câmera abre pelo 3D da tela (pode pedir o segundo toque em rede lenta).
 - Medir a cor por **foto da amostra do tecido** ainda não existe (só seletor, `#RRGGBB` ou RGB).
+- Ligar uma **foto real** a uma cor (para substituir a ilustrativa) ainda não existe no painel.
+- O processador local (opcional) não tem o desvio da nuvem para banco sem a migração: aplicar a migração antes de
+  ligá-lo com esta versão.
+- “Fotos na loja” mostra as fotos de cor junto das outras; as ações de foto principal e “ilustrativa” não valem para
+  elas (o banco recusa com aviso).
+- Aplicar as migrações uma de cada vez (a primeira cria o tipo de tarefa; a segunda usa esse tipo e não pode estar na
+  mesma transação).
 
 ## Onde está no código
 

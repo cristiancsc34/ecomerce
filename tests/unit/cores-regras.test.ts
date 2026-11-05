@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { AiJobView } from "@/lib/admin/ai-types";
 import { CATALOG_VIEW_LABELS, colorBlocker, colorNameTaken, colorSources, catalogAiMedia, parseColorInput, viewOfAlt } from "@/lib/admin/colors";
+import { serverAddedVariants } from "@/lib/admin/form-values";
 import { studioPipeline } from "@/lib/admin/pipeline";
 import { CATALOG_VIEWS } from "@/scripts/ai-pipeline.mjs";
 import { measureRecolor } from "@/scripts/cores.mjs";
@@ -127,7 +128,16 @@ describe("cores: etapa na lista do Estúdio", () => {
     expect(steps([job("queued")]).state).toBe("queued");
     expect(steps([job("succeeded")], { published: 0, toReview: 1 })).toMatchObject({ state: "review", detail: "Confira as fotos e publique 1 cor." });
     expect(steps([job("failed")])).toMatchObject({ state: "failed", detail: "OpenAI: limite" });
-    expect(steps([], { published: 3, toReview: 0 })).toMatchObject({ state: "done", detail: "3 cores na loja." });
+    expect(steps([], { published: 3, toReview: 0 })).toMatchObject({ state: "done", detail: "3 cores cadastradas." });
     expect(steps([], undefined, ["catalog_photos"]).state).toBe("off");
+  });
+});
+
+describe("cores: formulário aberto enquanto a cor é publicada", () => {
+  it("as variações novas do servidor entram no formulário; as que a pessoa tirou não voltam", () => {
+    const server = [{ id: "azul" }, { id: "marrom" }, { id: "vermelho" }];
+    // Antes: o formulário conhecia só "azul" e "vermelho"; a pessoa tirou "vermelho".
+    expect(serverAddedVariants(server, new Set(["azul", "vermelho"]), new Set(["azul"]))).toEqual([{ id: "marrom" }]);
+    expect(serverAddedVariants(server, new Set(["azul", "marrom", "vermelho"]), new Set(["azul"]))).toEqual([]);
   });
 });

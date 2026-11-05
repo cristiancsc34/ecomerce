@@ -8,6 +8,15 @@ function num(n: number | undefined | null): string {
 }
 
 /** Produto → valores do formulário (tudo em texto, como nos inputs). */
+/**
+ * Variações que surgiram no servidor desde a última sincronização do formulário
+ * (ex.: uma cor publicada no Estúdio com o formulário aberto e alterado). Entram
+ * no fim da lista do formulário; as que a pessoa tirou no formulário não voltam.
+ */
+export function serverAddedVariants<T extends { id?: string }>(server: T[], syncedIds: ReadonlySet<string>, formIds: ReadonlySet<string>): T[] {
+  return server.filter((v) => v.id && !syncedIds.has(v.id) && !formIds.has(v.id));
+}
+
 export function productToFormValues(product: Product | null): ProductFormValues {
   if (!product) {
     return {

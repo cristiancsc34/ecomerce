@@ -90,6 +90,8 @@ export const productSaveSchema = z
     seoTitle: z.string().trim().max(70).nullable(),
     seoDescription: z.string().trim().max(170).nullable(),
     variants: z.array(variantSaveSchema).max(20),
+    /** Versão do produto que o formulário mostra (updated_at): o banco recusa salvar por cima de uma versão mais nova. */
+    expectedUpdatedAt: z.string().trim().max(40).optional(),
   })
   .superRefine((data, ctx) => {
     if (

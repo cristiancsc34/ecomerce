@@ -7,6 +7,7 @@ const FRIENDLY_PREFIXES = [
   "Imagem não encontrada",
   // Cores no Estúdio (supabase/migrations/20261105000200_cores.sql)
   "Tarefa de cor",
+  "O produto mudou",
   "Alguma foto",
   "Este produto",
   "Na primeira cor",

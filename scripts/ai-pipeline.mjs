@@ -699,6 +699,15 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
  * As linhas só são gravadas no fim, todas juntas: uma falha no meio não deixa
  * foto sem arquivo.
  */
+/** Nome da cor como no link ?cor= (sem acento, maiúsculas nem espaços): "Café" e "cafe" são a mesma cor. */
+const colorKey = (name) =>
+  name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 async function colorVariant(supabase, job, product, _inputFile, dir, engines, uploaded) {
   const params = job.params ?? {};
   const name = String(params.colorName ?? "").trim();
@@ -779,7 +788,7 @@ async function colorVariant(supabase, job, product, _inputFile, dir, engines, up
     .eq("product_id", product.id)
     .eq("kind", "color_variant")
     .neq("id", job.id);
-  const previous = (sameColor ?? []).filter((j) => String(j.params?.colorName ?? "").trim().toLowerCase() === name.toLowerCase()).map((j) => j.id);
+  const previous = (sameColor ?? []).filter((j) => colorKey(String(j.params?.colorName ?? "")) === colorKey(name)).map((j) => j.id);
   if (previous.length) {
     const { data: stale } = await supabase
       .from("product_media")

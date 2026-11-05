@@ -41,7 +41,10 @@ function toFormField(path: PropertyKey[]): string {
   return joined;
 }
 
-export async function saveProductAction(productId: string | null, input: unknown): Promise<ActionResult<{ id: string }>> {
+export async function saveProductAction(
+  productId: string | null,
+  input: unknown,
+): Promise<ActionResult<{ id: string; updatedAt: string | null }>> {
   try {
     await requireStaffAction("editor", "itens");
   } catch (e) {
@@ -71,7 +74,9 @@ export async function saveProductAction(productId: string | null, input: unknown
     return { ok: false, error: message, fieldErrors };
   }
   updateTag(CATALOG_TAG);
-  return { ok: true, data: { id: data } };
+  // A versão nova: o próximo salvamento do mesmo formulário não é tomado por "formulário velho".
+  const { data: saved } = await supabase.from("products").select("updated_at").eq("id", data).maybeSingle();
+  return { ok: true, data: { id: data, updatedAt: (saved?.updated_at as string | undefined) ?? null } };
 }
 
 const ALLOWED_TRANSITIONS: Record<ProductStatus, ProductStatus[]> = {

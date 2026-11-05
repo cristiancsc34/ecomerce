@@ -321,3 +321,60 @@ describe("cores: apagar e duplicar", () => {
     expect(colorPhoto.variant_id).toBe(copyVariants.find((v) => v.name === "Marrom")!.id);
   });
 });
+
+describe("cores: salvar o formulário depois de publicar a cor", () => {
+  const formPayload = (id: string, expectedUpdatedAt?: string, variants: unknown[] = []) =>
+    JSON.stringify(productPayload({ categoryId: chairs, priceCents: 59900, variants, name: "Cadeira renomeada", ...(expectedUpdatedAt ? { expectedUpdatedAt } : {}) }));
+  const version = async (id: string) =>
+    (await db.query<{ v: string }>("select updated_at::text as v from public.products where id = $1", [id])).rows[0].v;
+
+  it("formulário velho (aberto antes da cor) é recusado e não apaga a cor nem as fotos", async () => {
+    const id = await createProduct();
+    const opened = await version(id);
+    const photo = await addCatalogPhoto(id);
+    const jobId = await requestColor("editor", id, colorParams([photo]));
+    const media = await finishColorJob(id, jobId, 2);
+    await publish("editor", jobId, media, { priceCents: 64900 }, { name: "Azul", colorHex: "#2F3E62", priceCents: 59900 });
+
+    await expect(
+      as(db, "editor", (tx) => tx.query("select public.save_product($1, $2::jsonb)", [id, formPayload(id, opened)])),
+    ).rejects.toThrow(/O produto mudou desde que você abriu esta página/);
+    expect((await variantsOf(id)).map((v) => v.name)).toEqual(["Azul", "Marrom"]);
+    expect((await db.query("select id from public.product_media where color_job_id = $1", [jobId])).rows).toHaveLength(2);
+
+    // Com a versão atual (o formulário recarregado, já com as cores), salva normalmente.
+    const variants = (await variantsOf(id)).map((v) => ({
+      id: v.id, name: v.name, sku: null, priceCents: v.price_cents, stockQuantity: null, size: null, widthCm: null, lengthCm: null, colorHex: v.attributes.colorHex,
+    }));
+    const current = await version(id);
+    await as(db, "editor", (tx) => tx.query("select public.save_product($1, $2::jsonb)", [id, formPayload(id, current, variants)]));
+    expect((await db.query<{ name: string }>("select name from public.products where id = $1", [id])).rows[0].name).toBe("Cadeira renomeada");
+    expect((await variantsOf(id)).map((v) => v.name)).toEqual(["Azul", "Marrom"]);
+  });
+
+  it("sem a versão (chamadas antigas), salva como antes", async () => {
+    const id = await createProduct();
+    await as(db, "editor", (tx) => tx.query("select public.save_product($1, $2::jsonb)", [id, formPayload(id)]));
+    expect((await db.query<{ name: string }>("select name from public.products where id = $1", [id])).rows[0].name).toBe("Cadeira renomeada");
+  });
+});
+
+describe("cores: publicar (regras extras)", () => {
+  it("nome igual sem acento é a mesma cor; cor atual sem #RRGGBB é recusada; foto repetida na lista não atrapalha", async () => {
+    const id = await createProduct();
+    const photo = await addCatalogPhoto(id);
+    const first = await requestColor("editor", id, colorParams([photo], "Café", "#6B4A35"));
+    const firstMedia = await finishColorJob(id, first, 1);
+    await expect(publish("editor", first, firstMedia, { priceCents: 1 }, { name: "Azul", colorHex: "azul", priceCents: 1 })).rejects.toThrow(
+      /formato #RRGGBB/,
+    );
+    await expect(publish("editor", first, firstMedia, { priceCents: 1 }, { name: "  ", colorHex: "#2F3E62", priceCents: 1 })).rejects.toThrow(
+      /cor atual do produto/,
+    );
+    await publish("editor", first, [firstMedia[0], firstMedia[0]], { priceCents: 64900 }, { name: "Azul", colorHex: "#2F3E62", priceCents: 59900 });
+
+    const again = await requestColor("editor", id, colorParams([photo], "cafe", "#6B4A35"));
+    const againMedia = await finishColorJob(id, again, 1);
+    await expect(publish("editor", again, againMedia, { priceCents: 1 })).rejects.toThrow(/já tem uma cor com esse nome/);
+  });
+});

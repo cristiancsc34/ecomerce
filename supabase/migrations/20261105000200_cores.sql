@@ -91,6 +91,23 @@ create trigger product_variants_delete_color_media
 
 -- -----------------------------------------------------------------------------
 -- 4) Publicar a cor (com a sessão de quem confere: valem RLS, área e papel).
+--    Nome comparado como no link ?cor= (sem acento, maiúsculas nem espaços):
+--    "Café" e "cafe" são a mesma cor.
+-- -----------------------------------------------------------------------------
+create or replace function private.color_key(p_name text)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select btrim(regexp_replace(lower(translate(coalesce(p_name, ''),
+    'ÁÀÂÃÄáàâãäÉÈÊËéèêëÍÌÎÏíìîïÓÒÔÕÖóòôõöÚÙÛÜúùûüÇçÑñ',
+    'AAAAAaaaaaEEEEeeeeIIIIiiiiOOOOOoooooUUUUuuuuCcNn')), '[^a-z0-9]+', '-', 'g'), '-')
+$$;
+revoke all on function private.color_key(text) from public;
+grant execute on function private.color_key(text) to authenticated;
+
+-- -----------------------------------------------------------------------------
 --    p_color:    {"priceCents": 129990, "stockQuantity": 3 | null}
 --    p_original: só na primeira cor, a cor atual do produto (das fotos de
 --                catálogo): {"name": "Azul", "colorHex": "#2F3E62",
@@ -117,6 +134,7 @@ declare
   v_has_colors boolean;
   v_next integer;
   v_variant uuid;
+  v_updated integer;
 begin
   select j.product_id, j.params into v_product, v_params
     from public.ai_jobs j
@@ -127,6 +145,8 @@ begin
   if not private.can_edit_product(v_product) then
     raise exception 'Sem permissão para alterar este produto.' using errcode = '42501';
   end if;
+  -- Uma publicação de cor por vez em cada produto (dois cliques ou duas abas).
+  perform 1 from public.products where id = v_product for update;
 
   select count(distinct x) into v_wanted from unnest(p_media_ids) x;
   if coalesce(v_wanted, 0) = 0 then
@@ -152,8 +172,11 @@ begin
 
   v_has_colors := exists (select 1 from public.product_variants v where v.product_id = v_product);
   if not v_has_colors then
-    if p_original is null then
+    if p_original is null or length(btrim(coalesce(p_original ->> 'name', ''))) = 0 then
       raise exception 'Na primeira cor, informe também a cor atual do produto (nome, cor e preço).' using errcode = '22023';
+    end if;
+    if coalesce(p_original ->> 'colorHex', '') !~ '^#[0-9A-Fa-f]{6}$' then
+      raise exception 'A cor atual precisa estar no formato #RRGGBB.' using errcode = '22023';
     end if;
     insert into public.product_variants (product_id, name, price_cents, stock_quantity, attributes, sort_order)
     values (
@@ -171,7 +194,7 @@ begin
   v_name := btrim(v_params ->> 'colorName');
   if exists (
     select 1 from public.product_variants v
-     where v.product_id = v_product and lower(btrim(v.name)) = lower(v_name)
+     where v.product_id = v_product and private.color_key(v.name) = private.color_key(v_name)
   ) then
     raise exception 'Este produto já tem uma cor com esse nome.' using errcode = '23514';
   end if;
@@ -191,7 +214,15 @@ begin
   -- Aprovar com a sessão: o banco grava quem aprovou e quando, e audita (media.ai_approved).
   update public.product_media
      set variant_id = v_variant, approved_at = now()
-   where id = any (p_media_ids);
+   where id = any (p_media_ids)
+     and product_id = v_product
+     and color_job_id = p_job_id
+     and approved_at is null
+     and variant_id is null;
+  get diagnostics v_updated = row_count;
+  if v_updated <> v_wanted then
+    raise exception 'Alguma foto escolhida não é desta cor ou já foi publicada.' using errcode = '22023';
+  end if;
 
   -- O formulário "Preço e estoque" recarrega as variações quando o produto muda.
   update public.products set updated_at = now() where id = v_product;
@@ -290,5 +321,130 @@ begin
   end if;
 
   return v_new;
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 6) save_product (a mesma de 20261103000500_variantes_cor.sql) com guarda de
+--    versão: o painel manda expectedUpdatedAt (a versão que ele mostra). Se o
+--    produto mudou depois disso, salvar é recusado em vez de apagar as cores
+--    publicadas pelo Estúdio (e, pelo gatilho acima, as fotos delas).
+-- -----------------------------------------------------------------------------
+create or replace function public.save_product(p_product_id uuid, p_data jsonb)
+returns uuid
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_id uuid;
+  v_variant jsonb;
+  v_position integer := 0;
+  v_keep uuid[];
+  v_current timestamptz;
+begin
+  -- Formulário velho (outra aba, outra pessoa, ou antes de uma cor publicada no
+  -- Estúdio): salvar apagaria as variações que ele não conhece. Recusa e pede
+  -- para recarregar. Sem expectedUpdatedAt (chamadas antigas), salva como antes.
+  if p_product_id is not null and nullif(p_data ->> 'expectedUpdatedAt', '') is not null then
+    select p.updated_at into v_current from public.products p where p.id = p_product_id;
+    if found and date_trunc('milliseconds', v_current) <> date_trunc('milliseconds', (p_data ->> 'expectedUpdatedAt')::timestamptz) then
+      raise exception 'O produto mudou desde que você abriu esta página (por exemplo, uma cor publicada no Estúdio). Recarregue a página para não perder nada.'
+        using errcode = '22023';
+    end if;
+  end if;
+
+  if p_product_id is null then
+    insert into public.products (
+      name, slug, short_description, description, category_id, price_cents,
+      compare_at_price_cents, sku, stock_quantity, dimensions, attributes, faq,
+      seo_title, seo_description
+    ) values (
+      p_data ->> 'name',
+      p_data ->> 'slug',
+      p_data ->> 'shortDescription',
+      p_data ->> 'description',
+      (p_data ->> 'categoryId')::uuid,
+      (p_data ->> 'priceCents')::integer,
+      (p_data ->> 'compareAtPriceCents')::integer,
+      p_data ->> 'sku',
+      (p_data ->> 'stockQuantity')::integer,
+      coalesce(p_data -> 'dimensions', '{}'::jsonb),
+      coalesce(p_data -> 'attributes', '{}'::jsonb),
+      coalesce(p_data -> 'faq', '[]'::jsonb),
+      p_data ->> 'seoTitle',
+      p_data ->> 'seoDescription'
+    )
+    returning id into v_id;
+  else
+    update public.products set
+      name = p_data ->> 'name',
+      slug = p_data ->> 'slug',
+      short_description = p_data ->> 'shortDescription',
+      description = p_data ->> 'description',
+      category_id = (p_data ->> 'categoryId')::uuid,
+      price_cents = (p_data ->> 'priceCents')::integer,
+      compare_at_price_cents = (p_data ->> 'compareAtPriceCents')::integer,
+      sku = p_data ->> 'sku',
+      stock_quantity = (p_data ->> 'stockQuantity')::integer,
+      dimensions = coalesce(p_data -> 'dimensions', '{}'::jsonb),
+      attributes = coalesce(p_data -> 'attributes', '{}'::jsonb),
+      faq = coalesce(p_data -> 'faq', '[]'::jsonb),
+      seo_title = p_data ->> 'seoTitle',
+      seo_description = p_data ->> 'seoDescription'
+    where id = p_product_id
+    returning id into v_id;
+
+    if v_id is null then
+      raise exception 'Produto não encontrado ou sem permissão.' using errcode = 'P0002';
+    end if;
+  end if;
+
+  select coalesce(array_agg((x ->> 'id')::uuid), '{}')
+    into v_keep
+    from jsonb_array_elements(coalesce(p_data -> 'variants', '[]'::jsonb)) as x
+    where x ? 'id';
+
+  delete from public.product_variants
+    where product_id = v_id and not (id = any (v_keep));
+
+  for v_variant in select * from jsonb_array_elements(coalesce(p_data -> 'variants', '[]'::jsonb))
+  loop
+    if v_variant ? 'id' then
+      update public.product_variants set
+        name = v_variant ->> 'name',
+        sku = v_variant ->> 'sku',
+        price_cents = (v_variant ->> 'priceCents')::integer,
+        stock_quantity = (v_variant ->> 'stockQuantity')::integer,
+        attributes = jsonb_strip_nulls(jsonb_build_object(
+          'size', v_variant -> 'size',
+          'widthCm', v_variant -> 'widthCm',
+          'lengthCm', v_variant -> 'lengthCm',
+          'colorHex', v_variant -> 'colorHex')),
+        sort_order = v_position
+      where id = (v_variant ->> 'id')::uuid and product_id = v_id;
+      if not found then
+        raise exception 'Variação não pertence ao produto.' using errcode = 'P0002';
+      end if;
+    else
+      insert into public.product_variants (product_id, name, sku, price_cents, stock_quantity, attributes, sort_order)
+      values (
+        v_id,
+        v_variant ->> 'name',
+        v_variant ->> 'sku',
+        (v_variant ->> 'priceCents')::integer,
+        (v_variant ->> 'stockQuantity')::integer,
+        jsonb_strip_nulls(jsonb_build_object(
+          'size', v_variant -> 'size',
+          'widthCm', v_variant -> 'widthCm',
+          'lengthCm', v_variant -> 'lengthCm',
+          'colorHex', v_variant -> 'colorHex')),
+        v_position
+      );
+    end if;
+    v_position := v_position + 1;
+  end loop;
+
+  return v_id;
 end;
 $$;

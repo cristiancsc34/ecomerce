@@ -121,6 +121,12 @@ export function ColorStudio({
   onChanged: () => Promise<void>;
 }) {
   const formId = useId();
+  const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
+  // A mensagem aparece também aqui, perto da etapa (o Estúdio mostra a dele no topo).
+  const say = (text: string, ok: boolean) => {
+    setNote({ text, ok });
+    onMessage(text, ok);
+  };
   const [name, setName] = useState("");
   const [color, setColor] = useState("");
   const [requesting, setRequesting] = useState(false);
@@ -139,8 +145,8 @@ export function ColorStudio({
     setRequesting(true);
     const result = await requestColorVariantAction(productId, { name, color });
     setRequesting(false);
-    if (!result.ok) return onMessage(result.error, false);
-    onMessage(`Cor “${name.trim()}” pedida: as fotos ficam prontas em cerca de 1 minuto.`, true);
+    if (!result.ok) return say(result.error, false);
+    say(`Cor “${name.trim()}” pedida: as fotos ficam prontas em cerca de 1 minuto.`, true);
     setName("");
     setColor("");
     await onChanged();
@@ -155,6 +161,10 @@ export function ColorStudio({
         Outra cor do mesmo produto, a partir das fotos de catálogo aprovadas: o GPT troca só a cor do tecido. Só cores que a
         loja realmente vende. Você confere foto por foto antes de ir para a loja, onde elas aparecem como “Imagem
         ilustrativa” até chegar a foto real da cor.
+      </p>
+
+      <p role="status" aria-live="polite" className={`mt-1 min-h-5 text-sm font-medium ${note?.ok ? "text-success" : "text-danger"}`}>
+        {note?.text}
       </p>
 
       {colors.length ? (
@@ -257,7 +267,7 @@ export function ColorStudio({
           canEdit={canEdit}
           firstColor={!colors.length}
           defaultPriceCents={colors[0]?.priceCents ?? productPriceCents}
-          onMessage={onMessage}
+          onMessage={say}
           onChanged={onChanged}
         />
       ))}
@@ -301,9 +311,12 @@ function ColorReview({
   const measuredOriginal = photos.find((p) => p.originalHex)?.originalHex ?? "";
   const [original, setOriginal] = useState({ name: "", color: measuredOriginal, price: centsToInput(defaultPriceCents), stock: "" });
 
+  // Só as escolhidas que ainda existem (uma foto pode ter sido apagada em "Fotos na loja").
+  const selected = rows.map((r) => r.after.id).filter((mediaId) => chosen.has(mediaId));
+
   async function publish() {
     const result = await publishColorVariantAction(job.id, {
-      mediaIds: [...chosen],
+      mediaIds: selected,
       price,
       stock,
       ...(firstColor ? { original } : {}),
@@ -383,7 +396,7 @@ function ColorReview({
                         setChosen(next);
                       }}
                     />
-                    Usar esta foto
+                    Usar esta foto<span className="sr-only"> ({title})</span>
                   </label>
                 ) : null}
               </div>
@@ -458,11 +471,11 @@ function ColorReview({
               label={`Publicar a cor “${color.name}”`}
               variant="primary"
               triggerVariant="primary"
-              disabled={!chosen.size}
+              disabled={!selected.length}
               title={`Publicar a cor “${color.name}” na loja?`}
               description={
                 <>
-                  A cor aparece no seletor da página do produto com {chosen.size === 1 ? "esta foto" : `estas ${chosen.size} fotos`},
+                  A cor aparece no seletor da página do produto com {selected.length === 1 ? "esta foto" : `estas ${selected.length} fotos`},
                   marcadas como “Imagem ilustrativa”. Confira também se o nome e a descrição do produto citam a cor antiga.
                 </>
               }

@@ -211,13 +211,15 @@ export function studioPipeline(input: PipelineInput): Pipeline {
   } else if (colorJob?.status === "failed") {
     Object.assign(cores, { state: "failed", detail: colorJob.error ?? "Não foi possível criar a cor. Tente de novo." });
   } else if (colors.published) {
-    Object.assign(cores, { state: "done", detail: `${plural(colors.published, "cor", "cores")} na loja.` });
+    Object.assign(cores, { state: "done", detail: `${plural(colors.published, "cor cadastrada", "cores cadastradas")}.` });
   } else if (workerOnline && !capabilities.includes("color_variant")) {
     Object.assign(cores, { state: "off", detail: "Falta a chave da OpenAI (OPENAI_API_KEY) na Vercel." });
   }
 
   const steps = [fotos, limpeza, catalogo, textos, modelo3d, conferir, cores];
-  const settled = (s: PipelineStep) => s.state === "done" || s.state === "off" || (s.optional && s.state === "todo");
+  // Cores é opcional: uma cor que falhou aparece como falha, mas não vira a etapa atual.
+  const settled = (s: PipelineStep) =>
+    s.state === "done" || s.state === "off" || (s.optional && s.state === "todo") || (s.id === "cores" && s.state === "failed");
   const current = steps.find((s) => !settled(s)) ?? null;
 
   // Até ficar pronto para conferir: limpeza, fotos de catálogo e textos ao mesmo tempo, e depois o 3D se for entrar.

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { get, useFieldArray, useForm, useWatch, type FieldErrors, type Path, type UseFormRegister } from "react-hook-form";
 import { copyDraftAction } from "@/lib/admin/actions/ai";
 import { saveProductAction } from "@/lib/admin/actions/products";
-import { productToFormValues } from "@/lib/admin/form-values";
+import { productToFormValues, serverAddedVariants } from "@/lib/admin/form-values";
 import { useHydrated } from "@/lib/use-hydrated";
 import { slugify } from "@/lib/catalog/slug";
 import type { ProductTab } from "@/lib/admin/readiness";
@@ -162,16 +162,29 @@ export function ProductForm({
     mode: "onBlur",
   });
 
+  const variants = useFieldArray({ control, name: "variants", keyName: "key" });
+
   // Depois de salvar, a página recarrega o produto com os ids das variações
   // criadas; sem isso, o próximo salvamento as recriaria (e quebraria sacolas).
+  // Com alterações pendentes, as variações novas do servidor (ex.: uma cor
+  // publicada no Estúdio) entram no formulário: salvar não as apaga.
   const syncedVersion = useRef(product.updatedAt);
+  /** Versão que o formulário conhece: o banco recusa salvar por cima de outra mais nova. */
+  const knownVersion = useRef(product.updatedAt);
+  const syncedVariantIds = useRef(new Set(product.variants.map((v) => v.id)));
   useEffect(() => {
     if (product.updatedAt === syncedVersion.current) return;
     syncedVersion.current = product.updatedAt;
-    if (!isDirty) reset(productToFormValues(product));
-  }, [product, isDirty, reset]);
-
-  const variants = useFieldArray({ control, name: "variants", keyName: "key" });
+    knownVersion.current = product.updatedAt;
+    const fresh = productToFormValues(product);
+    if (!isDirty) reset(fresh);
+    else {
+      const formIds = new Set(getValues("variants").map((v) => v.id).filter((id): id is string => Boolean(id)));
+      const added = serverAddedVariants(fresh.variants, syncedVariantIds.current, formIds);
+      if (added.length) variants.append(added, { shouldFocus: false });
+    }
+    syncedVariantIds.current = new Set(product.variants.map((v) => v.id));
+  }, [product, isDirty, reset, getValues, variants]);
   const specs = useFieldArray({ control, name: "extraSpecs" });
   const faq = useFieldArray({ control, name: "faq" });
 
@@ -203,7 +216,7 @@ export function ProductForm({
   const onSubmit = handleSubmit(
     async (out) => {
       setServerError(null);
-      const result = await saveProductAction(product.id, formOutputToSaveInput(out));
+      const result = await saveProductAction(product.id, { ...formOutputToSaveInput(out), expectedUpdatedAt: knownVersion.current });
       if (!result.ok) {
         setServerError(result.error);
         const fields = Object.keys(result.fieldErrors ?? {});
@@ -211,6 +224,7 @@ export function ProductForm({
         goToFirstError(fields);
         return;
       }
+      if (result.data.updatedAt) knownVersion.current = result.data.updatedAt;
       reset(getValues());
       setSavedAt(new Date());
       router.refresh();
