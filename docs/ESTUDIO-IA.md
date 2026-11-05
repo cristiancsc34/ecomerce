@@ -29,7 +29,8 @@ painel pelo celular a qualquer hora.
 Cadastre em **Vercel → projeto `cuxoes` → Settings → Environment Variables**, ambiente **Production**, marcando
 **Sensitive**. Nunca use o prefixo `NEXT_PUBLIC_`. Depois, faça um **Redeploy** (as variáveis só valem em deploys novos).
 O painel mostra no topo do estúdio o que está ligado e quais chaves faltam (só os nomes). Cada chave liga a sua etapa:
-sem a do Tripo, por exemplo, todo o resto funciona e o 3D fica como “falta a chave”.
+sem a do Tripo, por exemplo, todo o resto funciona e o 3D fica como “falta a chave”. A `OPENAI_API_KEY` liga também
+o passo Cores.
 
 O mínimo para funcionar é `SUPABASE_SERVICE_ROLE_KEY` + `OPENAI_API_KEY` (cadastradas em 29/10/2026). Escolha do dono
 (29/10): a limpeza do fundo é feita pelo **ChatGPT**, com a mesma chave das fotos de catálogo.
@@ -79,7 +80,9 @@ No topo do estúdio, **“Etapas deste produto”** mostra cada etapa com ✓ qu
 cada uma costuma levar (tempos medidos abaixo) e quanto falta para o produto ficar pronto para conferir:
 
 1. Fotos do celular → 2. Limpeza do fundo (~20 s por foto), 3. Fotos de catálogo (45 s medidos) e 4. Nome e descrição
-   (~8 s), todos ao mesmo tempo → 5. Modelo 3D (~2 min 15 s, **opcional**) → 6. Conferir e aprovar (a pessoa).
+   (~8 s), todos ao mesmo tempo → 5. Modelo 3D (~2 min 15 s, **opcional**) → 6. Conferir e aprovar (a pessoa) →
+   7. Cores (**opcional**, nunca no automático: outra cor do mesmo produto pelo GPT, ~1 min e ~US$ 0,35 por cor; ver
+   [`CORES-NO-ESTUDIO.md`](CORES-NO-ESTUDIO.md)).
 
 Com **“Seguir as etapas sozinho”** marcado (padrão), assim que chegam pelo menos 3 fotos (frente, lateral, traseira),
 o painel pede sozinho as fotos de catálogo e a sugestão de nome e descrição. O 3D só entra no

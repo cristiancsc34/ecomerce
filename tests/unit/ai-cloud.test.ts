@@ -190,9 +190,10 @@ describe("IA na nuvem: configuração", () => {
 
   it("cada chave liga a sua etapa", () => {
     const config = cloudAiConfig(env(without(all, "TRIPO_API_KEY")));
-    expect(Object.keys(config.engines)).toEqual(["background_removal", "catalog_photos"]);
+    // A mesma chave da OpenAI liga as fotos de catálogo e as cores.
+    expect(Object.keys(config.engines)).toEqual(["background_removal", "catalog_photos", "color_variant"]);
     expect(config.missing).toEqual(["TRIPO_API_KEY"]);
-    expect(Object.keys(cloudAiConfig(env(all)).engines)).toEqual(["background_removal", "catalog_photos", "model_3d"]);
+    expect(Object.keys(cloudAiConfig(env(all)).engines)).toEqual(["background_removal", "catalog_photos", "color_variant", "model_3d"]);
   });
 
   it("AI_CLOUD=0 desliga a nuvem (só o processador local)", () => {

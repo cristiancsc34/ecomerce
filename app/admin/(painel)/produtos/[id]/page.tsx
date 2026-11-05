@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { ExternalIcon, EyeIcon } from "@/components/ui/icons";
 import { Notice } from "@/components/ui/notice";
+import { catalogAiMedia, colorBlocker, colorSources } from "@/lib/admin/colors";
 
 export const metadata: Metadata = { title: "Editar produto" };
 // As ações do estúdio de IA seguem processando a fila na nuvem depois de responder (limite da Vercel: 300 s).
@@ -103,7 +104,12 @@ export default async function EditProductPage({ params, searchParams }: PageProp
                 canEdit={canEdit}
                 requires3d={product.category?.requires3d ?? false}
                 hasGalleryPhoto={product.media.some((m) => m.type === "image" && !m.pendingReview)}
-                aiMedia={product.media.filter((m) => m.aiGenerated).sort((a, b) => a.sortOrder - b.sortOrder)}
+                aiMedia={catalogAiMedia(product.media)}
+                colorSources={colorSources(product.media)}
+                media={product.media}
+                variants={product.variants}
+                productPriceCents={product.priceCents}
+                colorBlocker={colorBlocker(product.variants)}
                 copyEnabled={Boolean(process.env.OPENAI_API_KEY)}
                 hasCopy={Boolean(product.shortDescription?.trim() || product.description?.trim())}
                 initial={studio}

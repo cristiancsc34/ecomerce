@@ -36,6 +36,7 @@ export function cloudAiConfig(env: NodeJS.ProcessEnv = process.env): CloudAiConf
   if (env.FAL_KEY) engines.background_removal = `${FAL_ENGINE_NAME} (nuvem)`;
   else if (env.OPENAI_API_KEY) engines.background_removal = `ChatGPT ${imageModel} (nuvem)`;
   if (env.OPENAI_API_KEY) engines.catalog_photos = `OpenAI ${imageModel} (nuvem)`;
+  if (env.OPENAI_API_KEY) engines.color_variant = `OpenAI ${imageModel} (nuvem)`;
   if (env.TRIPO_API_KEY) engines.model_3d = `Tripo ${env.TRIPO_MODEL || DEFAULT_TRIPO_MODEL} (nuvem)`;
   return { engines, missing };
 }

@@ -31,6 +31,7 @@ import {
   DEFAULT_IMAGE_MODEL,
   DEFAULT_TRIPO_MODEL,
   openaiCatalogEngine,
+  openaiRecolorEngine,
   openaiCleanupEngine,
   processNext,
   requeueStale,
@@ -57,6 +58,9 @@ export function detectEngines(root = ROOT, env = process.env) {
   }
   if (env.OPENAI_API_KEY && engines.background_removal) {
     engines.catalog_photos = `OpenAI ${env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL}`;
+  }
+  if (env.OPENAI_API_KEY) {
+    engines.color_variant = `OpenAI ${env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL}`;
   }
   if (env.TRIPO_API_KEY) {
     engines.model_3d = `Tripo ${env.TRIPO_MODEL || DEFAULT_TRIPO_MODEL} (API)`;
@@ -134,6 +138,7 @@ async function main() {
     ...(engineNames.background_removal?.startsWith(FAL_ENGINE_NAME) ? falBackgroundEngine() : {}),
     ...(engineNames.background_removal?.startsWith("ChatGPT") ? openaiCleanupEngine() : {}),
     ...(engineNames.catalog_photos ? openaiCatalogEngine() : {}),
+    ...(engineNames.color_variant ? openaiRecolorEngine() : {}),
     ...(engineNames.model_3d?.startsWith("Tripo") ? tripoEngine() : {}),
   };
   const kinds = Object.keys(engineNames);

@@ -4,12 +4,12 @@ import { isPending, type AiJobView } from "./ai-types";
  * Tempos medidos (docs/ESTUDIO-IA.md): limpeza com o ChatGPT ~20 s por foto (+ enquadramento e gravação), as 4 fotos
  * de catálogo ao mesmo tempo 45 s, 3D ~2 min 15 s, textos ~8 s. Na nuvem as tarefas rodam ao mesmo tempo.
  */
-export const TYPICAL_SECONDS = { background_removal: 25, catalog_photos: 50, model_3d: 135, copy: 8 } as const;
+export const TYPICAL_SECONDS = { background_removal: 25, catalog_photos: 50, model_3d: 135, color_variant: 55, copy: 8 } as const;
 
 /** Frente, lateral e traseira: com menos fotos o painel não segue sozinho (a IA teria de adivinhar lados). */
 export const MIN_PHOTOS_AUTO = 3;
 
-export type StepId = "fotos" | "limpeza" | "catalogo" | "textos" | "modelo3d" | "conferir";
+export type StepId = "fotos" | "limpeza" | "catalogo" | "textos" | "modelo3d" | "conferir" | "cores";
 /**
  * done: feito · working: gerando agora · queued: na fila · waiting: IA ainda não configurada ·
  * todo: ainda não começou · review: precisa da pessoa · failed: deu erro · off: indisponível.
@@ -37,6 +37,8 @@ export type PipelineInput = {
   catalogMedia: { pendingReview: boolean }[];
   copy: { enabled: boolean; hasCopy: boolean; writing: boolean; draftReady: boolean };
   model3d: { required: boolean; auto: boolean };
+  /** Cores (opcional): cores já publicadas e cores com fotos esperando conferência. */
+  colors?: { published: number; toReview: number };
 };
 
 export type Pipeline = { steps: PipelineStep[]; current: PipelineStep | null; remainingSeconds: number };
@@ -72,7 +74,7 @@ export function cleanupSkipped(workerOnline: boolean, capabilities: string[]) {
 
 /** Em que etapa o produto está no estúdio, o que falta e quanto tempo deve levar. */
 export function studioPipeline(input: PipelineInput): Pipeline {
-  const { jobs, now, workerOnline, capabilities, uploading, catalogMedia, copy, model3d } = input;
+  const { jobs, now, workerOnline, capabilities, uploading, catalogMedia, copy, model3d, colors = { published: 0, toReview: 0 } } = input;
   const skipCleanup = cleanupSkipped(workerOnline, capabilities);
   const pendingState = (job: AiJobView): StepState => (job.status === "running" ? "working" : workerOnline ? "queued" : "waiting");
   const waitingDetail = "Esperando a IA ser configurada";
@@ -188,7 +190,33 @@ export function studioPipeline(input: PipelineInput): Pipeline {
   if (todo.length) Object.assign(conferir, { state: "review", detail: `Falta ${todo.join(" e ")}. Depois, publique em “Pronto para vender”.` });
   else if (catalogDone && copy.hasCopy && !autoBusy) Object.assign(conferir, { state: "done", detail: "Tudo conferido. Publique em “Pronto para vender”." });
 
-  const steps = [fotos, limpeza, catalogo, textos, modelo3d, conferir];
+  // 7. Cores (opcional): outras cores a partir das fotos de catálogo aprovadas.
+  const colorJob = jobs.filter((j) => j.kind === "color_variant").at(-1) ?? null;
+  const cores: PipelineStep = {
+    id: "cores",
+    label: "Cores (opcional)",
+    state: "todo",
+    detail: "Depois das fotos de catálogo aprovadas, crie outras cores do mesmo produto.",
+    etaSeconds: null,
+    optional: true,
+  };
+  if (colorJob && isPending(colorJob)) {
+    Object.assign(cores, {
+      state: pendingState(colorJob),
+      detail: colorJob.status === "running" ? `Criando as fotos na cor “${colorJob.color?.name ?? "nova"}”` : workerOnline ? "Na fila" : waitingDetail,
+      etaSeconds: remaining(colorJob, now),
+    });
+  } else if (colors.toReview) {
+    Object.assign(cores, { state: "review", detail: `Confira as fotos e publique ${plural(colors.toReview, "cor", "cores")}.` });
+  } else if (colorJob?.status === "failed") {
+    Object.assign(cores, { state: "failed", detail: colorJob.error ?? "Não foi possível criar a cor. Tente de novo." });
+  } else if (colors.published) {
+    Object.assign(cores, { state: "done", detail: `${plural(colors.published, "cor", "cores")} na loja.` });
+  } else if (workerOnline && !capabilities.includes("color_variant")) {
+    Object.assign(cores, { state: "off", detail: "Falta a chave da OpenAI (OPENAI_API_KEY) na Vercel." });
+  }
+
+  const steps = [fotos, limpeza, catalogo, textos, modelo3d, conferir, cores];
   const settled = (s: PipelineStep) => s.state === "done" || s.state === "off" || (s.optional && s.state === "todo");
   const current = steps.find((s) => !settled(s)) ?? null;
 

@@ -60,5 +60,6 @@ export function missingLabel(item: ReadinessItem): string {
 
 /** Fotos de catálogo da IA que ainda esperam a conferência da equipe. */
 export function pendingAiPhotos(product: Product): number {
-  return product.media.filter((m) => m.aiGenerated && m.pendingReview).length;
+  // Fotos de cor (passo Cores) são opcionais: não seguram a publicação do produto.
+  return product.media.filter((m) => m.aiGenerated && m.pendingReview && !m.colorJobId).length;
 }

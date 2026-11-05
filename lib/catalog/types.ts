@@ -66,6 +66,8 @@ export type ProductMedia = {
   aiGenerated: boolean;
   /** Gerada por IA e ainda não conferida/aprovada pela equipe (não aparece na loja). */
   pendingReview: boolean;
+  /** Foto feita pelo passo Cores do Estúdio (tarefa que a gerou). Só o painel lê; na loja é sempre null. */
+  colorJobId?: string | null;
   width: number | null;
   height: number | null;
   /**

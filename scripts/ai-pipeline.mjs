@@ -21,6 +21,7 @@ import { dedup, prune, textureCompress } from "@gltf-transform/functions";
 import sharp from "sharp";
 import { cleanWith } from "./ai-background.mjs";
 import { prepareArFiles, USDZ_MIME } from "./ar-files.mjs";
+import { measureRecolor } from "./cores.mjs";
 
 export const BUCKET = "product-media";
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // limite do bucket
@@ -605,12 +606,14 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
   const shots = await engines.catalogPhotos(references, dir, product, Object.keys(CATALOG_VIEWS));
 
   // Um novo conjunto substitui as imagens anteriores que ninguém aprovou (as aprovadas ficam).
+  // As fotos de cor (passo Cores) não são do catálogo: ficam.
   const { data: stale } = await supabase
     .from("product_media")
     .delete()
     .eq("product_id", product.id)
     .eq("ai_generated", true)
     .is("approved_at", null)
+    .is("color_job_id", null)
     .select("storage_path");
   if (stale?.length) await supabase.storage.from(BUCKET).remove(stale.map((m) => m.storage_path));
 
@@ -686,6 +689,139 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
   };
 }
 
+/**
+ * Cor nova (passo "Cores" do Estúdio): o GPT troca só a cor do tecido em cada foto
+ * de catálogo aprovada escolhida ao pedir (params.sourceMediaIds), os ângulos ao
+ * mesmo tempo. As fotos geradas entram como imagens de IA ilustrativas, sem
+ * aprovação e marcadas com a tarefa (color_job_id): não aparecem na loja até
+ * alguém conferir foto por foto e publicar a cor (publish_color_variant).
+ * Cada foto leva a cor medida no tecido, como aviso para quem confere.
+ * As linhas só são gravadas no fim, todas juntas: uma falha no meio não deixa
+ * foto sem arquivo.
+ */
+async function colorVariant(supabase, job, product, _inputFile, dir, engines, uploaded) {
+  const params = job.params ?? {};
+  const name = String(params.colorName ?? "").trim();
+  const hex = String(params.colorHex ?? "").toUpperCase();
+  const sourceIds = Array.isArray(params.sourceMediaIds) ? params.sourceMediaIds.map(String) : [];
+  if (!name || !/^#[0-9A-F]{6}$/.test(hex) || !sourceIds.length) throw new Error("Pedido de cor incompleto.");
+  if (!engines.recolor) throw new Error("O motor de cores (OpenAI) não está disponível.");
+
+  const { data: rows, error } = await supabase
+    .from("product_media")
+    .select("id,storage_path,media_type,width,height,ai_generated,approved_at,variant_id,color_job_id")
+    .eq("product_id", product.id)
+    .in("id", sourceIds);
+  if (error) throw new Error(error.message);
+  const byId = new Map((rows ?? []).map((m) => [m.id, m]));
+  const sources = sourceIds.map((id) => byId.get(id));
+  if (sources.some((m) => !m || m.media_type !== "image" || !m.ai_generated || !m.approved_at || m.variant_id || m.color_job_id)) {
+    throw new Error("Alguma foto de catálogo de origem foi apagada ou mudou. Peça a cor de novo.");
+  }
+
+  const views = sourceIds.map((_, i) => (CATALOG_VIEWS[params.views?.[i]] ? params.views[i] : null));
+  const shots = await Promise.all(
+    sources.map(async (source, i) => {
+      const { data: blob } = await supabase.storage.from(BUCKET).download(source.storage_path);
+      if (!blob) throw new Error("Não foi possível ler as fotos de catálogo.");
+      const original = Buffer.from(await blob.arrayBuffer());
+      const input = path.join(dir, `catalogo-${i + 1}.jpg`);
+      const output = path.join(dir, `cor-${i + 1}.jpg`);
+      await writeFile(input, original);
+      const usage = await engines.recolor(input, name, hex, output);
+      const generated = await readFile(output);
+      if (!isJpeg(generated) && !isPng(generated)) throw new Error("O motor gerou um arquivo inválido.");
+      // Mesmo tamanho e enquadramento da foto de catálogo, em JPEG.
+      const width = source.width ?? 1600;
+      const height = source.height ?? 1200;
+      const bytes = await sharp(generated).removeAlpha().resize(width, height, { fit: "fill" }).jpeg({ quality: 86, mozjpeg: true }).toBuffer();
+      const measure = await measureRecolor(original, bytes, { targetHex: hex });
+      return { source, view: views[i], bytes, width, height, usage, measure };
+    }),
+  );
+
+  const paths = [];
+  for (const shot of shots) {
+    const storagePath = await upload(supabase, `products/${product.id}/${randomUUID()}.jpg`, shot.bytes, "image/jpeg");
+    uploaded.push(storagePath);
+    paths.push(storagePath);
+  }
+
+  const slot = await nextMediaSlot(supabase, product.id);
+  const { data: inserted, error: insertError } = await supabase
+    .from("product_media")
+    .insert(
+      shots.map((shot, i) => ({
+        product_id: product.id,
+        storage_path: paths[i],
+        media_type: "image",
+        alt_text: `${product.name}, ${CATALOG_VIEWS[shot.view] ?? "foto"}, na cor ${name} (imagem ilustrativa)`.slice(0, 300),
+        ai_generated: true,
+        is_illustrative: true,
+        is_primary: false,
+        color_job_id: job.id,
+        sort_order: slot.sortOrder + i,
+        width: shot.width,
+        height: shot.height,
+        mime_type: "image/jpeg",
+        size_bytes: shot.bytes.length,
+      })),
+    )
+    .select("id,storage_path");
+  if (insertError) throw new Error(insertError.message);
+  const idByPath = new Map((inserted ?? []).map((m) => [m.storage_path, m.id]));
+  const mediaIds = paths.map((p) => idByPath.get(p));
+
+  // Pedir a mesma cor de novo substitui as fotos dela que ninguém publicou (só depois de gravar as novas).
+  const { data: sameColor } = await supabase
+    .from("ai_jobs")
+    .select("id,params")
+    .eq("product_id", product.id)
+    .eq("kind", "color_variant")
+    .neq("id", job.id);
+  const previous = (sameColor ?? []).filter((j) => String(j.params?.colorName ?? "").trim().toLowerCase() === name.toLowerCase()).map((j) => j.id);
+  if (previous.length) {
+    const { data: stale } = await supabase
+      .from("product_media")
+      .delete()
+      .eq("product_id", product.id)
+      .in("color_job_id", previous)
+      .is("approved_at", null)
+      .select("storage_path");
+    if (stale?.length) await supabase.storage.from(BUCKET).remove(stale.map((m) => m.storage_path));
+  }
+
+
+  const usage = shots.map((s) => s.usage).filter(Boolean);
+  return {
+    output_media_id: mediaIds[0] ?? null,
+    details: {
+      ...(job.details ?? {}),
+      colorName: name,
+      colorHex: hex,
+      mediaIds,
+      photos: shots.map((shot, i) => ({
+        mediaId: mediaIds[i],
+        sourceMediaId: shot.source.id,
+        view: shot.view,
+        colorHex: shot.measure.colorHex,
+        originalHex: shot.measure.originalHex,
+        colorDeltaE: shot.measure.colorDeltaE === null ? null : Number(shot.measure.colorDeltaE.toFixed(1)),
+        changedShare: Number(shot.measure.changedShare.toFixed(3)),
+        warnings: shot.measure.warnings,
+      })),
+      ...(usage.length
+        ? {
+            usage: {
+              inputTokens: usage.reduce((n, u) => n + (u.input_tokens ?? 0), 0),
+              outputTokens: usage.reduce((n, u) => n + (u.output_tokens ?? 0), 0),
+            },
+          }
+        : {}),
+    },
+  };
+}
+
 /** Processa um job já marcado como "running". Nunca lança: registra a falha no job. */
 export async function processJob(supabase, job, engines, engineNames = {}) {
   const uploaded = [];
@@ -699,7 +835,7 @@ export async function processJob(supabase, job, engines, engineNames = {}) {
     const inputFile = path.join(dir, `entrada${path.extname(job.input_path) || ".jpg"}`);
     await writeFile(inputFile, Buffer.from(await blob.arrayBuffer()));
 
-    const handler = { background_removal: backgroundRemoval, model_3d: model3d, catalog_photos: catalogPhotos }[job.kind];
+    const handler = { background_removal: backgroundRemoval, model_3d: model3d, catalog_photos: catalogPhotos, color_variant: colorVariant }[job.kind];
     if (!handler) throw new Error("Tipo de job desconhecido.");
     const result = await handler(supabase, job, product, inputFile, dir, engines, uploaded);
     await supabase

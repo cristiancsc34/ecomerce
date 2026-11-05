@@ -10,6 +10,7 @@ import {
   DEFAULT_TRIPO_MODEL,
   openaiCatalogEngine,
   openaiCleanupEngine,
+  openaiRecolorEngine,
   processJob,
   tripoEngine,
 } from "@/scripts/ai-pipeline.mjs";
@@ -23,7 +24,7 @@ import { CLOUD_STALE_MINUTES, cloudAiConfig } from "./config";
 const BUDGET_MS = 255_000;
 
 /** Só pega uma tarefa se ainda sobra este tempo (o pior caso razoável de cada etapa). */
-const NEEDS_MS: Record<AiJobKind, number> = { background_removal: 45_000, catalog_photos: 170_000, model_3d: 190_000 };
+const NEEDS_MS: Record<AiJobKind, number> = { background_removal: 45_000, catalog_photos: 170_000, model_3d: 190_000, color_variant: 170_000 };
 
 const TIMEOUT_MESSAGE = "Passou do tempo limite da IA na nuvem (5 min) e foi interrompida. Tente de novo.";
 const INTERRUPTED_MESSAGE = "A tarefa foi interrompida no meio. Tente de novo.";
@@ -41,6 +42,8 @@ function enginesFor(supabase: SupabaseClient, msLeft: number, env = process.env)
     // Limpeza: fal.ai (recorte exato) se tiver a chave; senão, o ChatGPT.
     ...(env.FAL_KEY ? falBackgroundEngine(env.FAL_KEY) : openaiCleanupEngine(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL)),
     ...openaiCatalogEngine(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL),
+    // Cores: o GPT troca só a cor do tecido nas fotos de catálogo aprovadas.
+    ...openaiRecolorEngine(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL),
     // O 3D desiste sozinho antes de a função acabar, e registra o motivo.
     ...tripoEngine(env.TRIPO_API_KEY, env.TRIPO_MODEL || DEFAULT_TRIPO_MODEL, undefined, Math.max(60_000, msLeft - 15_000)),
   };
@@ -93,6 +96,11 @@ export async function runCloudQueue(budgetMs = BUDGET_MS): Promise<CloudRun[]> {
       const allowed = kinds.filter((kind) => NEEDS_MS[kind] <= left);
       if (!allowed.length) break;
       const { data, error } = await supabase.rpc("claim_ai_job", { p_kinds: allowed });
+      // Banco ainda sem a migração das cores: segue com os outros tipos em vez de parar a fila inteira.
+      if (error && allowed.includes("color_variant") && /invalid input value for enum/i.test(error.message)) {
+        kinds.splice(kinds.indexOf("color_variant"), 1);
+        continue;
+      }
       if (error) throw new Error(`Falha ao consultar a fila: ${error.message}`);
       const job = ((data ?? []) as ClaimedJob[])[0];
       if (!job) break;

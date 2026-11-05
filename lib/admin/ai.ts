@@ -5,7 +5,7 @@ import { requireStaffAction } from "@/lib/auth/staff";
 import { mediaPublicUrl } from "@/lib/catalog/mappers";
 import { isUuid } from "@/lib/catalog/slug";
 import { createSessionClient } from "@/lib/supabase/server";
-import type { AiJobView, AiStudioSnapshot } from "./ai-types";
+import type { AiJobView, AiStudioSnapshot, ColorJobView, ColorPhotoView } from "./ai-types";
 
 /** Um processador é considerado ligado se deu sinal de vida há pouco. */
 const WORKER_ONLINE_MS = 30_000;
@@ -21,6 +21,7 @@ type JobRow = {
   engine: string | null;
   error: string | null;
   details: Record<string, unknown> | null;
+  params: Record<string, unknown> | null;
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
@@ -34,6 +35,36 @@ function parseArDetails(value: unknown): AiJobView["ar"] {
   return (AR_STATUSES as readonly unknown[]).includes(v.status) && typeof v.message === "string"
     ? { status: v.status as (typeof AR_STATUSES)[number], message: v.message }
     : null;
+}
+
+const str = (v: unknown) => (typeof v === "string" ? v : null);
+const strList = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+
+/** Cores: o pedido (params) e, quando pronto, o relatório por foto (details.photos). */
+function parseColorJob(j: JobRow): ColorJobView | null {
+  if (j.kind !== "color_variant") return null;
+  const name = str(j.params?.colorName);
+  const hex = str(j.params?.colorHex);
+  if (!name || !hex) return null;
+  const photos = (Array.isArray(j.details?.photos) ? j.details.photos : []).flatMap((p): ColorPhotoView[] => {
+    if (!p || typeof p !== "object") return [];
+    const v = p as Record<string, unknown>;
+    const mediaId = str(v.mediaId);
+    const sourceMediaId = str(v.sourceMediaId);
+    if (!mediaId || !sourceMediaId) return [];
+    return [
+      {
+        mediaId,
+        sourceMediaId,
+        view: str(v.view),
+        colorHex: str(v.colorHex),
+        originalHex: str(v.originalHex),
+        colorDeltaE: typeof v.colorDeltaE === "number" ? v.colorDeltaE : null,
+        warnings: strList(v.warnings),
+      },
+    ];
+  });
+  return { name, hex: hex.toUpperCase(), sourceMediaIds: strList(j.params?.sourceMediaIds), photos };
 }
 
 /** Quem processa: a IA na nuvem (pelas chaves cadastradas) e/ou processadores locais ligados. */
@@ -57,7 +88,7 @@ export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSn
     supabase
       .from("ai_jobs")
       .select(
-        "id,kind,status,input_path,cutout_path,output_media_id,source_media_id,engine,error,details,created_at,started_at,finished_at," +
+        "id,kind,status,input_path,cutout_path,output_media_id,source_media_id,engine,error,details,params,created_at,started_at,finished_at," +
           "output:product_media!ai_jobs_output_media_id_fkey(storage_path)",
       )
       .eq("product_id", productId)
@@ -92,6 +123,7 @@ export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSn
       seconds: typeof j.details?.seconds === "number" ? j.details.seconds : null,
       droppedBackgroundObject: j.details?.droppedBackgroundObject === true,
       ar: parseArDetails(j.details?.ar),
+      color: parseColorJob(j),
       createdAt: j.created_at,
       startedAt: j.started_at,
       finishedAt: j.finished_at,

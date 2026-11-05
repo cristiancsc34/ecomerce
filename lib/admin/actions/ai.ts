@@ -20,6 +20,7 @@ import { getAdminProduct } from "../data";
 import type { AiStudioSnapshot } from "../ai-types";
 import { friendlyDbError } from "../errors";
 import { removeOrphanFiles } from "../storage";
+import { discardColorJobAction } from "./colors";
 import type { ActionResult } from "../types";
 
 async function guard(): Promise<{ ok: false; error: string } | null> {
@@ -177,11 +178,14 @@ export async function approveAiMediaAction(mediaId: string): Promise<ActionResul
   if (denied) return denied;
   if (!isUuid(mediaId)) return { ok: false, error: "Imagem inválida." };
   const supabase = await createSessionClient();
+  const { data: current } = await supabase.from("product_media").select("color_job_id").eq("id", mediaId).maybeSingle();
+  if (current?.color_job_id) return { ok: false, error: "Fotos de cor são aprovadas ao publicar a cor (Estúdio, etapa 5)." };
   const { data, error } = await supabase
     .from("product_media")
     .update({ approved_at: new Date().toISOString() })
     .eq("id", mediaId)
     .eq("ai_generated", true)
+    .is("color_job_id", null)
     .select("id");
   if (error) return { ok: false, error: friendlyDbError(error) };
   if (!data?.length) return { ok: false, error: "Sem permissão para aprovar esta imagem." };
@@ -215,6 +219,7 @@ export async function discardAiJobAction(jobId: string): Promise<ActionResult> {
     .maybeSingle();
   if (!job) return { ok: false, error: "Item não encontrado." };
   if (job.status === "running") return { ok: false, error: "Aguarde o processamento terminar para descartar." };
+  if (job.kind === "color_variant") return discardColorJobAction(jobId);
 
   const paths = [job.cutout_path as string | null].filter(Boolean) as string[];
   if (job.kind === "background_removal") {

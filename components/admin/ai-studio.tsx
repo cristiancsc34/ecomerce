@@ -27,7 +27,8 @@ import {
   type Pipeline,
   type StepState,
 } from "@/lib/admin/pipeline";
-import type { ProductMedia } from "@/lib/catalog/types";
+import type { ColorSource } from "@/lib/admin/colors";
+import type { ProductMedia, ProductVariant } from "@/lib/catalog/types";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useStoredFlag } from "@/lib/use-stored-flag";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ import { Button, Spinner } from "@/components/ui/button";
 import { AlertIcon, CheckIcon, ClockIcon, CubeIcon, ImageIcon, SparkIcon } from "@/components/ui/icons";
 import { controlClasses, Label } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
+import { ColorStudio } from "./color-studio";
 import { ConfirmButton } from "./confirm-dialog";
 
 const POLL_MS = 2000;
@@ -59,17 +61,19 @@ async function shrinkPhoto(file: File): Promise<File> {
   return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "foto"}.jpg`, { type: "image/jpeg" });
 }
 
-const KIND_ORDER: AiJobKind[] = ["background_removal", "catalog_photos", "model_3d"];
+const KIND_ORDER: AiJobKind[] = ["background_removal", "catalog_photos", "model_3d", "color_variant"];
 const KIND_LABEL: Record<AiJobKind, string> = {
   background_removal: "limpeza do fundo",
   catalog_photos: "fotos de catálogo",
   model_3d: "modelo 3D",
+  color_variant: "cores",
 };
 
 const WORKING_LABEL: Record<AiJobKind, string> = {
   background_removal: "Limpando o fundo",
   catalog_photos: "Criando as fotos de catálogo",
   model_3d: "Gerando o modelo 3D",
+  color_variant: "Criando as fotos na cor nova",
 };
 
 function StatusBadge({ job }: { job: AiJobView }) {
@@ -176,6 +180,7 @@ const STEP_ANCHOR: Record<string, string> = {
   textos: "#estudio-textos",
   modelo3d: "#estudio-3d",
   conferir: "#estudio-catalogo",
+  cores: "#estudio-cores",
 };
 
 const STATE_TEXT: Record<StepState, string> = {
@@ -338,6 +343,11 @@ export function AiStudio({
   hasCopy,
   initial,
   arPanel = null,
+  colorSources = [],
+  media = [],
+  variants = [],
+  productPriceCents = null,
+  colorBlocker = null,
 }: {
   productId: string;
   productName: string;
@@ -354,6 +364,14 @@ export function AiStudio({
   initial: AiStudioSnapshot;
   /** Conferência de tamanho real e arquivo do iPhone (quando o produto tem 3D). */
   arPanel?: React.ReactNode;
+  /** Cores: fotos de catálogo aprovadas que servem de base (uma por ângulo). */
+  colorSources?: ColorSource[];
+  /** Toda a mídia do produto (as fotos de cor e o "antes" de cada uma). */
+  media?: ProductMedia[];
+  variants?: ProductVariant[];
+  productPriceCents?: number | null;
+  /** Motivo para o produto não poder ganhar cores agora (ou null). */
+  colorBlocker?: string | null;
 }) {
   const router = useRouter();
   const hydrated = useHydrated();
@@ -386,6 +404,9 @@ export function AiStudio({
   const canCatalog = snapshot.worker.capabilities.includes("catalog_photos");
   const catalogJob = snapshot.jobs.filter((j) => j.kind === "catalog_photos").at(-1) ?? null;
   const [requestingCatalog, setRequestingCatalog] = useState(false);
+  const colorJobs = snapshot.jobs.filter((j) => j.kind === "color_variant");
+  const pendingColorJob = colorJobs.find(isPending) ?? null;
+  const colorJobsToReview = new Set(media.filter((m) => m.colorJobId && m.pendingReview).map((m) => m.colorJobId));
 
   async function generateCatalog() {
     setRequestingCatalog(true);
@@ -471,6 +492,10 @@ export function AiStudio({
     catalogMedia: aiMedia,
     copy: { enabled: copyEnabled, hasCopy, writing: copyStatus === "writing", draftReady: copyStatus === "draft" },
     model3d: { required: requires3d, auto: auto && auto3d },
+    colors: {
+      published: variants.filter((v) => v.colorHex).length,
+      toReview: colorJobs.filter((j) => j.status === "succeeded" && colorJobsToReview.has(j.id)).length,
+    },
   });
 
   // Seguir as etapas sozinho: fotos enviadas → fotos de catálogo e textos (junto com a limpeza) → 3D, se marcado.
@@ -826,6 +851,29 @@ export function AiStudio({
         onStatus={setCopyStatus}
         onApplied={(text) => {
           setMessage({ tone: "success", text });
+          router.refresh();
+        }}
+      />
+
+      {/* 5. Cores */}
+      <ColorStudio
+        productId={productId}
+        canEdit={canEdit}
+        hydrated={hydrated}
+        jobs={colorJobs}
+        workerOnline={snapshot.worker.online}
+        canColor={snapshot.worker.capabilities.includes("color_variant")}
+        sources={colorSources}
+        media={media}
+        variants={variants}
+        productPriceCents={productPriceCents}
+        blocker={colorBlocker}
+        pendingProgress={
+          pendingColorJob ? <JobProgress job={pendingColorJob} now={now} hydrated={hydrated} workerOnline={snapshot.worker.online} /> : null
+        }
+        onMessage={(text, ok) => setMessage({ tone: ok ? "success" : "danger", text })}
+        onChanged={async () => {
+          await refresh();
           router.refresh();
         }}
       />

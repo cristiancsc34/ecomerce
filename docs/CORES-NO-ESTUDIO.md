@@ -1,44 +1,85 @@
-# Cores no Estúdio (proposta, não implementado)
+# Cores no Estúdio
 
-> Status (04/11/2026): a loja já tem a estrutura de variantes de cor (seletor “Cor”, fotos e 3D por cor, link do QR
-> com a cor; migração `20261103000500_variantes_cor`). Falta o painel criar as cores. Para a demonstração, as cores da
-> Poltrona Azul (marrom, branco, vermelho, bege) saem de `npm run demo:variantes` (por computador) ou
-> `npm run demo:variantes:gpt` (tom do GPT, com a foto original repintada), e só aparecem no ambiente de desenvolvimento.
+> Status (05/11/2026): **implementado**, aguardando aplicar as migrações `20261105000100_cores_tipo_de_tarefa.sql` e
+> `20261105000200_cores.sql` no Supabase do Cristian (projeto `cuxoes`) e publicar. **Ordem obrigatória: migrações
+> primeiro, código depois** (o painel lê `product_media.color_job_id`, que só existe depois da migração).
 
-## Onde entra no fluxo
+Outra cor do mesmo produto, feita pelo GPT a partir das fotos de catálogo já aprovadas. Fica no Estúdio do painel,
+**etapa 5. Cores (opcional)**, depois do 3D e dos textos. Nunca entra no modo automático: cada cor custa e precisa de
+uma cor escolhida pela pessoa.
 
-Depois das **fotos de catálogo aprovadas**, não na limpeza. A limpeza trabalha com as fotos do celular (quantidade e
-ângulos variam); as fotos de catálogo são as 4 padronizadas da loja. Trocando a cor nelas, cada cor sai com os mesmos 4
-ângulos, gasta menos e o 3D acompanha.
+## Como usar
 
-Novo passo no Estúdio: **5. Cores (opcional)**.
+1. **Aprovar as fotos de catálogo** (etapa 2). Elas são a base: uma por ângulo (frente, três-quartos, lateral,
+   traseira; a mais recente de cada ângulo, se o catálogo foi gerado mais de uma vez).
+2. **Pedir a cor**: nome (ex.: “Linho bege”) e a cor do tecido, pelo seletor da tela ou digitada como `#RRGGBB` ou
+   `R, G, B` (ex.: `205, 183, 151`). Botão **“Gerar fotos nesta cor”**: o GPT (mesma `OPENAI_API_KEY` das fotos de
+   catálogo, na Vercel) troca só a cor do tecido em cada foto, os ângulos ao mesmo tempo. Cerca de 1 minuto e
+   **~US$ 0,35 por cor** (4 fotos). Uma cor por vez em cada produto, com limite de pedidos por hora.
+3. **Conferir foto por foto**: antes × depois em cada ângulo, com a **cor medida no tecido** e avisos quando:
+   - a foto quase não mudou de cor;
+   - a cor medida está longe da pedida (ΔE > 15);
+   - a foto mudou demais (talvez o GPT tenha refeito o fundo, a madeira ou a peça).
 
-1. **Definir a cor**: nome (ex.: “Linho bege”) e a cor, por um destes caminhos:
-   - **foto da amostra do tecido** (recomendado): o painel mede a cor da amostra, sem depender da calibração da tela;
-   - código **#RRGGBB** ou **RGB** (ex.: 205, 183, 151), com o seletor de cor.
-2. **Gerar** (fila do estúdio, como as outras etapas):
-   - as 4 fotos de catálogo na cor nova pelo GPT (`openaiRecolorEngine`, mesma chave das fotos de catálogo), usadas
-     só como **referência de tom** (`gptTone`): a foto que vai para a loja é a de catálogo aprovada com o tecido
-     repintado nesse tom. Madeira, fundo, sombra e forma ficam pixel a pixel como na original, então a IA não tem como
-     mudar a peça nem acrescentar nada. Cada foto do GPT é alinhada com a original; o ângulo é descartado se não
-     corresponde a ela ou se o tecido não é uma cor só. Com 3 dos 4 ângulos bons, o tom sai de todos juntos e a cor
-     medida tem de ser a pedida (ΔE ≤ 10). Senão, a cor fica com o recolor por computador, com aviso;
-   - o 3D: o mesmo modelo, com a cor nova como variante dentro do `.glb` (`KHR_materials_variants`), pintado com a cor
-     medida; e o `.usdz` dessa cor para o iPhone, quando o tamanho real estiver conferido.
-3. **Conferir e aprovar**: antes × depois lado a lado, foto por foto (como as fotos de catálogo). Até alguém aprovar,
-   nada vai para a loja. Na loja, a foto aparece como “Imagem ilustrativa” até a foto real da cor chegar.
-4. **Publicar a cor**: vira uma variação em “Preço e estoque” (preço igual ou diferente, estoque), com as fotos ligadas
-   a ela. O seletor “Cor” aparece sozinho na página do produto.
+   Os avisos são só ajuda: o que garante que a peça é a mesma é a conferência da pessoa. Desmarque a foto que não
+   estiver boa.
+4. **Publicar a cor**: preço (obrigatório) e estoque da cor. Na **primeira cor**, também a **cor atual** do produto
+   (nome, cor e preço), que entra em primeiro lugar: a cor das fotos originais. O painel já preenche a cor atual
+   medida nas fotos; ajuste para a do tecido de verdade. A confirmação só libera com a caixa
+   “Conferi cada foto com a original: é a mesma peça (formato, madeira, peças e acabamento), nada foi acrescentado e só
+   o tecido mudou de cor.”
+
+Ao publicar, num passo só no banco (`publish_color_variant`): cria as variações, aprova as fotos escolhidas (o banco
+registra quem aprovou e quando) e liga as fotos à cor. As fotos não escolhidas são apagadas. Na loja, o seletor
+**“Cor”** aparece sozinho na página do produto, e as fotos da cor levam o selo “Imagem ilustrativa” até chegar a foto
+real. **“Descartar estas fotos”** apaga as fotos geradas e a tarefa.
 
 ## Regras
 
-- Só cores que a loja **realmente vende** (tecido disponível com o fornecedor). Cor recolorida não é foto real: fica
-  marcada como ilustrativa; quando houver foto real, ela substitui.
+- **Só cores que a loja realmente vende** (tecido disponível com o fornecedor). Nome, cor e preço vêm da pessoa: o
+  painel não inventa nenhum.
+- **A foto da loja é a do próprio GPT** (escolha do Cristian em 04/11/2026, comparando com a versão repintada), por
+  isso a conferência por pessoa é obrigatória. Antes de publicar, nada aparece na loja: as fotos nascem sem aprovação
+  e a cor só existe depois de publicada (não existe variação oculta).
 - A primeira cor da lista é a das fotos originais do produto.
+- Cores e tamanhos no mesmo produto ainda não são possíveis: com variações sem cor, o passo avisa e não deixa pedir.
+- Foto de cor é sempre ilustrativa e nunca a foto principal (o banco garante).
+- Nome repetido (comparado como no link `?cor=`, sem acento nem maiúsculas) é recusado.
+- Editor só trabalha em produto em rascunho ou revisão; em produto publicado, só o administrador (como o resto do
+  Estúdio). Tudo fica na área “itens” do painel.
+- Depois de publicar, confira se o **nome e a descrição** do produto citam a cor antiga (ex.: “Poltrona Azul”).
 
-## Custo e esforço
+## O que o sistema protege
 
-- GPT: cerca de **US$ 0,35 por cor** (4 fotos; medido nas fotos de catálogo, ~US$ 0,35 por 4 fotos). 3D e conferência:
-  sem custo (feitos no servidor).
-- Implementar: novo tipo de tarefa na fila (`color_variant`, migração no enum `ai_job_kind`), passo “Cores” no Estúdio,
-  aprovação e criação da variação; testes com o motor falso, como nas outras etapas.
+- Gerar as fotos de catálogo de novo **não apaga** as fotos de cor ainda não publicadas.
+- Pedir a mesma cor de novo troca as fotos dela que ninguém publicou (as publicadas ficam).
+- Falha no meio (ex.: a OpenAI recusa um ângulo): nenhuma foto é gravada e nenhum arquivo sobra.
+- Foto de origem apagada ou trocada entre o pedido e o processamento: a tarefa falha com aviso, sem gastar o GPT.
+- **Tirar a cor em “Preço e estoque” apaga as fotos dela** (sem isso, elas virariam fotos da cor atual). O arquivo no
+  Storage fica (limpeza futura).
+- Duplicar o produto: as fotos de IA ainda sem conferência ficam de fora da cópia (antes iam como fotos comuns), as
+  aprovadas seguem aprovadas, e cada foto de cor segue a cor correspondente da cópia. O 3D leva o arquivo do iPhone e o
+  tamanho real conferido.
+- Se o código chegar ao ar antes da migração, a fila da nuvem ignora as cores em vez de parar.
+
+## Limitações conhecidas
+
+- **3D**: a cor nova usa o modelo do produto pintado na hora (`setBaseColorFactor`), que multiplica a textura: fica
+  aproximado, mais escuro em tecido escuro. Próximo passo: gerar no servidor uma variante do modelo
+  (`KHR_materials_variants`) com a textura do tecido repintada, como no exemplo de desenvolvimento.
+- **AR da cor**: sem modelo próprio, a câmera abre pelo 3D da tela (pode pedir o segundo toque em rede lenta).
+- Medir a cor por **foto da amostra do tecido** ainda não existe (só seletor, `#RRGGBB` ou RGB).
+
+## Onde está no código
+
+- Banco: `supabase/migrations/20261105000100_cores_tipo_de_tarefa.sql` (tipo `color_variant`) e
+  `20261105000200_cores.sql` (`ai_jobs.params`, `product_media.color_job_id`, `publish_color_variant`, apagar as fotos
+  junto com a cor, `duplicate_product`).
+- Processador: `colorVariant` em `scripts/ai-pipeline.mjs` (nuvem e processador local) e a medição em
+  `scripts/cores.mjs`.
+- Painel: `lib/admin/actions/colors.ts` (pedir, publicar, descartar), `lib/admin/colors.ts` (regras),
+  `components/admin/color-studio.tsx` (tela), etapa “Cores” em `lib/admin/pipeline.ts`.
+- Testes: `tests/db/cores.test.ts` (banco), `tests/unit/cores-processador.test.ts` (processador),
+  `tests/unit/cores-regras.test.ts` (regras e medição), `tests/unit/admin-actions-auth.test.ts` (permissões).
+- Exemplo de desenvolvimento (Poltrona Azul em 5 cores): `npm run demo:variantes:gpt`, ver
+  [`IA-E-3D.md`](IA-E-3D.md).

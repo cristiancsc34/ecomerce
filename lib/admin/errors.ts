@@ -5,6 +5,12 @@ const FRIENDLY_PREFIXES = [
   "Produto não encontrado",
   "Variação não",
   "Imagem não encontrada",
+  // Cores no Estúdio (supabase/migrations/20261105000200_cores.sql)
+  "Tarefa de cor",
+  "Alguma foto",
+  "Este produto",
+  "Na primeira cor",
+  "A cor atual",
   // Pedidos (supabase/migrations/20261103000100_orders.sql)
   "Pedido não encontrado",
   "Inclua pelo menos um item",
@@ -46,6 +52,8 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   products_published_requires_description: "Para publicar, escreva a descrição.",
   products_compare_at_gt_price: "O preço “de” precisa ser maior que o preço atual.",
   product_media_one_primary: "Já existe uma foto principal para este produto.",
+  product_media_color_photo: "Foto de cor é sempre ilustrativa e não pode ser a foto principal.",
+  ai_jobs_color_params: "Pedido de cor incompleto: informe o nome e a cor.",
   orders_tracking_url: "O link de rastreio precisa começar com https://",
   orders_customer_phone: "Celular com DDD, ex.: (11) 98765-4321.",
   orders_customer_email: "E-mail inválido.",

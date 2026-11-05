@@ -85,6 +85,7 @@ export type MediaRow = {
   real_scale?: boolean;
   bounds_cm?: unknown;
   variant_id?: string | null;
+  color_job_id?: string | null;
 };
 
 export type VariantRow = {
@@ -153,6 +154,7 @@ export function mapMedia(row: MediaRow): ProductMedia {
     realScale: Boolean(row.real_scale && row.usdz_storage_path && boundsCm),
     boundsCm,
     variantId: row.variant_id ?? null,
+    colorJobId: row.color_job_id ?? null,
   };
 }
 
