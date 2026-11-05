@@ -150,7 +150,9 @@ faltando). As **fotos de catálogo** recriam a cena:
 - **Nada vai para a loja sem conferência**: a imagem nasce “aguardando conferência”; alguém compara com as fotos reais
   (lado a lado no painel) e aprova marcando “Conferi: cor, formato, peças e acabamento são iguais”. O banco registra
   quem aprovou e quando (auditoria). Imagem não aprovada não aparece para o público e não pode ser a principal.
-- Na loja, essas imagens trazem o aviso discreto “Cena recriada a partir das fotos reais”.
+- Na loja, essas imagens não levam selo sobre a foto (o aviso “Cena recriada a partir das fotos reais” saiu a pedido do
+  Cristian em 05/11/2026). As perguntas frequentes explicam que as fotos de catálogo são recriadas a partir das fotos
+  reais e conferidas pela equipe. No painel, elas continuam marcadas como geradas por IA.
 
 **Estado: funcionando** com a API da OpenAI (`OPENAI_API_KEY` no `.env.local` do processador). Modelo padrão
 `gpt-image-2.5-sunburst` (troque com `OPENAI_IMAGE_MODEL`), edição com todas as fotos reais como referência, fundo

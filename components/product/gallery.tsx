@@ -111,14 +111,10 @@ export function Gallery({
           />
         )}
 
-        {!showingPhoto ? null : current.isIllustrative ? (
+        {/* Fotos de catálogo recriadas por IA não levam selo (pedido do dono, 05/11/2026); o FAQ explica como são feitas. */}
+        {showingPhoto && current.isIllustrative ? (
           <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-semibold text-ink shadow-sm">
             Imagem ilustrativa
-          </span>
-        ) : current.aiGenerated ? (
-          // No alto: o canto de baixo fica para os botões de 3D e realidade aumentada.
-          <span className="absolute left-3 top-3 rounded bg-white/90 px-2 py-0.5 text-[0.6875rem] font-medium text-muted">
-            Cena recriada a partir das fotos reais
           </span>
         ) : null}
 

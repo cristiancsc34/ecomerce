@@ -40,7 +40,8 @@ test.describe("vitrine em modo demonstração", () => {
     await page.getByRole("link", { name: "Poltrona Azul Estrutura Clara", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Poltrona Azul Estrutura Clara" })).toBeVisible();
     await expect(page.getByTestId("preco-atual")).toHaveText("Preço em breve");
-    await expect(page.getByText("Cena recriada a partir das fotos reais").first()).toBeVisible();
+    // Foto de catálogo recriada por IA: sem selo sobre a foto.
+    await expect(page.getByText("Cena recriada a partir das fotos reais")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Comprar agora" })).toHaveCount(0);
     const to3d = isMobile(page) ? page.getByRole("link", { name: "Girar em 3D" }) : page.getByRole("link", { name: "Ver em 3D" });
     await to3d.click();

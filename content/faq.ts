@@ -7,7 +7,7 @@ export const STORE_FAQ: { question: string; answer: string }[] = [
   {
     question: "As fotos mostram o produto real?",
     answer:
-      "Sim. As fotos de catálogo são recriadas a partir de fotos reais de cada peça, sempre nos mesmos ângulos (frente, ¾, lado e costas), e conferidas pela equipe antes de entrar na loja. Elas trazem o aviso “Cena recriada a partir das fotos reais”.",
+      "Sim. As fotos de catálogo são recriadas a partir de fotos reais de cada peça, sempre nos mesmos ângulos (frente, ¾, lado e costas), e conferidas pela equipe antes de entrar na loja.",
   },
   {
     question: "O que é a visualização em 3D?",
