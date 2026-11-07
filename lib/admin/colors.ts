@@ -43,6 +43,34 @@ export function viewOfAlt(alt: string): CatalogView | null {
   return CATALOG_VIEW_ORDER.find((v) => text.includes(CATALOG_VIEW_LABELS[v])) ?? null;
 }
 
+type DbError = { message?: string; details?: string | null; hint?: string | null } | null | undefined;
+
+/**
+ * O banco ainda não recebeu a migração das Cores (20261105000100/000200): coluna
+ * product_media.color_job_id, ai_jobs.params ou o tipo de tarefa 'color_variant'
+ * não existem. Enquanto isso, o painel lê e grava do jeito antigo e o passo
+ * Cores fica "aguardando a atualização do banco".
+ */
+export function missingColorsMigration(error: DbError): boolean {
+  if (!error) return false;
+  const text = `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`;
+  return /color_job_id|ai_jobs\.params|column [\w.]*params does not exist|enum [\w.]*ai_job_kind|"color_variant"/i.test(text);
+}
+
+/**
+ * Faz a consulta com as colunas das Cores e, se o banco ainda não as tem, repete
+ * sem elas. `legacy` diz se precisou repetir.
+ */
+export async function selectWithColorsFallback<R extends { error: DbError }>(
+  build: (columns: string) => PromiseLike<R>,
+  columns: string,
+  legacyColumns: string,
+): Promise<{ result: R; legacy: boolean }> {
+  const result = await build(columns);
+  if (!missingColorsMigration(result.error)) return { result, legacy: false };
+  return { result: await build(legacyColumns), legacy: true };
+}
+
 const isColorPhoto = (m: Pick<ProductMedia, "colorJobId">) => Boolean(m.colorJobId);
 
 /** Fotos de catálogo do Estúdio (sem as fotos de cor). */

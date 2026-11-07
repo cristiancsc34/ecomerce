@@ -12,7 +12,7 @@ type Row = Record<string, unknown>;
 type Tables = Record<string, Row[]>;
 
 /** O pedaço do cliente do Supabase que o processador usa. */
-function fakeSupabase(tables: Tables, files: Map<string, Buffer>) {
+function fakeSupabase(tables: Tables, files: Map<string, Buffer>, { withoutColors = false } = {}) {
   class Query {
     private op: "select" | "insert" | "update" | "delete" = "select";
     private filters: ((r: Row) => boolean)[] = [];
@@ -51,9 +51,12 @@ function fakeSupabase(tables: Tables, files: Map<string, Buffer>) {
       return this;
     }
     is(c: string, v: unknown) {
+      // Banco sem a migração das Cores: a coluna não existe.
+      if (withoutColors && c === "color_job_id") this.missingColumn = true;
       this.filters.push((r) => (r[c] ?? null) === v);
       return this;
     }
+    private missingColumn = false;
     not() {
       return this;
     }
@@ -80,6 +83,7 @@ function fakeSupabase(tables: Tables, files: Map<string, Buffer>) {
       }
     }
     private run() {
+      if (this.missingColumn) return { data: null, error: { code: "42703", message: "column product_media.color_job_id does not exist" } };
       const rows = (tables[this.table] ??= []);
       const match = (r: Row) => this.filters.every((f) => f(r));
       if (this.op === "insert") {
@@ -287,5 +291,33 @@ describe("cores no processador", () => {
     expect(await processJob(db, catalog, engines)).toBe("succeeded");
     expect(tables.product_media.some((m) => m.storage_path === `products/${PRODUCT}/pendente.jpg`)).toBe(false);
     expect(colorPhotos(tables, job.id as string)).toHaveLength(2);
+  }, 60_000);
+
+  it("banco ainda sem a migração das Cores: gerar o catálogo de novo continua trocando as fotos pendentes", async () => {
+    const files = new Map<string, Buffer>();
+    const tables: Tables = { products: [{ id: PRODUCT, name: "Poltrona Azul", dimensions: {} }], product_media: [], ai_jobs: [] };
+    const db = fakeSupabase(tables, files, { withoutColors: true });
+    tables.product_media.push({ id: randomUUID(), product_id: PRODUCT, storage_path: `products/${PRODUCT}/pendente.jpg`, ai_generated: true, approved_at: null, sort_order: 0 });
+    files.set(`products/${PRODUCT}/pendente.jpg`, photo("frente"));
+    files.set(`products/${PRODUCT}/originais/a.jpg`, photo("frente"));
+    tables.ai_jobs.push({ id: randomUUID(), product_id: PRODUCT, kind: "background_removal", status: "succeeded", input_path: `products/${PRODUCT}/originais/a.jpg` });
+    const catalog = { id: randomUUID(), product_id: PRODUCT, kind: "catalog_photos", status: "running", input_path: `products/${PRODUCT}/originais/a.jpg`, details: {} };
+    tables.ai_jobs.push(catalog);
+    const jpg = await sharp(photo("frente")).resize(160, 120).jpeg().toBuffer();
+    const png = await sharp(photo("frente")).resize(160, 120).png().toBuffer();
+    const engines = {
+      catalogPhotos: async (_refs: string[], dir: string) => {
+        await writeFile(`${dir}/vista.jpg`, jpg);
+        return [{ view: "frente", file: `${dir}/vista.jpg` }];
+      },
+      backgroundRemoval: async (_file: string, dir: string) => {
+        await writeFile(`${dir}/recorte.png`, png);
+        await writeFile(`${dir}/estudio.jpg`, jpg);
+        return { cutout: `${dir}/recorte.png`, studio: `${dir}/estudio.jpg`, meta: { width: 160, height: 120 } };
+      },
+    };
+    expect(await processJob(db, catalog, engines)).toBe("succeeded");
+    expect(tables.product_media.some((m) => m.storage_path === `products/${PRODUCT}/pendente.jpg`)).toBe(false);
+    expect(files.has(`products/${PRODUCT}/pendente.jpg`)).toBe(false);
   }, 60_000);
 });

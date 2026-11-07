@@ -493,6 +493,7 @@ export function AiStudio({
     copy: { enabled: copyEnabled, hasCopy, writing: copyStatus === "writing", draftReady: copyStatus === "draft" },
     model3d: { required: requires3d, auto: auto && auto3d },
     colors: {
+      ready: snapshot.colorsReady,
       published: variants.filter((v) => v.colorHex).length,
       toReview: colorJobs.filter((j) => j.status === "succeeded" && colorJobsToReview.has(j.id)).length,
     },
@@ -868,6 +869,7 @@ export function AiStudio({
         variants={variants}
         productPriceCents={productPriceCents}
         blocker={colorBlocker}
+        ready={snapshot.colorsReady}
         pendingProgress={
           pendingColorJob ? <JobProgress job={pendingColorJob} now={now} hydrated={hydrated} workerOnline={snapshot.worker.online} /> : null
         }

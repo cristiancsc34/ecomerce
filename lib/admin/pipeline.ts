@@ -38,7 +38,7 @@ export type PipelineInput = {
   copy: { enabled: boolean; hasCopy: boolean; writing: boolean; draftReady: boolean };
   model3d: { required: boolean; auto: boolean };
   /** Cores (opcional): cores já publicadas e cores com fotos esperando conferência. */
-  colors?: { published: number; toReview: number };
+  colors?: { published: number; toReview: number; ready?: boolean };
 };
 
 export type Pipeline = { steps: PipelineStep[]; current: PipelineStep | null; remainingSeconds: number };
@@ -212,6 +212,8 @@ export function studioPipeline(input: PipelineInput): Pipeline {
     Object.assign(cores, { state: "failed", detail: colorJob.error ?? "Não foi possível criar a cor. Tente de novo." });
   } else if (colors.published) {
     Object.assign(cores, { state: "done", detail: `${plural(colors.published, "cor cadastrada", "cores cadastradas")}.` });
+  } else if (colors.ready === false) {
+    Object.assign(cores, { state: "off", detail: "Aguardando a atualização do banco para ativar as Cores." });
   } else if (workerOnline && !capabilities.includes("color_variant")) {
     Object.assign(cores, { state: "off", detail: "Falta a chave da OpenAI (OPENAI_API_KEY) na Vercel." });
   }

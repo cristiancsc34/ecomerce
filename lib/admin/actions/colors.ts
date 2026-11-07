@@ -8,7 +8,9 @@ import { parsePriceToCents } from "@/lib/catalog/money";
 import { CATALOG_TAG } from "@/lib/catalog/queries";
 import { isUuid } from "@/lib/catalog/slug";
 import { createSessionClient } from "@/lib/supabase/server";
-import { colorBlocker, colorNameTaken, colorSources, COLOR_NAME_MAX, parseColorInput } from "../colors";
+import { colorBlocker, colorNameTaken, colorSources, COLOR_NAME_MAX, missingColorsMigration, parseColorInput } from "../colors";
+
+const COLORS_NOT_READY = "As Cores ainda não foram ativadas no banco: falta aplicar a atualização das Cores.";
 import { getAdminProduct } from "../data";
 import { friendlyDbError } from "../errors";
 import { removeOrphanFiles } from "../storage";
@@ -88,6 +90,7 @@ export async function requestColorVariantAction(productId: string, input: { name
       views: sources.map((s) => s.view),
     },
   });
+  if (missingColorsMigration(error)) return { ok: false, error: COLORS_NOT_READY };
   if (error) return { ok: false, error: friendlyDbError(error, "Não foi possível pedir a cor.") };
   kickCloudQueue();
   return { ok: true };

@@ -4,6 +4,7 @@ import { mapCategory, mapProduct, type CategoryRow, type ProductRow } from "@/li
 import { PRODUCT_STATUSES, type Category, type Product, type ProductStatus } from "@/lib/catalog/types";
 import { normalizeText } from "@/lib/catalog/query";
 import { isUuid } from "@/lib/catalog/slug";
+import { selectWithColorsFallback } from "./colors";
 import { createSessionClient } from "@/lib/supabase/server";
 import type { AuditEvent } from "./types";
 
@@ -16,15 +17,23 @@ export const ADMIN_PRODUCT_SELECT =
   "category:categories(id,slug,name,requires_3d)," +
   "media:product_media(id,storage_path,media_type,alt_text,sort_order,is_primary,is_illustrative,ai_generated,approved_at,width,height,usdz_storage_path,real_scale,bounds_cm,variant_id,color_job_id)," +
   "variants:product_variants(id,name,sku,price_cents,stock_quantity,attributes,sort_order)";
+/** O mesmo, sem a coluna das Cores (banco ainda sem a migração 20261105000200). */
+export const ADMIN_PRODUCT_SELECT_LEGACY = ADMIN_PRODUCT_SELECT.replace(",color_job_id", "");
 
 export async function listAdminProducts(filter: { status?: ProductStatus | null; q?: string } = {}): Promise<Product[]> {
   await requireStaffAction();
   const supabase = await createSessionClient();
-  let query = supabase.from("products").select(ADMIN_PRODUCT_SELECT).order("updated_at", { ascending: false }).limit(500);
-  if (filter.status && (PRODUCT_STATUSES as readonly string[]).includes(filter.status)) {
-    query = query.eq("status", filter.status);
-  }
-  const { data, error } = await query;
+  const status = filter.status && (PRODUCT_STATUSES as readonly string[]).includes(filter.status) ? filter.status : null;
+  const {
+    result: { data, error },
+  } = await selectWithColorsFallback(
+    (columns) => {
+      const query = supabase.from("products").select(columns).order("updated_at", { ascending: false }).limit(500);
+      return status ? query.eq("status", status) : query;
+    },
+    ADMIN_PRODUCT_SELECT,
+    ADMIN_PRODUCT_SELECT_LEGACY,
+  );
   if (error) throw new Error("Falha ao carregar produtos.");
   let products = ((data ?? []) as unknown as ProductRow[]).map(mapProduct);
   if (filter.q) {
@@ -38,7 +47,13 @@ export async function getAdminProduct(id: string): Promise<Product | null> {
   await requireStaffAction();
   if (!isUuid(id)) return null;
   const supabase = await createSessionClient();
-  const { data, error } = await supabase.from("products").select(ADMIN_PRODUCT_SELECT).eq("id", id).maybeSingle();
+  const {
+    result: { data, error },
+  } = await selectWithColorsFallback(
+    (columns) => supabase.from("products").select(columns).eq("id", id).maybeSingle(),
+    ADMIN_PRODUCT_SELECT,
+    ADMIN_PRODUCT_SELECT_LEGACY,
+  );
   if (error) throw new Error("Falha ao carregar o produto.");
   return data ? mapProduct(data as unknown as ProductRow) : null;
 }

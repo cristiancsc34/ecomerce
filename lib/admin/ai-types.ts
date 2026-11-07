@@ -31,6 +31,8 @@ export type AiJobView = {
 
 export type AiStudioSnapshot = {
   jobs: AiJobView[];
+  /** O banco já tem a migração das Cores (sem ela, o passo Cores fica "aguardando a atualização do banco"). */
+  colorsReady: boolean;
   /** Nome e descrição que a IA já escreveu a partir das fotos (guardado; não gasta de novo). */
   copyDraft: CopyDraft | null;
   worker: {

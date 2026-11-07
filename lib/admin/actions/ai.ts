@@ -20,6 +20,7 @@ import { getAdminProduct } from "../data";
 import type { AiStudioSnapshot } from "../ai-types";
 import { friendlyDbError } from "../errors";
 import { removeOrphanFiles } from "../storage";
+import { missingColorsMigration } from "../colors";
 import { discardColorJobAction } from "./colors";
 import type { ActionResult } from "../types";
 
@@ -178,15 +179,12 @@ export async function approveAiMediaAction(mediaId: string): Promise<ActionResul
   if (denied) return denied;
   if (!isUuid(mediaId)) return { ok: false, error: "Imagem inválida." };
   const supabase = await createSessionClient();
-  const { data: current } = await supabase.from("product_media").select("color_job_id").eq("id", mediaId).maybeSingle();
+  const { data: current, error: currentError } = await supabase.from("product_media").select("color_job_id").eq("id", mediaId).maybeSingle();
   if (current?.color_job_id) return { ok: false, error: "Fotos de cor são aprovadas ao publicar a cor (Estúdio, etapa 5)." };
-  const { data, error } = await supabase
-    .from("product_media")
-    .update({ approved_at: new Date().toISOString() })
-    .eq("id", mediaId)
-    .eq("ai_generated", true)
-    .is("color_job_id", null)
-    .select("id");
+  // Banco ainda sem a migração das Cores: não existe foto de cor, aprova como antes.
+  const legacy = missingColorsMigration(currentError);
+  const approve = supabase.from("product_media").update({ approved_at: new Date().toISOString() }).eq("id", mediaId).eq("ai_generated", true);
+  const { data, error } = await (legacy ? approve : approve.is("color_job_id", null)).select("id");
   if (error) return { ok: false, error: friendlyDbError(error) };
   if (!data?.length) return { ok: false, error: "Sem permissão para aprovar esta imagem." };
 

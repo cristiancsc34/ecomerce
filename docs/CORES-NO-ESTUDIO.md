@@ -1,8 +1,14 @@
 # Cores no Estúdio
 
-> Status (05/11/2026): **implementado**, aguardando aplicar as migrações `20261105000100_cores_tipo_de_tarefa.sql` e
-> `20261105000200_cores.sql` no Supabase do Cristian (projeto `cuxoes`) e publicar. **Ordem obrigatória: migrações
-> primeiro, código depois** (o painel lê `product_media.color_job_id`, que só existe depois da migração).
+> Status (07/11/2026): **código publicado em modo seguro**; falta aplicar as migrações
+> `20261105000100_cores_tipo_de_tarefa.sql` e `20261105000200_cores.sql` no Supabase do Cristian (projeto `cuxoes`).
+> Enquanto isso, o painel e a loja funcionam como antes e o passo Cores aparece como “aguardando a atualização do
+> banco”. Aplicadas as migrações, o passo liga sozinho (sem publicar de novo).
+>
+> Por que ainda não foram aplicadas: desde 05–07/11 o Supabase recusa a senha das contas internas do projeto
+> (`postgres` e `supabase_admin`) no canal de gerenciamento (consultas SQL, lista e aplicação de migrações, troca da
+> senha do banco pela API). A loja, o login e as fotos funcionam (usam outras credenciais). Precisa do suporte do
+> Supabase. Aplicar uma de cada vez (a segunda usa o tipo criado pela primeira).
 
 Outra cor do mesmo produto, feita pelo GPT a partir das fotos de catálogo já aprovadas. Fica no Estúdio do painel,
 **etapa 5. Cores (opcional)**, depois do 3D e dos textos. Nunca entra no modo automático: cada cor custa e precisa de

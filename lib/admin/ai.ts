@@ -6,6 +6,7 @@ import { mediaPublicUrl } from "@/lib/catalog/mappers";
 import { isUuid } from "@/lib/catalog/slug";
 import { createSessionClient } from "@/lib/supabase/server";
 import type { AiJobView, AiStudioSnapshot, ColorJobView, ColorPhotoView } from "./ai-types";
+import { selectWithColorsFallback } from "./colors";
 
 /** Um processador é considerado ligado se deu sinal de vida há pouco. */
 const WORKER_ONLINE_MS = 30_000;
@@ -82,17 +83,24 @@ function workerStatus(local: { capabilities: string[]; engines: Record<string, s
 
 export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSnapshot> {
   await requireStaffAction("editor", "itens");
-  if (!isUuid(productId)) return { jobs: [], copyDraft: null, worker: workerStatus([]) };
+  if (!isUuid(productId)) return { jobs: [], colorsReady: true, copyDraft: null, worker: workerStatus([]) };
   const supabase = await createSessionClient();
-  const [{ data: jobs }, { data: workers }] = await Promise.all([
-    supabase
-      .from("ai_jobs")
-      .select(
-        "id,kind,status,input_path,cutout_path,output_media_id,source_media_id,engine,error,details,params,created_at,started_at,finished_at," +
-          "output:product_media!ai_jobs_output_media_id_fkey(storage_path)",
-      )
-      .eq("product_id", productId)
-      .order("created_at"),
+  const columns =
+    "id,kind,status,input_path,cutout_path,output_media_id,source_media_id,engine,error,details,params,created_at,started_at,finished_at," +
+    "output:product_media!ai_jobs_output_media_id_fkey(storage_path)";
+  const [
+    {
+      result: { data: jobs },
+      legacy,
+    },
+    { data: workers },
+  ] = await Promise.all([
+    // Sem a migração das Cores, ai_jobs.params não existe: lê sem ela.
+    selectWithColorsFallback(
+      (cols) => supabase.from("ai_jobs").select(cols).eq("product_id", productId).order("created_at"),
+      columns,
+      columns.replace(",params", ""),
+    ),
     supabase.from("ai_workers").select("capabilities,engines,last_seen_at"),
   ]);
 
@@ -102,7 +110,10 @@ export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSn
   );
 
   const rows = (jobs ?? []) as unknown as JobRow[];
+  const worker = workerStatus(online);
+  if (legacy) worker.capabilities = worker.capabilities.filter((k) => k !== "color_variant");
   return {
+    colorsReady: !legacy,
     copyDraft: rows.map((j) => parseCopyDraft(j.details)).filter(Boolean).at(-1) ?? null,
     jobs: rows.map((j) => ({
       id: j.id,
@@ -128,7 +139,7 @@ export async function getAiStudioSnapshot(productId: string): Promise<AiStudioSn
       startedAt: j.started_at,
       finishedAt: j.finished_at,
     })),
-    worker: workerStatus(online),
+    worker,
   };
 }
 

@@ -150,8 +150,18 @@ async function main() {
   }
   console.log(`Processador ${workerId}: ${kinds.map((k) => `${k} → ${engineNames[k]}`).join("; ")}`);
 
-  const heartbeat = () =>
-    supabase.from("ai_workers").upsert({ id: workerId, capabilities: kinds, engines: engineNames, last_seen_at: new Date().toISOString() });
+  const heartbeat = async () => {
+    const send = () =>
+      supabase.from("ai_workers").upsert({ id: workerId, capabilities: kinds, engines: engineNames, last_seen_at: new Date().toISOString() });
+    const { error } = await send();
+    // Banco ainda sem a migração das Cores: o processador segue sem elas.
+    if (error && kinds.includes("color_variant") && /invalid input value for enum/i.test(error.message ?? "")) {
+      kinds.splice(kinds.indexOf("color_variant"), 1);
+      delete engineNames.color_variant;
+      console.log("Cores desligadas neste processador: o banco ainda não recebeu a atualização das Cores.");
+      await send();
+    }
+  };
   await heartbeat();
   const beat = setInterval(heartbeat, HEARTBEAT_MS);
   await requeueStale(supabase);

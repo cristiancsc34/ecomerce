@@ -1,7 +1,17 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { AiJobView } from "@/lib/admin/ai-types";
-import { CATALOG_VIEW_LABELS, colorBlocker, colorNameTaken, colorSources, catalogAiMedia, parseColorInput, viewOfAlt } from "@/lib/admin/colors";
+import {
+  CATALOG_VIEW_LABELS,
+  colorBlocker,
+  colorNameTaken,
+  colorSources,
+  catalogAiMedia,
+  missingColorsMigration,
+  parseColorInput,
+  selectWithColorsFallback,
+  viewOfAlt,
+} from "@/lib/admin/colors";
 import { serverAddedVariants } from "@/lib/admin/form-values";
 import { studioPipeline } from "@/lib/admin/pipeline";
 import { CATALOG_VIEWS } from "@/scripts/ai-pipeline.mjs";
@@ -139,5 +149,56 @@ describe("cores: formulário aberto enquanto a cor é publicada", () => {
     // Antes: o formulário conhecia só "azul" e "vermelho"; a pessoa tirou "vermelho".
     expect(serverAddedVariants(server, new Set(["azul", "vermelho"]), new Set(["azul"]))).toEqual([{ id: "marrom" }]);
     expect(serverAddedVariants(server, new Set(["azul", "marrom", "vermelho"]), new Set(["azul"]))).toEqual([]);
+  });
+});
+
+describe("cores: banco ainda sem a migração (modo seguro)", () => {
+  // Mensagens reais do Supabase de produção antes da migração (05–07/11/2026).
+  const realErrors = [
+    { code: "42703", message: "column product_media_1.color_job_id does not exist", details: null, hint: null },
+    { code: "42703", message: "column ai_jobs.params does not exist", details: null, hint: null },
+    { code: "22P02", message: 'invalid input value for enum ai_job_kind: "color_variant"', details: null, hint: null },
+  ];
+
+  it("reconhece a falta da migração e nada mais", () => {
+    for (const e of realErrors) expect(missingColorsMigration(e), e.message).toBe(true);
+    for (const e of [null, undefined, { message: "permission denied for table products" }, { message: 'column products.name does not exist' }]) {
+      expect(missingColorsMigration(e)).toBe(false);
+    }
+  });
+
+  it("repete a consulta sem as colunas das Cores só quando o banco não as tem", async () => {
+    const asked: string[] = [];
+    const fake = (missing: boolean) => (columns: string) => {
+      asked.push(columns);
+      return Promise.resolve(
+        missing && columns.includes("color_job_id") ? { data: null, error: realErrors[0] } : { data: [{ id: 1 }], error: null },
+      );
+    };
+    const old = await selectWithColorsFallback(fake(true), "id,color_job_id", "id");
+    expect(old).toEqual({ result: { data: [{ id: 1 }], error: null }, legacy: true });
+    expect(asked).toEqual(["id,color_job_id", "id"]);
+    asked.length = 0;
+    const current = await selectWithColorsFallback(fake(false), "id,color_job_id", "id");
+    expect(current.legacy).toBe(false);
+    expect(asked).toEqual(["id,color_job_id"]);
+    // Outro erro não é escondido.
+    const other = await selectWithColorsFallback(() => Promise.resolve({ data: null, error: { message: "permission denied" } }), "a", "b");
+    expect(other).toMatchObject({ legacy: false, result: { error: { message: "permission denied" } } });
+  });
+
+  it("a etapa Cores fica desligada, com o motivo, até o banco receber a atualização", () => {
+    const step = studioPipeline({
+      jobs: [],
+      now: null,
+      workerOnline: true,
+      capabilities: ["catalog_photos"],
+      uploading: false,
+      catalogMedia: [],
+      copy: { enabled: true, hasCopy: false, writing: false, draftReady: false },
+      model3d: { required: false, auto: false },
+      colors: { published: 0, toReview: 0, ready: false },
+    }).steps.find((s) => s.id === "cores")!;
+    expect(step).toMatchObject({ state: "off", detail: "Aguardando a atualização do banco para ativar as Cores." });
   });
 });

@@ -96,6 +96,7 @@ export function ColorStudio({
   variants,
   productPriceCents,
   blocker,
+  ready = true,
   pendingProgress,
   onMessage,
   onChanged,
@@ -115,6 +116,8 @@ export function ColorStudio({
   productPriceCents: number | null;
   /** Motivo para não poder criar cores neste produto (ou null). */
   blocker: string | null;
+  /** O banco já tem a migração das Cores. */
+  ready?: boolean;
   /** Barra de progresso da tarefa em andamento (desenhada pelo Estúdio). */
   pendingProgress: ReactNode;
   onMessage: (text: string, ok: boolean) => void;
@@ -139,7 +142,7 @@ export function ColorStudio({
   }
   const toReview = jobs.filter((j) => j.status === "succeeded" && j.color && pendingByJob.has(j.id));
   const hex = parseColorInput(color);
-  const canRequest = hydrated && canEdit && !blocker && sources.length > 0 && !pendingJob && (!workerOnline || canColor);
+  const canRequest = hydrated && canEdit && ready && !blocker && sources.length > 0 && !pendingJob && (!workerOnline || canColor);
 
   async function request() {
     setRequesting(true);
@@ -180,7 +183,14 @@ export function ColorStudio({
         </ul>
       ) : null}
 
-      {blocker ? (
+      {!ready ? (
+        <div className="mt-2">
+          <Notice tone="info" title="Cores aguardando a atualização do banco">
+            O passo já está instalado. Ele passa a funcionar assim que o banco receber a atualização das Cores; nada mais
+            precisa ser feito no painel.
+          </Notice>
+        </div>
+      ) : blocker ? (
         <div className="mt-2">
           <Notice tone="warning" title="Este produto não pode ganhar cores agora">
             {blocker}
@@ -196,7 +206,7 @@ export function ColorStudio({
         </div>
       ) : null}
 
-      {canEdit && !blocker && sources.length ? (
+      {canEdit && ready && !blocker && sources.length ? (
         <form
           className="mt-3 grid gap-3 rounded-2xl border border-line bg-cloud p-3 sm:grid-cols-2"
           aria-label="Nova cor"

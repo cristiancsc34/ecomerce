@@ -606,15 +606,12 @@ async function catalogPhotos(supabase, job, product, _inputFile, dir, engines, u
   const shots = await engines.catalogPhotos(references, dir, product, Object.keys(CATALOG_VIEWS));
 
   // Um novo conjunto substitui as imagens anteriores que ninguém aprovou (as aprovadas ficam).
-  // As fotos de cor (passo Cores) não são do catálogo: ficam.
-  const { data: stale } = await supabase
-    .from("product_media")
-    .delete()
-    .eq("product_id", product.id)
-    .eq("ai_generated", true)
-    .is("approved_at", null)
-    .is("color_job_id", null)
-    .select("storage_path");
+  // As fotos de cor (passo Cores) não são do catálogo: ficam. Banco ainda sem a migração das
+  // Cores (sem a coluna color_job_id): não existe foto de cor, apaga como antes.
+  const pendingCatalog = () =>
+    supabase.from("product_media").delete().eq("product_id", product.id).eq("ai_generated", true).is("approved_at", null);
+  let { data: stale, error: staleError } = await pendingCatalog().is("color_job_id", null).select("storage_path");
+  if (staleError && /color_job_id/.test(staleError.message ?? "")) ({ data: stale } = await pendingCatalog().select("storage_path"));
   if (stale?.length) await supabase.storage.from(BUCKET).remove(stale.map((m) => m.storage_path));
 
   const mediaIds = [];
@@ -868,7 +865,13 @@ export async function processJob(supabase, job, engines, engineNames = {}) {
 /** Pega o próximo job que este processador sabe fazer e o processa. */
 export async function processNext(supabase, kinds, engines, engineNames = {}) {
   if (!kinds.length) return null;
-  const { data, error } = await supabase.rpc("claim_ai_job", { p_kinds: kinds });
+  let { data, error } = await supabase.rpc("claim_ai_job", { p_kinds: kinds });
+  // Banco ainda sem a migração das Cores: segue com os outros tipos (e para de pedir cores).
+  if (error && kinds.includes("color_variant") && /invalid input value for enum/i.test(error.message ?? "")) {
+    kinds.splice(kinds.indexOf("color_variant"), 1);
+    if (!kinds.length) return null;
+    ({ data, error } = await supabase.rpc("claim_ai_job", { p_kinds: kinds }));
+  }
   if (error) throw new Error(`Falha ao consultar a fila: ${error.message}`);
   const job = (data ?? [])[0];
   if (!job) return null;

@@ -2,7 +2,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { z } from "zod";
-import { ADMIN_PRODUCT_SELECT } from "@/lib/admin/data";
+import { selectWithColorsFallback } from "@/lib/admin/colors";
+import { ADMIN_PRODUCT_SELECT, ADMIN_PRODUCT_SELECT_LEGACY } from "@/lib/admin/data";
 import { mapProduct, type ProductRow } from "@/lib/catalog/mappers";
 import { copySuggestionSchema, suggestCopy, type CopySuggestion } from "./copy";
 
@@ -51,7 +52,13 @@ export async function photosForCopy(photos: (string | Uint8Array)[]) {
 
 /** Escreve o rascunho a partir das fotos, com os dados confirmados do produto (nada inventado). */
 export async function writeCopyDraft(supabase: SupabaseClient, productId: string, photos: (string | Uint8Array)[]): Promise<CopyDraft> {
-  const { data, error } = await supabase.from("products").select(ADMIN_PRODUCT_SELECT).eq("id", productId).single();
+  const {
+    result: { data, error },
+  } = await selectWithColorsFallback(
+    (columns) => supabase.from("products").select(columns).eq("id", productId).single(),
+    ADMIN_PRODUCT_SELECT,
+    ADMIN_PRODUCT_SELECT_LEGACY,
+  );
   if (error || !data) throw new Error("Produto não encontrado.");
   const suggestion = await suggestCopy({ product: mapProduct(data as unknown as ProductRow), images: await photosForCopy(photos) });
   return { ...suggestion, createdAt: new Date().toISOString() };
