@@ -5,6 +5,13 @@
 > Cristian (projeto `cuxoes`), uma de cada vez, pela API de gerenciamento. O passo Cores ligou sozinho, sem publicar o
 > código de novo.
 >
+> Conferido em produção no mesmo dia:
+> - o esquema é idêntico ao que as migrações do repositório produzem (funções, colunas, regras, políticas e
+>   permissões, objeto por objeto);
+> - o fluxo inteiro rodou no banco real dentro de uma transação desfeita no fim, com 19 de 19 verificações certas:
+>   pedido, processador, publicação, nome repetido, formulário velho, apagar a cor e duplicar;
+> - o Supabase Advisors não aponta nada das Cores. O único aviso é o índice novo ainda sem uso, o que é esperado.
+>
 > Histórico: de 05 a 07/11, o canal de gerenciamento do Supabase recusou a senha das contas internas do projeto
 > (`postgres` e `supabase_admin`). Isso travou as consultas SQL, as migrações e a troca de senha pela API, enquanto a
 > loja, o login e as fotos seguiram funcionando. Em 08/11 voltou ao normal sem nenhuma mudança da nossa parte. Nesse
