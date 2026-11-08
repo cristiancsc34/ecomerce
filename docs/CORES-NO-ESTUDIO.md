@@ -1,14 +1,14 @@
 # Cores no Estúdio
 
-> Status (07/11/2026): **código publicado em modo seguro**; falta aplicar as migrações
-> `20261105000100_cores_tipo_de_tarefa.sql` e `20261105000200_cores.sql` no Supabase do Cristian (projeto `cuxoes`).
-> Enquanto isso, o painel e a loja funcionam como antes e o passo Cores aparece como “aguardando a atualização do
-> banco”. Aplicadas as migrações, o passo liga sozinho (sem publicar de novo).
+> Status (08/11/2026): **ativo**. O código está no ar desde 07/11, e as migrações
+> `20261105000100_cores_tipo_de_tarefa.sql` e `20261105000200_cores.sql` foram aplicadas em 08/11/2026 no Supabase do
+> Cristian (projeto `cuxoes`), uma de cada vez, pela API de gerenciamento. O passo Cores ligou sozinho, sem publicar o
+> código de novo.
 >
-> Por que ainda não foram aplicadas: desde 05–07/11 o Supabase recusa a senha das contas internas do projeto
-> (`postgres` e `supabase_admin`) no canal de gerenciamento (consultas SQL, lista e aplicação de migrações, troca da
-> senha do banco pela API). A loja, o login e as fotos funcionam (usam outras credenciais). Precisa do suporte do
-> Supabase. Aplicar uma de cada vez (a segunda usa o tipo criado pela primeira).
+> Histórico: de 05 a 07/11, o canal de gerenciamento do Supabase recusou a senha das contas internas do projeto
+> (`postgres` e `supabase_admin`). Isso travou as consultas SQL, as migrações e a troca de senha pela API, enquanto a
+> loja, o login e as fotos seguiram funcionando. Em 08/11 voltou ao normal sem nenhuma mudança da nossa parte. Nesse
+> intervalo, o painel funcionou em “modo seguro”: a etapa Cores ficou como “aguardando a atualização do banco”.
 
 Outra cor do mesmo produto, feita pelo GPT a partir das fotos de catálogo já aprovadas. Fica no Estúdio do painel,
 **etapa 5. Cores (opcional)**, depois do 3D e dos textos. Nunca entra no modo automático: cada cor custa e precisa de
@@ -84,8 +84,8 @@ real. **“Descartar estas fotos”** apaga as fotos geradas e a tarefa.
 - **AR da cor**: sem modelo próprio, a câmera abre pelo 3D da tela (pode pedir o segundo toque em rede lenta).
 - Medir a cor por **foto da amostra do tecido** ainda não existe (só seletor, `#RRGGBB` ou RGB).
 - Ligar uma **foto real** a uma cor (para substituir a ilustrativa) ainda não existe no painel.
-- O processador local (opcional) não tem o desvio da nuvem para banco sem a migração: aplicar a migração antes de
-  ligá-lo com esta versão.
+- O processador local (opcional) só funciona com as migrações das Cores aplicadas no banco. No `cuxoes`, já estão
+  aplicadas desde 08/11/2026.
 - “Fotos na loja” mostra as fotos de cor junto das outras; as ações de foto principal e “ilustrativa” não valem para
   elas (o banco recusa com aviso).
 - Aplicar as migrações uma de cada vez (a primeira cria o tipo de tarefa; a segunda usa esse tipo e não pode estar na
