@@ -5,9 +5,7 @@
  * produto sem cadastrar cores que a loja não vende.
  *
  *   npm run demo:variantes          # fotos recoloridas por computador (grátis, na hora)
- *   npm run demo:variantes:gpt      # tom da cor pelo GPT (OPENAI_API_KEY aqui, ou
- *                                   #   CORES_GPT_URL=https://cuxoes.vercel.app/api/interno/cores-exemplo
- *                                   #   + CORES_GPT_SENHA: o GPT roda no site, com a chave do servidor)
+ *   npm run demo:variantes:gpt      # tom da cor pelo GPT (precisa de OPENAI_API_KEY aqui)
  *
  * As fotos que o GPT devolve ficam em ai/cache/cores-gpt (fora do git): rodar de novo reaproveita e só paga o
  * que faltou. Para pedir de novo uma cor que o GPT errou: --refazer=vermelho (ou várias, separadas por vírgula).
@@ -652,8 +650,6 @@ async function gptPhotos(color, engine, report, { redo = false, gptPhotosAsIs = 
         await writeFile(cached, generated);
         shots.push({ view, original, generated });
       } catch (e) {
-        // Senha errada, rota fora do ar ou sem chave: tentar os outros ângulos não muda nada.
-        if (FATAL_SITE_STATUS.has(e?.status)) throw e;
         const error = (e instanceof Error ? e.message : String(e)).slice(0, 200);
         console.log(`${color.name} · ${view}: sem foto do GPT (${error})`);
         shots.push({ view, original, error });
@@ -706,65 +702,6 @@ async function gptPhotos(color, engine, report, { redo = false, gptPhotosAsIs = 
   }
 }
 
-/**
- * Motor que pede a foto ao site (rota temporária /api/interno/cores-exemplo), que chama o GPT com a chave do
- * servidor: a chave nunca vem para cá. Mesmo formato do openaiRecolorEngine.
- */
-export function siteRecolorEngine(url, password, { fetchImpl = fetch, retryWaitMs = 20_000 } = {}) {
-  const ask = (body) =>
-    fetchImpl(url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${password}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      // A função da Vercel vive até 300 s; um pouco de folga para a resposta chegar.
-      signal: AbortSignal.timeout(310_000),
-    });
-  return {
-    async recolor(inputFile, _colorName, hex, output) {
-      const vista = path.basename(inputFile).replace(/^poltrona-azul-/, "").replace(/\.jpg$/, "");
-      const cor = EXAMPLE_COLORS.find((c) => c.hex === hex)?.slug;
-      let res = await ask({ cor, vista });
-      // Limite de pedidos da OpenAI: a rota não repete (prazo de 300 s); aqui, sem prazo, espera e repete uma vez.
-      if (res.status === 429) {
-        await new Promise((r) => setTimeout(r, retryWaitMs));
-        res = await ask({ cor, vista });
-      }
-      if (!res.ok) throw await siteError(res);
-      const type = res.headers.get("content-type") ?? "";
-      if (!type.startsWith("image/")) {
-        const error = new Error(`Site: a resposta não é uma imagem (${type || "sem tipo"}, ${res.status})`);
-        error.status = res.status;
-        throw error;
-      }
-      await writeFile(output, Buffer.from(await res.arrayBuffer()));
-    },
-    /** Confere, sem custo, que a rota está no ar, aberta, com a senha certa e com a chave: {} tem de dar 400. */
-    async check() {
-      const res = await ask({});
-      if (res.status === 400) return;
-      throw await siteError(res);
-    },
-  };
-}
-
-/** Respostas do site que não mudam tentando de novo (param tudo antes de regravar arquivos). */
-const FATAL_SITE_STATUS = new Set([401, 403, 404, 503]);
-
-async function siteError(res) {
-  const body = await res.json().catch(() => null);
-  const hint = {
-    401: body?.error
-      ? "senha errada (CORES_GPT_SENHA)"
-      : "bloqueado pela proteção da Vercel: use https://cuxoes.vercel.app/api/interno/cores-exemplo",
-    403: "bloqueado pela Vercel",
-    404: "a rota não está no site (falta publicar em produção) ou já fechou (08/11/2026)",
-    503: "a OPENAI_API_KEY não está no servidor",
-  }[res.status];
-  const error = new Error(`Site: ${body?.error ?? `erro ${res.status}`}${hint ? ` — ${hint}` : ""}`.slice(0, 300));
-  error.status = res.status;
-  return error;
-}
-
 async function main(args) {
   await mkdir(OUT, { recursive: true });
   const useGpt = args.includes("--gpt");
@@ -776,28 +713,12 @@ async function main(args) {
   const redo = new Set((args.find((a) => a.startsWith("--refazer="))?.slice(10) ?? "").split(",").filter(Boolean));
   let engine = null;
   if (useGpt) {
-    const { CORES_GPT_URL: url, CORES_GPT_SENHA: password, OPENAI_API_KEY: key } = process.env;
-    if (Boolean(url) !== Boolean(password)) {
-      console.error(`Falta ${url ? "CORES_GPT_SENHA" : "CORES_GPT_URL"} (as duas vão juntas para o GPT rodar no site).`);
-      process.exit(1);
-    }
-    if (url && password) {
-      engine = siteRecolorEngine(url, password);
-      try {
-        await engine.check();
-      } catch (e) {
-        console.error(e instanceof Error ? e.message : e);
-        process.exit(1);
-      }
-      console.log(`GPT pelo site (${new URL(url).host}, com a chave do servidor).`);
-    } else if (key) {
+    if (process.env.OPENAI_API_KEY) {
       const { openaiRecolorEngine } = await import("./ai-pipeline.mjs");
       engine = openaiRecolorEngine();
       console.log("GPT com a OPENAI_API_KEY daqui.");
     } else {
-      console.error(
-        "Modo --gpt precisa de OPENAI_API_KEY, ou de CORES_GPT_URL e CORES_GPT_SENHA (o GPT roda no site, com a chave do servidor). Sem elas, rode sem --gpt (recolor por computador).",
-      );
+      console.error("Modo --gpt precisa de OPENAI_API_KEY. Sem ela, rode sem --gpt (recolor por computador).");
       process.exit(1);
     }
   }

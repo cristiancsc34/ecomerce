@@ -88,15 +88,12 @@ encaixar quando o provedor for escolhido.
   adulteração de foto fiel refeita — sofá ou almofadas acrescentados, apoio de cabeça apagado, madeira mais escura e
   estampas passavam, e uma foto fiel deslocada 12 px era recusada. Calibrado com 41 casos (fiéis refeitas, cor
   errada, foto que não corresponde) e testado em `tests/unit/variantes-gpt.test.ts`. Relatório por cor e por foto em
-  `public/demo/exemplo/relatorio-gpt.json`. **Sem a chave aqui:** a `OPENAI_API_KEY` da Vercel é protegida e só
-  existe no servidor de produção, então o GPT pode rodar lá: a rota temporária `POST /api/interno/cores-exemplo`
-  (`lib/ai/cores-exemplo.ts`) gera a foto da Poltrona Azul numa das 4 cores de exemplo e devolve a imagem; o script
-  usa `CORES_GPT_URL` e `CORES_GPT_SENHA` no lugar da chave. A rota só aceita a senha (no código vai só o SHA-256),
-  não aceita outra foto, cor ou instrução e fecha sozinha em 08/11/2026. `CORES_GPT_URL` tem de ser o domínio de
-  produção (`https://cuxoes.vercel.app/api/interno/cores-exemplo`): prévias e a URL gerada de cada deploy ficam atrás
-  da proteção da Vercel e não têm a chave. O script confere a rota antes (sem custo) e para se a senha, a publicação
-  ou a chave estiverem faltando. As fotos que o GPT devolve ficam em `ai/cache/cores-gpt` (fora do git): rodar de
-  novo só paga o que faltou; `--refazer=vermelho` pede de novo uma cor. **Fotos de exemplo atuais (04/11/2026):**
+  `public/demo/exemplo/relatorio-gpt.json`. **Para gerar de novo com o GPT:** é preciso a `OPENAI_API_KEY` na
+  máquina que roda o script. A chave da Vercel é protegida e só existe no servidor de produção. As fotos atuais foram
+  geradas por uma rota temporária do site (`POST /api/interno/cores-exemplo`), que usava a chave do servidor e foi
+  retirada em 08/11/2026, depois de cumprir o papel. As fotos que o GPT devolve ficam em `ai/cache/cores-gpt` (fora do
+  git), e rodar de novo só paga o que faltou. Para pedir de novo uma cor, use `--refazer=vermelho`. **Fotos de
+  exemplo atuais (04/11/2026):**
   geradas pelo GPT do site e usadas como o GPT entregou (`--fotos-do-gpt`), por escolha do Cristian depois de
   comparar com a versão repintada. As 4 cores passaram no alinhamento e na cor (ΔE 5–6,5), e as 16 fotos foram
   conferidas uma a uma com as originais: mesma forma, madeira, ripas, parafusos, sapatas, fundo e sombra, nada
