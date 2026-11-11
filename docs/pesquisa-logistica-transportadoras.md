@@ -42,7 +42,7 @@ Exemplos encontrados em buscas (preços podem ter mudado):
 - Mercado Livre
 - MadeiraMadeira
 
-**Localização:** uma página no Facebook cita Umuarama (PR), mas a equipe confirmou que **a loja não fica em Umuarama**. Defina a transportadora mais próxima a partir do CEP de origem real.
+**Origem dos envios:** o galpão de distribuição da nossa loja fica em **Maringá-PR**, com envios para todo o Brasil. A JAW (Cianorte) é a transportadora da lista mais próxima do galpão.
 
 ### Por que o frete de sofá é diferente
 
