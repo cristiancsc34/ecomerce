@@ -10,16 +10,16 @@
 
 | Empresa | Telefone principal | WhatsApp | E-mail | Cotação online |
 |---|---|---|---|---|
-| **Rodonaves (RTE)** | — | ✅ (16) 4000-2345 | ✅ sac@rte.com.br | ✅ rodonaves.com.br/express |
-| **Braspress** | ✅ (11) 3429-3333 (matriz) · ✅ 0800 775 3333 | ✅ (11) 2223-3500 | ✅ sac@braspress.com | ✅ braspress.com/acesso-rapido/cotacao-online |
-| **Jamef** | — | ✅ (11) 2121-6366 | — | ✅ formulário em jamef.com.br |
+| **Rodonaves (RTE)** | — | ✅ (16) 4000-2345 (atendimento de entregas) | ✅ sac@rte.com.br | ✅ rodonaves.com.br/express · comercial: "Fale com um consultor" em rodonaves.com.br/carga-fracionada |
+| **Braspress** | ✅ (11) 3429-3333 (matriz) · ✅ 0800 775 3333 | ✅ (11) 2223-3500 (assistente virtual) | ✅ sac@braspress.com | ✅ cotação online exige cadastro (CNPJ) antes |
+| **Jamef** | ✅ (11) 2121-6100 (matriz) · ✅ 0800 707 8333 | ✅ (11) 2121-6366 | ✅ comercial@sao.jamef.com.br (um por unidade) | ✅ "Quero ser cliente" em jamef.com.br/contato |
 | **Bauer Express** | ✅ 0800 707 1950 (SAC) · ✅ (49) 3319-3000 | ✅ (49) 99109-2267 | — | ✅ bauerexpress.com.br/area-do-cliente/solicite-sua-cotacao |
 | **Tecmar** (forte no Nordeste) | ✅ (11) 3613-5922 (matriz) | — | — | Portal do cliente em tecmartransportes.com.br |
 | **JAW Transportes** | ✅ (44) 3631-9379 · ✅ (44) 99739-3357 | ✅ (44) 3631-9379 | ✅ cianorte@jawtransportes.com.br | ✅ jawtransportes.com.br/cotacao |
 | **Giovana Transportes** | ⚠️ empresa não identificada com certeza (ver seção 4.7) | — | — | — |
 | **Mercado Pago** | ✅ 0800 637 7246 (pede código de atendimento gerado no app) | — | — | — |
 | **Mercado Livre** | Sem telefone público para vendedor. O contato é pela Central de Ajuda dentro da conta | — | — | — |
-| **MadeiraMadeira** | ✅ 0800 080 0099 (SAC) | ✅ (41) 7403-1865 | — | Cadastro de lojista: madeiramadeira.com.br/marketplace |
+| **MadeiraMadeira** | (0800 e WhatsApp do site são televendas, não lojista) | — | — | Cadastro de lojista: madeiramadeira.com.br/marketplace · chamado: madeiramadeira.zendesk.com |
 | **Melhor Envio** | — | — | contato@melhorenvio.com | chat em melhorenvio.com.br |
 | **Frenet** | — | — | suporte@frenet.com.br | formulário comercial: frenet.com.br/suporte |
 
@@ -42,7 +42,7 @@ Exemplos encontrados em buscas (preços podem ter mudado):
 - Mercado Livre
 - MadeiraMadeira
 
-**Localização:** uma página da marca no Facebook indica **Umuarama (PR)**, R. Mário Dutra Costa, 2414. ⚠️ Não achei CNPJ nem endereço no site oficial, então confirme. Se a origem for mesmo o **noroeste do Paraná**, a JAW (Cianorte) é a transportadora mais próxima da lista.
+**Localização:** uma página no Facebook cita Umuarama (PR), mas a equipe confirmou que **a loja não fica em Umuarama**. Defina a transportadora mais próxima a partir do CEP de origem real.
 
 ### Por que o frete de sofá é diferente
 
@@ -88,6 +88,7 @@ O repositório tem **um único arquivo**: `ecomerce/index.html`. É um modelo ge
 | Unidades (busca por cidade) | ✅ https://rodonaves.com.br/unidades |
 | Cidades atendidas | ✅ https://rodonaves.com.br/cidades-atendidas |
 | Cotação online | ✅ "em menos de 2 minutos", pelo **Rodonaves Express**: https://rodonaves.com.br/express |
+| Comercial | ✅ formulário **"Fale com um consultor"** em https://rodonaves.com.br/carga-fracionada (pede frequência de envio e estados de destino) |
 | Serviços | Carga fracionada, carga dedicada, aéreo, armazenagem |
 
 **Para a Trama:** o **Rodonaves Express** é a operação digital do grupo para pequenas e médias empresas, com cotação, coleta agendada e rastreio online. É um bom começo para comparar preço sem depender de vendedor. Na unidade, peça a tabela para e-commerce e confirme a entrega residencial.
@@ -100,9 +101,9 @@ O repositório tem **um único arquivo**: `ecomerce/index.html`. É um modelo ge
 | Matriz | ✅ Rod. Presidente Dutra, km 217,8, Cumbica, Guarulhos-SP, CEP 07180-903 · **(11) 3429-3333** |
 | São Paulo e região | ✅ **(11) 2223-3500** (o site lista essa linha junto da Central de Cobrança) |
 | Demais regiões | ✅ **0800 775 3333** |
-| WhatsApp | ✅ **(11) 2223-3500** · https://wa.me/551122233500 |
+| WhatsApp | ✅ **(11) 2223-3500**, atendido pela Romilda (assistente virtual) |
 | E-mail SAC | ✅ sac@braspress.com |
-| Cotação online | ✅ https://www.braspress.com/acesso-rapido/cotacao-online/ |
+| Cotação online | ✅ https://www.braspress.com/acesso-rapido/cotacao-online/. Exige login: antes, peça acesso (cadastro com CNPJ) em https://www.braspress.com/area-do-cliente/minha-conta/solicite-seu-acesso/ |
 | Filiais | ✅ https://www.braspress.com/acesso-rapido/nossas-filiais/ |
 | Serviços | Rodoviário, aéreo, **transporte para e-commerce**, rodofluvial, internacional |
 
@@ -114,9 +115,10 @@ O repositório tem **um único arquivo**: `ecomerce/index.html`. É um modelo ge
 |---|---|
 | Site | ✅ https://www.jamef.com.br |
 | WhatsApp | ✅ **(11) 2121-6366** · https://wa.me/551121216366 |
-| Cotação | ✅ formulário de "solicitação de cotação de frete" no site |
-| Outros serviços no site | Prazo de entrega (rodoviário e aéreo), rastreamento, "difícil acesso" (consulta de áreas com restrição), fale conosco |
-| Unidades citadas em diretórios | ⚠️ Joinville-SC (47) 3205-5300 · Aparecida de Goiânia-GO (62) 3605-5500 |
+| Novo cliente | ✅ formulário em https://www.jamef.com.br/contato com a opção **"Quero ser cliente"** |
+| Comercial | ✅ cada unidade tem e-mail comercial próprio. Matriz SP: (11) 2121-6100 · comercial@sao.jamef.com.br. Lista completa em `docs/mensagens-prontas-contatos.md` |
+| SAC | ✅ 0800 707 8333 |
+| Outros serviços no site | Prazo de entrega (rodoviário e aéreo), rastreamento, "difícil acesso" (consulta de áreas com restrição) |
 
 **Para a Trama:** o site tem uma ferramenta de **áreas de difícil acesso**. Consulte os CEPs de destino antes de prometer prazo ao cliente.
 
@@ -178,7 +180,7 @@ O repositório tem **um único arquivo**: `ecomerce/index.html`. É um modelo ge
 | Boa Vista-RR | (95) 3015-6248 |
 | Santos-SP | (site não informa telefone) |
 
-**Para a Trama:** é a melhor rede da lista para **vender no Nordeste**. A unidade paranaense é a de Curitiba. Pergunte se coletam no **interior do PR** (noroeste) ou se precisa de redespacho, por exemplo com a JAW até Curitiba.
+**Para a Trama:** é a melhor rede da lista para **vender no Nordeste**. A unidade paranaense é a de Curitiba. Pergunte se coletam na sua cidade de origem ou se é preciso levar a carga até a filial mais próxima.
 
 ### 4.6 JAW Transportes
 
@@ -193,7 +195,7 @@ O repositório tem **um único arquivo**: `ecomerce/index.html`. É um modelo ge
 | Filial Maringá | ⚠️ (44) 99184-7917, segundo diretório |
 | Serviços | Carga fechada (veículo exclusivo), carga fracionada, atendimento personalizado. Atua desde 2004 |
 
-**Para a Trama:** é **regional e fica perto da fábrica** (noroeste do PR). Serve para entregas no Paraná, para **cargas fechadas** (vários sofás para um lojista ou showroom) e como **coleta/transferência** até o terminal de uma transportadora nacional.
+**Para a Trama:** é **regional** (noroeste do PR). Vale a pena se a origem for no Paraná. Serve para entregas no estado, para **cargas fechadas** (vários sofás para um lojista ou showroom) e como **coleta/transferência** até o terminal de uma transportadora nacional.
 
 ### 4.7 Giovana Transportes ⚠️ não identificada com certeza
 
@@ -241,8 +243,9 @@ O Mercado Pago avisa que **nunca pede senha, código ou dados de cartão por tel
 | | |
 |---|---|
 | Cadastro e informações para lojista | https://www.madeiramadeira.com.br/marketplace |
-| SAC | ✅ 0800 080 0099 |
-| WhatsApp | ✅ (41) 7403-1865 |
+| Suporte a lojista | ✅ chamado em https://madeiramadeira.zendesk.com/hc/pt-br/requests/new |
+| Logística | A página do marketplace cita o **Madeira Envios** |
+| Atenção | O 0800 080 0099 e o WhatsApp (41) 7403-1865 são **televendas** (canal de compra), não atendimento a lojista |
 | Repasse | Ciclo do dia 26 de um mês ao dia 25 do mês seguinte (página do marketplace) |
 
 **Uso para a Trama:** é o canal mais alinhado ao produto (móveis e decoração). Pergunte ao suporte de lojista se existe **logística própria para volumosos** ou se a entrega fica com a loja.
