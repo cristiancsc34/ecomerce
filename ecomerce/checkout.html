@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finalizar compra | AzConfort</title>
+    <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#0E2F3D">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/loja.css">
+    <link rel="stylesheet" href="assets/css/checkout.css">
+</head>
+<body class="checkout-page">
+    <div class="test-banner" id="bannerTeste" role="note" hidden>
+        <svg class="ico" aria-hidden="true"><use href="assets/icones.svg#ic-info"/></svg>
+        <span id="bannerTesteTexto">Ambiente de testes: nenhum pagamento real é cobrado.</span>
+    </div>
+
+    <header class="checkout-header">
+        <div class="container checkout-header-inner">
+            <a href="index.html" class="logo" aria-label="AzConfort, voltar à loja">
+                <svg viewBox="0 0 5243 765" aria-hidden="true"><use href="assets/icones.svg#logo-wordmark" width="5243" height="765"/></svg>
+            </a>
+            <span class="checkout-seguro">
+                <svg class="ico" aria-hidden="true"><use href="assets/icones.svg#ic-lock-simple"/></svg>
+                Pagamento seguro
+            </span>
+        </div>
+    </header>
+
+    <main class="container checkout" id="principal">
+        <!-- Carrinho vazio -->
+        <section class="checkout-vazio" id="checkoutVazio" hidden>
+            <div class="cart-empty-icon"><svg class="ico" aria-hidden="true"><use href="assets/icones.svg#ic-shopping-cart-simple"/></svg></div>
+            <h1>Seu carrinho está vazio</h1>
+            <p>Adicione produtos para finalizar a compra.</p>
+            <a href="index.html" class="btn btn-primary">Ver produtos</a>
+        </section>
+
+        <div class="checkout-grid" id="checkoutConteudo" hidden>
+            <div class="checkout-etapas">
+                <a href="index.html#carrinho" class="voltar">
+                    <svg class="ico" aria-hidden="true"><use href="assets/icones.svg#ic-arrow-left"/></svg>
+                    Voltar ao carrinho
+                </a>
+                <h1 class="checkout-titulo">Finalizar compra</h1>
+
+                <!-- 1. Dados -->
+                <section class="etapa" id="etapa1" data-etapa="1" aria-labelledby="etapa1Titulo">
+                    <header class="etapa-cabecalho">
+                        <span class="etapa-num" aria-hidden="true">1</span>
+                        <h2 id="etapa1Titulo">Seus dados</h2>
+                        <button type="button" class="etapa-editar" data-editar="1" hidden>Editar</button>
+                    </header>
+                    <div class="etapa-resumo" id="resumo1" hidden></div>
+                    <form class="etapa-form" id="formDados" novalidate>
+                        <div class="campos">
+                            <div class="campo campo-full">
+                                <label for="nome">Nome completo</label>
+                                <input class="input" id="nome" name="nome" autocomplete="name" required>
+                                <p class="campo-erro" id="nome-erro"></p>
+                            </div>
+                            <div class="campo campo-full">
+                                <label for="email">E-mail</label>
+                                <input class="input" id="email" name="email" type="email" autocomplete="email" inputmode="email" required>
+                                <p class="campo-ajuda">Usaremos este e-mail para falar com você sobre o pedido.</p>
+                                <p class="campo-erro" id="email-erro"></p>
+                            </div>
+                            <div class="campo">
+                                <label for="cpf">CPF</label>
+                                <input class="input" id="cpf" name="cpf" inputmode="numeric" placeholder="000.000.000-00" required>
+                                <p class="campo-erro" id="cpf-erro"></p>
+                            </div>
+                            <div class="campo">
+                                <label for="telefone">Celular (com DDD)</label>
+                                <input class="input" id="telefone" name="telefone" type="tel" autocomplete="tel-national" inputmode="tel" placeholder="(00) 00000-0000" required>
+                                <p class="campo-erro" id="telefone-erro"></p>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-dark">Continuar</button>
+                    </form>
+                </section>
+
+                <!-- 2. Entrega -->
+                <section class="etapa" id="etapa2" data-etapa="2" aria-labelledby="etapa2Titulo">
+                    <header class="etapa-cabecalho">
+                        <span class="etapa-num" aria-hidden="true">2</span>
+                        <h2 id="etapa2Titulo">Entrega</h2>
+                        <button type="button" class="etapa-editar" data-editar="2" hidden>Editar</button>
+                    </header>
+                    <div class="etapa-resumo" id="resumo2" hidden></div>
+                    <form class="etapa-form" id="formEntrega" novalidate hidden>
+                        <div class="campos">
+                            <div class="campo">
+                                <label for="cep">CEP</label>
+                                <input class="input" id="cep" name="cep" inputmode="numeric" autocomplete="postal-code" placeholder="00000-000" required>
+                                <p class="campo-ajuda"><a class="link-pequeno" href="https://buscacepinter.correios.com.br/app/endereco/index.php" target="_blank" rel="noopener">Não sei meu CEP</a></p>
+                                <p class="campo-erro" id="cep-erro"></p>
+                            </div>
+                            <div class="campo campo-full">
+                                <label for="logradouro">Rua / Avenida</label>
+                                <input class="input" id="logradouro" name="logradouro" autocomplete="address-line1" required>
+                                <p class="campo-erro" id="logradouro-erro"></p>
+                            </div>
+                            <div class="campo">
+                                <label for="numero">Número</label>
+                                <input class="input" id="numero" name="numero" required>
+                                <p class="campo-erro" id="numero-erro"></p>
+                            </div>
+                            <div class="campo">
+                                <label for="complemento">Complemento <span class="opcional">(opcional)</span></label>
+                                <input class="input" id="complemento" name="complemento" autocomplete="address-line2" placeholder="Apto, bloco, referência">
+                            </div>
+                            <div class="campo">
+                                <label for="bairro">Bairro</label>
+                                <input class="input" id="bairro" name="bairro" required>
+                                <p class="campo-erro" id="bairro-erro"></p>
+                            </div>
+                            <div class="campo">
+                                <label for="cidade">Cidade</label>
+                                <input class="input" id="cidade" name="cidade" autocomplete="address-level2" required>
+                                <p class="campo-erro" id="cidade-erro"></p>
+                            </div>
+                            <div class="campo">
+                                <label for="uf">Estado</label>
+                                <select class="select" id="uf" name="uf" autocomplete="address-level1" required></select>
+                                <p class="campo-erro" id="uf-erro"></p>
+                            </div>
+                        </div>
+
+                        <fieldset class="frete-checkout" id="freteCheckout" hidden>
+                            <legend>Como você quer receber?</legend>
+                            <div id="freteCheckoutOpcoes"></div>
+                            <p class="campo-erro" id="frete-erro"></p>
+                        </fieldset>
+
+                        <button type="submit" class="btn btn-dark">Continuar</button>
+                    </form>
+                </section>
+
+                <!-- 3. Pagamento -->
+                <section class="etapa" id="etapa3" data-etapa="3" aria-labelledby="etapa3Titulo">
+                    <header class="etapa-cabecalho">
+                        <span class="etapa-num" aria-hidden="true">3</span>
+                        <h2 id="etapa3Titulo">Pagamento</h2>
+                    </header>
+                    <form class="etapa-form" id="formPagamento" novalidate hidden>
+                        <div class="metodos" role="radiogroup" aria-label="Forma de pagamento">
+                            <label class="metodo">
+                                <input type="radio" name="metodo" value="pix" checked>
+                                <svg class="ico" aria-hidden="true"><use href="assets/icones.svg#ic-pix-logo"/></svg>
+                                <span>Pix</span>
+                            </label>
+                            <label class="metodo">
+                                <input type="radio" name="metodo" value="cartao">
+                                <svg class="ico" aria-hidden="true"><use href="assets/icones.svg#ic-credit-card"/></svg>
+                                <span>Cartão de crédito</span>
+                            </label>
+                            <label class="metodo">
+                                <input type="radio" name="metodo" value="boleto">
+                                <svg class="ico" aria-hidden="true"><use href="assets/icones.svg#ic-barcode"/></svg>
+                                <span>Boleto</span>
+                            </label>
+                        </div>
+
+                        <div class="metodo-painel" data-painel="pix">
+                            <p>Após finalizar, você recebe o código Pix para pagar no app do seu banco. A aprovação é imediata.</p>
+                            <p class="metodo-valor" id="valorPix"></p>
+                        </div>
+
+                        <div class="metodo-painel" data-painel="cartao" hidden>
+                            <div class="campos">
+                                <div class="campo campo-full">
+                                    <label for="cartaoNumero">Número do cartão</label>
+                                    <div class="input-com-bandeira">
+                                        <input class="input" id="cartaoNumero" inputmode="numeric" autocomplete="cc-number" placeholder="0000 0000 0000 0000">
+                                        <span class="bandeira" id="bandeira" aria-live="polite"></span>
+                                    </div>
+                                    <p class="campo-erro" id="cartaoNumero-erro"></p>
+                                </div>
+                                <div class="campo campo-full">
+                                    <label for="cartaoNome">Nome impresso no cartão</label>
+                                    <input class="input" id="cartaoNome" autocomplete="cc-name">
+                                    <p class="campo-erro" id="cartaoNome-erro"></p>
+                                </div>
+                                <div class="campo">
+                                    <label for="cartaoValidade">Validade</label>
+                                    <input class="input" id="cartaoValidade" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/AA">
+                                    <p class="campo-erro" id="cartaoValidade-erro"></p>
+                                </div>
+                                <div class="campo">
+                                    <label for="cartaoCvv">Código de segurança</label>
+                                    <input class="input" id="cartaoCvv" inputmode="numeric" autocomplete="cc-csc" placeholder="CVV">
+                                    <p class="campo-erro" id="cartaoCvv-erro"></p>
+                                </div>
+                                <div class="campo campo-full">
+                                    <label for="parcelas">Parcelas</label>
+                                    <select class="select" id="parcelas"></select>
+                                </div>
+                            </div>
+                            <p class="campo-ajuda">
+                                <svg class="ico ico-inline" aria-hidden="true"><use href="assets/icones.svg#ic-shield-check"/></svg>
+                                Os dados do cartão são protegidos e não ficam guardados na loja.
+                            </p>
+                        </div>
+
+                        <div class="metodo-painel" data-painel="boleto" hidden>
+                            <p>O boleto vence em <strong id="diasBoleto">3</strong> dias. Após o pagamento, a confirmação pode levar até 3 dias úteis.</p>
+                        </div>
+
+                        <p class="form-erro" id="pagamentoErro" role="alert" hidden></p>
+                        <button type="submit" class="btn btn-primary btn-block btn-finalizar" id="btnFinalizar">
+                            <svg class="ico" aria-hidden="true"><use href="assets/icones.svg#ic-lock-simple"/></svg>
+                            <span>Finalizar pedido</span>
+                        </button>
+                    </form>
+                </section>
+            </div>
+
+            <!-- Resumo -->
+            <aside class="checkout-resumo" aria-labelledby="resumoTitulo">
+                <div class="resumo-card">
+                    <h2 id="resumoTitulo">Resumo do pedido</h2>
+                    <ul class="resumo-itens" id="resumoItens"></ul>
+                    <dl class="cart-totais" id="resumoTotais"></dl>
+                    <a href="index.html#carrinho" class="link-pequeno">Editar carrinho</a>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Confirmação -->
+        <section class="confirmacao" id="confirmacao" hidden tabindex="-1" aria-live="polite"></section>
+    </main>
+
+    <script type="module" src="assets/js/checkout.js"></script>
+</body>
+</html>

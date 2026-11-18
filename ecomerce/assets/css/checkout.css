@@ -1,0 +1,188 @@
+/* AzConfort: checkout */
+.checkout-page { background: var(--sand-50); }
+
+.test-banner {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 9px 16px;
+    background: var(--coral-100);
+    color: var(--coral-700);
+    font-size: 0.85rem; font-weight: 600; text-align: center;
+}
+.test-banner .ico { width: 18px; height: 18px; flex-shrink: 0; --ic-accent-op: 0; }
+
+.checkout-header { background: var(--petrol-900); padding: 16px 0; }
+.checkout-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.checkout-seguro { display: inline-flex; align-items: center; gap: 6px; color: rgba(255, 255, 255, 0.85); font-size: 0.88rem; font-weight: 600; }
+.checkout-seguro .ico { width: 18px; height: 18px; color: var(--coral-500); }
+
+.checkout { padding-top: 24px; padding-bottom: 64px; }
+.checkout-grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px; align-items: start; }
+
+.voltar { display: inline-flex; align-items: center; gap: 6px; color: var(--petrol-700); font-weight: 600; font-size: 0.9rem; text-decoration: none; }
+.voltar .ico { width: 16px; height: 16px; }
+.voltar:hover { text-decoration: underline; }
+
+.checkout-titulo { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.5rem, 3vw, 1.9rem); letter-spacing: -0.02em; color: var(--petrol-900); margin: 10px 0 18px; }
+
+/* Etapas */
+.etapa {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 20px 22px;
+    margin-bottom: 14px;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+}
+.etapa.ativa { border-color: var(--petrol-900); }
+.etapa.bloqueada { opacity: 0.6; }
+.etapa-cabecalho { display: flex; align-items: center; gap: 12px; }
+.etapa-cabecalho h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.12rem; color: var(--petrol-900); flex: 1; }
+.etapa-num {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--sand-100); color: var(--petrol-900);
+    font-family: var(--font-display); font-weight: 800; font-size: 0.9rem;
+}
+.etapa.ativa .etapa-num { background: var(--petrol-900); color: var(--white); }
+.etapa.concluida .etapa-num { background: var(--success); color: var(--white); }
+.etapa-editar {
+    border: none; background: none; cursor: pointer;
+    color: var(--petrol-700); font-family: inherit; font-weight: 600; font-size: 0.9rem; text-decoration: underline;
+}
+.etapa-resumo { margin: 10px 0 0 42px; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
+.etapa-resumo strong { color: var(--ink); }
+.resumo-frete { display: flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--petrol-900); font-weight: 600; }
+.resumo-frete .ico { width: 18px; height: 18px; }
+.etapa-form { margin-top: 18px; }
+
+.campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; margin-bottom: 18px; }
+.campo-full { grid-column: 1 / -1; }
+.campo label { display: block; font-weight: 600; font-size: 0.88rem; color: var(--petrol-900); margin-bottom: 6px; }
+.opcional { font-weight: 400; color: var(--muted); }
+.campo-ajuda { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 0.8rem; color: var(--muted); }
+.campo-erro { margin-top: 6px; font-size: 0.82rem; color: #B42318; font-weight: 500; }
+.campo-erro:empty { display: none; }
+.ico-inline { width: 16px; height: 16px; flex-shrink: 0; }
+
+.frete-checkout { border: none; margin: 0 0 18px; }
+.frete-checkout legend { font-family: var(--font-display); font-weight: 800; color: var(--petrol-900); margin-bottom: 14px; }
+.frete-checkout .frete-opcoes { gap: 12px; }
+
+/* Pagamento */
+.metodos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+.metodo {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 14px 8px;
+    border: 1.5px solid var(--sand-200);
+    border-radius: var(--radius-sm);
+    cursor: pointer; text-align: center;
+    font-weight: 600; font-size: 0.88rem; color: var(--petrol-900);
+    transition: border-color 0.2s, background 0.2s;
+}
+.metodo input { position: absolute; opacity: 0; pointer-events: none; }
+.metodo .ico { width: 26px; height: 26px; }
+.metodo:hover { border-color: var(--petrol-700); }
+.metodo:has(input:checked) { border-color: var(--petrol-900); background: var(--petrol-100); }
+.metodo:has(input:focus-visible) { outline: 3px solid var(--coral-500); outline-offset: 2px; }
+
+.metodo-painel { margin-bottom: 18px; color: var(--muted); font-size: 0.93rem; }
+.metodo-painel > p + p { margin-top: 8px; }
+.metodo-valor { font-family: var(--font-display); font-weight: 800; color: var(--petrol-900); font-size: 1.05rem; }
+
+.input-com-bandeira { position: relative; }
+.input-com-bandeira .input { padding-right: 110px; }
+.bandeira {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    font-family: var(--font-display); font-weight: 800; font-size: 0.8rem; color: var(--petrol-700);
+}
+
+.form-erro {
+    display: flex; gap: 8px; align-items: flex-start;
+    padding: 12px 14px; margin-bottom: 14px;
+    border-radius: var(--radius-sm);
+    background: #FEF3F2; color: #B42318; font-size: 0.9rem; font-weight: 500;
+}
+.form-erro .ico { width: 20px; height: 20px; flex-shrink: 0; --ic-accent-op: 0; }
+
+.btn-finalizar { padding: 16px; font-size: 1.02rem; }
+.btn.carregando { position: relative; }
+.btn.carregando::after {
+    content: ""; width: 16px; height: 16px; margin-left: 4px;
+    border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+    animation: girar 0.7s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* Resumo */
+.checkout-resumo { position: sticky; top: 20px; }
+.resumo-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 20px 22px; }
+.resumo-card h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.08rem; color: var(--petrol-900); margin-bottom: 14px; }
+.resumo-itens { list-style: none; display: grid; gap: 12px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--sand-200); }
+.resumo-item { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center; }
+.resumo-thumb {
+    position: relative; width: 52px; height: 52px; border-radius: 10px;
+    background: linear-gradient(145deg, var(--sand-100), var(--sand-200));
+    display: grid; place-items: center; color: var(--petrol-900);
+}
+.resumo-thumb .ico { width: 28px; height: 28px; }
+.resumo-qtd {
+    position: absolute; top: -7px; right: -7px;
+    min-width: 22px; height: 22px; padding: 0 6px;
+    border-radius: 999px; background: var(--petrol-900); color: var(--white);
+    display: grid; place-items: center; font-size: 0.72rem; font-weight: 700;
+}
+.resumo-titulo { font-size: 0.88rem; font-weight: 600; color: var(--petrol-900); line-height: 1.3; }
+.resumo-preco { font-weight: 700; font-size: 0.9rem; white-space: nowrap; }
+.resumo-desconto dd { color: var(--success); }
+.resumo-card .link-pequeno { display: inline-block; margin-top: 4px; }
+
+/* Vazio e confirmação */
+.checkout-vazio { text-align: center; padding: 64px 16px; }
+.checkout-vazio h1 { font-family: var(--font-display); font-weight: 800; color: var(--petrol-900); margin-bottom: 8px; }
+.checkout-vazio p { color: var(--muted); margin-bottom: 22px; }
+
+.confirmacao:focus { outline: none; }
+.confirmacao-card {
+    max-width: 640px; margin: 8px auto 0;
+    background: var(--white); border-radius: var(--radius-lg); box-shadow: var(--shadow);
+    padding: 36px 32px; text-align: center;
+}
+.confirmacao-teste { display: inline-block; margin-bottom: 14px; padding: 4px 12px; border-radius: 999px; background: var(--coral-100); color: var(--coral-700); font-size: 0.82rem; font-weight: 700; }
+.confirmacao-icone { width: 76px; height: 76px; margin: 0 auto 14px; border-radius: 50%; background: #E7F5EC; color: var(--success); display: grid; place-items: center; }
+.confirmacao-icone .ico { width: 44px; height: 44px; --ic-accent-op: 0; }
+.confirmacao-card h1 { font-family: var(--font-display); font-weight: 800; font-size: 1.8rem; letter-spacing: -0.02em; color: var(--petrol-900); margin-bottom: 8px; }
+.confirmacao-sub { color: var(--muted); margin-bottom: 22px; }
+.confirmacao-pagamento { text-align: left; padding: 20px; border-radius: var(--radius); background: var(--sand-50); margin-bottom: 18px; }
+.confirmacao-pagamento h2 { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; color: var(--petrol-900); margin-bottom: 8px; }
+.confirmacao-pagamento h2 .ico { width: 24px; height: 24px; }
+.confirmacao-pagamento p { font-size: 0.92rem; color: var(--muted); margin-bottom: 12px; }
+.confirmacao-pagamento .qr { display: block; margin: 0 auto 12px; }
+.confirmacao-cartao { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 !important; color: var(--petrol-900) !important; font-weight: 600; }
+.confirmacao-cartao .ico { width: 22px; height: 22px; }
+.codigo { display: flex; gap: 10px; align-items: stretch; margin-bottom: 10px; }
+.codigo code {
+    flex: 1; min-width: 0;
+    padding: 12px; border-radius: var(--radius-sm);
+    background: var(--white); border: 1.5px dashed var(--sand-200);
+    font-size: 0.82rem; word-break: break-all; color: var(--ink);
+}
+.confirmacao-entrega { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 16px 0; border-top: 1px solid var(--sand-200); border-bottom: 1px solid var(--sand-200); margin-bottom: 16px; font-size: 0.93rem; }
+.confirmacao-entrega > .ico { width: 26px; height: 26px; flex-shrink: 0; color: var(--petrol-900); }
+.confirmacao-card .cart-totais { text-align: left; margin-bottom: 22px; }
+
+@media (max-width: 900px) {
+    .checkout-grid { grid-template-columns: 1fr; }
+    .checkout-resumo { position: static; order: -1; }
+}
+
+@media (max-width: 560px) {
+    .campos { grid-template-columns: 1fr; }
+    .etapa { padding: 18px 16px; }
+    .etapa-resumo { margin-left: 0; }
+    .metodos { grid-template-columns: 1fr; }
+    .metodo { flex-direction: row; justify-content: flex-start; padding: 12px 14px; }
+    .checkout-seguro { font-size: 0.8rem; }
+    .codigo { flex-direction: column; }
+    .confirmacao-card { padding: 28px 18px; }
+}
