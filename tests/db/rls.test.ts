@@ -201,10 +201,15 @@ describe("publicação controlada (administrador)", () => {
     await expect(setStatus("admin", demo, "published")).rejects.toThrow(/demonstração não pode ser publicado/);
   });
 
-  it("exige preço, foto principal real e textos alternativos", async () => {
-    const semPreco = await createProduct("admin", { variants: [] });
+  it("publica sem preço (Preço em breve), mas exige foto principal real e textos alternativos", async () => {
+    const semPreco = await createProduct("admin", { variants: [], priceCents: null });
     await addMedia(semPreco);
-    await expect(setStatus("admin", semPreco, "published")).rejects.toThrow(/informe o preço/);
+    await setStatus("admin", semPreco, "published");
+    const { rows } = await db.query<{ status: string; price_cents: number | null }>(
+      "select status, price_cents from public.products where id = $1",
+      [semPreco],
+    );
+    expect(rows[0]).toEqual({ status: "published", price_cents: null });
 
     const semFoto = await createProduct("admin");
     await expect(setStatus("admin", semFoto, "published")).rejects.toThrow(/foto principal/);
