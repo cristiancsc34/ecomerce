@@ -1,6 +1,7 @@
 import "server-only";
 import { catalogSource } from "@/config/site";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { selectCategoriesWithFallback } from "./category-columns";
 import { DEMO_CATEGORIES, DEMO_PRODUCTS } from "./demo-data";
 import { devExamplesEnabled, withDevExamples } from "./dev-examples";
 import { mapCategory, mapProduct, PUBLIC_PRODUCT_COLUMNS, type CategoryRow, type ProductRow } from "./mappers";
@@ -42,13 +43,14 @@ const supabaseRepository: CatalogRepository = {
   },
   async listCategories() {
     const supabase = createPublicSupabaseClient();
-    const { data, error } = await supabase
-      .from("categories")
-      .select("id,slug,name,description,sort_order,requires_3d")
-      .order("sort_order")
-      .order("name");
+    // Sem a migração de SEO das categorias, lê sem as colunas novas.
+    const {
+      result: { data, error },
+    } = await selectCategoriesWithFallback((columns) =>
+      supabase.from("categories").select(columns).order("sort_order").order("name"),
+    );
     if (error) throw new Error(`Falha ao carregar categorias: ${error.message}`);
-    return ((data ?? []) as CategoryRow[]).map(mapCategory);
+    return ((data ?? []) as unknown as CategoryRow[]).map(mapCategory);
   },
 };
 

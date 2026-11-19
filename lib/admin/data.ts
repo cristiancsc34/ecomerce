@@ -5,6 +5,7 @@ import { PRODUCT_STATUSES, type Category, type Product, type ProductStatus } fro
 import { normalizeText } from "@/lib/catalog/query";
 import { isUuid } from "@/lib/catalog/slug";
 import { selectWithColorsFallback } from "./colors";
+import { selectCategoriesWithFallback } from "@/lib/catalog/category-columns";
 import { createSessionClient } from "@/lib/supabase/server";
 import type { AuditEvent } from "./types";
 
@@ -59,10 +60,25 @@ export async function getAdminProduct(id: string): Promise<Product | null> {
 }
 
 export async function listAdminCategories(): Promise<(Category & { productCount: number })[]> {
+  return (await listAdminCategoriesWithSeoStatus()).categories;
+}
+
+/** Categorias do painel e se o banco já tem os campos de SEO delas. */
+export async function listAdminCategoriesWithSeoStatus(): Promise<{
+  categories: (Category & { productCount: number })[];
+  /** O banco ainda não tem os campos de SEO das categorias (migração pendente). */
+  seoPending: boolean;
+}> {
   await requireStaffAction();
   const supabase = await createSessionClient();
-  const [{ data: cats, error }, { data: prods }] = await Promise.all([
-    supabase.from("categories").select("id,slug,name,description,sort_order,requires_3d").order("sort_order").order("name"),
+  const [
+    {
+      result: { data: cats, error },
+      legacy,
+    },
+    { data: prods },
+  ] = await Promise.all([
+    selectCategoriesWithFallback((columns) => supabase.from("categories").select(columns).order("sort_order").order("name")),
     supabase.from("products").select("category_id"),
   ]);
   if (error) throw new Error("Falha ao carregar categorias.");
@@ -70,7 +86,10 @@ export async function listAdminCategories(): Promise<(Category & { productCount:
   for (const p of (prods ?? []) as { category_id: string | null }[]) {
     if (p.category_id) counts.set(p.category_id, (counts.get(p.category_id) ?? 0) + 1);
   }
-  return ((cats ?? []) as CategoryRow[]).map((c) => ({ ...mapCategory(c), productCount: counts.get(c.id) ?? 0 }));
+  return {
+    categories: ((cats ?? []) as unknown as CategoryRow[]).map((c) => ({ ...mapCategory(c), productCount: counts.get(c.id) ?? 0 })),
+    seoPending: legacy,
+  };
 }
 
 export async function getDashboardStats(): Promise<{ byStatus: Record<ProductStatus, number>; demo: number; total: number }> {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { listAdminCategories } from "@/lib/admin/data";
+import { listAdminCategoriesWithSeoStatus } from "@/lib/admin/data";
 import { requireStaffPage } from "@/lib/auth/staff";
 import { CategoryForm } from "@/components/admin/category-form";
 
@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Categorias" };
 
 export default async function CategoriesPage() {
   const staff = await requireStaffPage("editor", "itens");
-  const categories = await listAdminCategories();
+  const { categories, seoPending } = await listAdminCategoriesWithSeoStatus();
   return (
     <div className="max-w-4xl space-y-8">
       <header>
@@ -19,7 +19,7 @@ export default async function CategoriesPage() {
         <h2 id="nova-categoria" className="mb-4 text-lg font-bold">
           Nova categoria
         </h2>
-        <CategoryForm canDelete={false} />
+        <CategoryForm canDelete={false} seoPending={seoPending} />
       </section>
 
       <section aria-labelledby="lista-categorias" className="space-y-4">
@@ -31,7 +31,7 @@ export default async function CategoriesPage() {
             <p className="mb-3 text-sm text-muted">
               {c.productCount} {c.productCount === 1 ? "produto" : "produtos"}
             </p>
-            <CategoryForm category={c} canDelete={staff.role === "admin"} />
+            <CategoryForm category={c} canDelete={staff.role === "admin"} seoPending={seoPending} />
           </div>
         ))}
       </section>

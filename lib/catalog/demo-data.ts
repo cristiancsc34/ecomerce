@@ -21,6 +21,9 @@ export const DEMO_CATEGORY: Category = {
   description: "Cadeiras e poltronas com fotos de todos os ângulos e visualização em 3D.",
   sortOrder: 1,
   requires3d: true,
+  seoTitle: null,
+  seoDescription: null,
+  content: null,
 };
 
 export const DEMO_CATEGORIES: Category[] = [DEMO_CATEGORY];
