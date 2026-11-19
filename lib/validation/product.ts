@@ -343,4 +343,7 @@ export const categorySaveSchema = z.object({
   description: optionalText.pipe(z.string().max(300).nullable()),
   sortOrder: z.coerce.number().int().min(0).max(999),
   requires3d: z.boolean(),
+  seoTitle: optionalText.pipe(z.string().max(70, "Use até 70 caracteres.").nullable()),
+  seoDescription: optionalText.pipe(z.string().max(170, "Use até 170 caracteres.").nullable()),
+  content: optionalText.pipe(z.string().max(4000, "Use até 4.000 caracteres.").nullable()),
 });

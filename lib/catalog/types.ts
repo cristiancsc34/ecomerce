@@ -49,6 +49,12 @@ export type Category = {
   sortOrder: number;
   /** Produtos desta categoria só são publicados com modelo 3D (móveis). */
   requires3d: boolean;
+  /** Título para o Google (opcional; sem ele, o nome). */
+  seoTitle: string | null;
+  /** Resumo para o Google (opcional; sem ele, a descrição). */
+  seoDescription: string | null;
+  /** Texto da página da categoria, abaixo dos produtos (opcional, texto simples). */
+  content: string | null;
 };
 
 export type ProductMedia = {

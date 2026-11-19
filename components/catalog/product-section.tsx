@@ -11,6 +11,7 @@ export function ProductSection({
   id,
   title,
   headingLevel = "h2",
+  intro,
   products,
   priorityCount = 0,
   empty,
@@ -18,6 +19,8 @@ export function ProductSection({
   id: string;
   title: string;
   headingLevel?: "h1" | "h2";
+  /** Frase curta abaixo do título (ex.: descrição da categoria). */
+  intro?: string | null;
   products: Product[];
   priorityCount?: number;
   empty: { title: string; text?: string };
@@ -33,8 +36,9 @@ export function ProductSection({
           {products.length === 1 ? "1 produto" : `${products.length} produtos`}
         </p>
       </div>
+      {intro ? <p className="mb-2 bg-white px-4 py-3 text-[0.9375rem] text-muted sm:mb-3 sm:rounded-lg">{intro}</p> : null}
       {products.length ? (
-        <ProductGrid products={products} priorityCount={priorityCount} />
+        <ProductGrid products={products} priorityCount={priorityCount} headingLevel={headingLevel === "h1" ? "h2" : "h3"} />
       ) : (
         <div className="rounded-lg bg-white px-6 py-12 text-center">
           <p className="text-lg font-semibold text-ink">{empty.title}</p>

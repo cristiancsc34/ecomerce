@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { brand } from "@/config/brand";
 import { isDemoMode, siteUrl } from "@/config/site";
 import { getCategories, getCategoryBySlug, getVisibleProducts } from "@/lib/catalog/queries";
 import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/product-section";
 import { JsonLd } from "@/components/seo/json-ld";
+import { Paragraphs } from "@/components/ui/paragraphs";
+import { categoryDescription, categoryTitle, OPEN_GRAPH_BASE, shareableImage } from "@/lib/seo/metadata";
+import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo/structured-data";
 
 export async function generateStaticParams() {
   const categories = await getCategories();
@@ -19,12 +21,28 @@ export async function generateMetadata({ params }: PageProps<"/categorias/[slug]
   // do build, e algo publicado depois abriria como "não encontrado".
   await connection();
   const { slug } = await params;
-  const category = await getCategoryBySlug(slug);
-  if (!category) return { title: "Categoria não encontrada" };
+  const [category, products] = await Promise.all([getCategoryBySlug(slug), getVisibleProducts()]);
+  if (!category) return { title: "Categoria não encontrada", robots: { index: false } };
+  const inCategory = products.filter((p) => p.category?.slug === slug);
+  const title = categoryTitle(category);
+  const description = categoryDescription(category, inCategory.length);
+  const path = `/categorias/${category.slug}`;
+  // Foto real do primeiro produto da categoria para o WhatsApp e o Google.
+  const image = inCategory.map(shareableImage).find(Boolean) ?? null;
+  const images = image ? [{ url: image.url, alt: image.altText }] : undefined;
   return {
-    title: category.name,
-    description: category.description ?? `${category.name} da ${brand.name}.`,
-    alternates: { canonical: `/categorias/${category.slug}` },
+    title,
+    description,
+    alternates: { canonical: path },
+    // Categoria ainda sem produto: página vazia não deve ir para o Google.
+    ...(inCategory.length ? {} : { robots: { index: false, follow: true } }),
+    openGraph: { ...OPEN_GRAPH_BASE, type: "website", title, description, url: path, ...(images ? { images } : {}) },
+    twitter: {
+      card: images ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(images ? { images: images.map((i) => i.url) } : {}),
+    },
   };
 }
 
@@ -44,28 +62,42 @@ async function Results({ params }: Pick<PageProps<"/categorias/[slug]">, "params
   const { slug } = await params;
   const [category, products] = await Promise.all([getCategoryBySlug(slug), getVisibleProducts()]);
   if (!category) notFound();
+  const inCategory = products.filter((p) => p.category?.slug === slug);
+  const base = siteUrl();
+  const list = itemListJsonLd(inCategory, base, category.name);
   return (
     <>
       {!isDemoMode() ? (
-        <JsonLd
-          data={{
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            itemListElement: [
-              { "@type": "ListItem", position: 1, name: "Início", item: `${siteUrl()}/` },
-              { "@type": "ListItem", position: 2, name: category.name, item: `${siteUrl()}/categorias/${category.slug}` },
-            ],
-          }}
-        />
+        <>
+          <JsonLd
+            data={breadcrumbJsonLd(
+              [
+                { name: "Início", path: "/" },
+                { name: category.name, path: `/categorias/${category.slug}` },
+              ],
+              base,
+            )}
+          />
+          {list ? <JsonLd data={list} /> : null}
+        </>
       ) : null}
       <ProductSection
         id="categoria-titulo"
         title={category.name}
         headingLevel="h1"
-        products={products.filter((p) => p.category?.slug === slug)}
+        intro={category.description}
+        products={inCategory}
         priorityCount={4}
         empty={{ title: "Nenhum produto nesta categoria por enquanto" }}
       />
+      {category.content ? (
+        <section aria-labelledby="categoria-sobre" className="mt-2 bg-white px-4 py-5 sm:mt-4 sm:rounded-lg sm:px-6">
+          <h2 id="categoria-sobre" className="mb-3 text-base font-bold uppercase tracking-wide text-deep-fjord">
+            Sobre {category.name.toLowerCase()}
+          </h2>
+          <Paragraphs text={category.content} />
+        </section>
+      ) : null}
     </>
   );
 }

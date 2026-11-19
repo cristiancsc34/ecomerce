@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { brand } from "@/config/brand";
-import { primaryImage } from "@/lib/catalog/product-helpers";
+import { model3d } from "@/lib/catalog/product-helpers";
+import { OPEN_GRAPH_BASE, productDescription, productTitle, shareableImage } from "@/lib/seo/metadata";
 import { getVisibleProductBySlug, getVisibleProducts } from "@/lib/catalog/queries";
 import { ProductView } from "@/components/product/product-view";
 import { Skeleton } from "@/components/ui/misc";
@@ -22,22 +22,31 @@ export async function generateMetadata({ params }: PageProps<"/produtos/[slug]">
   const product = await getVisibleProductBySlug(slug);
   if (!product) return { title: "Produto não encontrado", robots: { index: false } };
 
-  const title = product.seoTitle ?? product.name;
-  const description =
-    product.seoDescription ?? product.shortDescription ?? `${product.name} — ${brand.tagline}`;
-  const image = primaryImage(product);
-  const ogImage = image && !image.url.endsWith(".svg") ? [{ url: image.url, alt: image.altText }] : undefined;
+  const title = productTitle(product);
+  const description = productDescription(product, Boolean(model3d(product)));
+  const image = shareableImage(product);
+  const images = image
+    ? [{ url: image.url, alt: image.altText, ...(image.width && image.height ? { width: image.width, height: image.height } : {}) }]
+    : undefined;
+  const path = `/produtos/${product.slug}`;
 
   return {
     title,
     description,
-    alternates: { canonical: `/produtos/${product.slug}` },
+    alternates: { canonical: path },
     openGraph: {
+      ...OPEN_GRAPH_BASE,
       type: "website",
       title,
       description,
-      url: `/produtos/${product.slug}`,
-      ...(ogImage ? { images: ogImage } : {}),
+      url: path,
+      ...(images ? { images } : {}),
+    },
+    twitter: {
+      card: images ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(images ? { images: images.map((i) => i.url) } : {}),
     },
   };
 }

@@ -3,12 +3,27 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { getVisibleProducts } from "@/lib/catalog/queries";
 import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/product-section";
+import { JsonLd } from "@/components/seo/json-ld";
+import { brand } from "@/config/brand";
+import { isDemoMode, siteUrl } from "@/config/site";
+import { OPEN_GRAPH_BASE } from "@/lib/seo/metadata";
+import { itemListJsonLd } from "@/lib/seo/structured-data";
 
-export const metadata: Metadata = {
-  title: "Produtos",
-  description: "Todos os produtos da loja.",
-  alternates: { canonical: "/produtos" },
-};
+const TITLE = "Todos os produtos";
+const DESCRIPTION = `Todos os móveis da ${brand.name}: ${brand.tagline.toLowerCase()}.`;
+
+export async function generateMetadata(): Promise<Metadata> {
+  await connection();
+  const products = await getVisibleProducts();
+  return {
+    title: TITLE,
+    description: DESCRIPTION,
+    alternates: { canonical: "/produtos" },
+    // Catálogo ainda vazio: nada para o Google indexar.
+    ...(products.length ? {} : { robots: { index: false, follow: true } }),
+    openGraph: { ...OPEN_GRAPH_BASE, type: "website", title: TITLE, description: DESCRIPTION, url: "/produtos" },
+  };
+}
 
 export default function ProductsPage() {
   return (
@@ -24,14 +39,18 @@ async function Results() {
   // Lista montada a cada visita (os dados vêm do cache): publicar/despublicar aparece na hora.
   await connection();
   const products = await getVisibleProducts();
+  const list = isDemoMode() ? null : itemListJsonLd(products, siteUrl(), TITLE);
   return (
-    <ProductSection
+    <>
+      {list ? <JsonLd data={list} /> : null}
+      <ProductSection
       id="produtos-titulo"
-      title="Todos os produtos"
+      title={TITLE}
       headingLevel="h1"
       products={products}
       priorityCount={4}
       empty={{ title: "Catálogo em preparação", text: "Os produtos aparecem aqui assim que forem publicados." }}
-    />
+      />
+    </>
   );
 }

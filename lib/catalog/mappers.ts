@@ -105,6 +105,10 @@ export type CategoryRow = {
   description: string | null;
   sort_order: number;
   requires_3d?: boolean;
+  /** Colunas de SEO (migração 20261120000100); ausentes enquanto o banco não a recebe. */
+  seo_title?: string | null;
+  seo_description?: string | null;
+  content?: string | null;
 };
 
 /**
@@ -227,5 +231,8 @@ export function mapCategory(row: CategoryRow): Category {
     description: row.description,
     sortOrder: row.sort_order,
     requires3d: row.requires_3d ?? false,
+    seoTitle: row.seo_title ?? null,
+    seoDescription: row.seo_description ?? null,
+    content: row.content ?? null,
   };
 }

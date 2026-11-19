@@ -68,9 +68,10 @@ test.describe("vitrine em modo demonstração", () => {
     await page.getByRole("searchbox", { name: "Buscar produtos" }).fill("azul");
     await page.getByRole("button", { name: "Buscar", exact: true }).click();
     await expect(page).toHaveURL(/\/busca\?q=azul/);
-    await expect(page.locator("article h3:visible")).toHaveText(["Poltrona Azul Estrutura Clara"]);
+    // Na busca o título da página é H1, então o nome de cada produto é H2.
+    await expect(page.locator("article h2:visible")).toHaveText(["Poltrona Azul Estrutura Clara"]);
     await page.goto("/busca?q=cadeira");
-    await expect(page.locator("article h3:visible").first()).toHaveText("Cadeira Cinza Trama");
+    await expect(page.locator("article h2:visible").first()).toHaveText("Cadeira Cinza Trama");
     await page.goto("/busca?q=inexistente");
     await expect(page.getByText("Nenhum produto encontrado")).toBeVisible();
   });

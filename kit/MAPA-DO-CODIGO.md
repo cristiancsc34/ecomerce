@@ -25,6 +25,15 @@ alterar código, leia o guia correspondente em `node_modules/next/dist/docs/` (r
 | Políticas (entrega, trocas, privacidade, termos) | `app/(store)/politicas/*/page.tsx` e `components/layout/policy-page.tsx` |
 | E-mails e mensagens de pedido (estrutura pronta, sem envio) | `lib/notifications/templates.ts` (há um teste com o nome da marca em `tests/unit/notifications.test.ts`) |
 
+## SEO (Google)
+
+| O quê | Onde | Documento |
+| --- | --- | --- |
+| Dados estruturados (produto, variações, trilha, listas, loja) | `lib/seo/structured-data.ts` | `docs/SEO.md` |
+| Título, resumo e foto de compartilhamento de produto e categoria | `lib/seo/metadata.ts` e o `generateMetadata` de cada página | |
+| Mapa do site (com fotos) e robots | `app/sitemap.ts`, `lib/seo/sitemap.ts`, `app/robots.ts` | |
+| Texto da página da categoria e campos para o Google | Painel → Categorias; colunas da migração `20261120000100_categorias_seo.sql` (`lib/catalog/category-columns.ts` lê sem elas enquanto não for aplicada) | |
+
 ## Nicho (o projeto nasceu para colchões e móveis)
 
 | O quê | Onde | Para outro nicho |
