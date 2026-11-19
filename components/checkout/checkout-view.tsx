@@ -311,7 +311,7 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
       onSubmit={submit}
       noValidate
       aria-label="Finalizar pedido"
-      className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-6"
+      className="grid animate-surgir grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-6"
     >
       <div className="min-w-0 space-y-3">
         {quote.issues.length ? (

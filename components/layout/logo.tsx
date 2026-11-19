@@ -22,6 +22,7 @@ export function Logo({ tone = "color", className = "" }: LogoProps) {
   const rest = tone === "white" ? "#FFFFFF" : LOGO_COLORS.petroleo;
   return (
     <span
+      data-logo
       className={`${montserrat.className} whitespace-nowrap tracking-tight ${className}`}
       style={{ fontWeight: 800 }}
     >

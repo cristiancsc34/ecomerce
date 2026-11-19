@@ -31,14 +31,14 @@ export default async function PanelLayout({ children }: { children: React.ReactN
             href="/"
             target="_blank"
             rel="noopener"
-            className="flex min-h-10 items-center gap-3 rounded-xl px-3 text-white/80 hover:bg-white/10 hover:text-white"
+            className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-white/80 hover:bg-white/10 hover:text-white"
           >
             <ExternalIcon className="h-5 w-5" /> Ver loja
           </a>
           <form action={signOutAction}>
             <button
               type="submit"
-              className="flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-white/80 hover:bg-white/10 hover:text-white"
+              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-white/80 hover:bg-white/10 hover:text-white"
             >
               <LogoutIcon className="h-5 w-5" /> Sair
             </button>
@@ -51,16 +51,16 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
       {/* Celular: barra de cima simples + abas embaixo. */}
       <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-deep-fjord px-4 text-white lg:hidden">
-        <Link href="/admin" className="flex items-center gap-2">
+        <Link href="/admin" className="flex min-h-11 items-center gap-2">
           <Logo tone="white" className="text-lg" />
           <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">Painel</span>
         </Link>
-        <a href="/" target="_blank" rel="noopener" className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10">
+        <a href="/" target="_blank" rel="noopener" className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/10">
           <ExternalIcon className="h-5 w-5" />
           <span className="sr-only">Ver loja</span>
         </a>
         <form action={signOutAction}>
-          <button type="submit" className="inline-flex h-10 w-10 items-center justify-center rounded-full hover:bg-white/10">
+          <button type="submit" className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/10">
             <LogoutIcon className="h-5 w-5" />
             <span className="sr-only">Sair</span>
           </button>

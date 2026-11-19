@@ -12,7 +12,7 @@ export default async function NewOrderPage() {
   const products = await orderProductOptions();
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/admin/pedidos" className="link text-sm">
+      <Link href="/admin/pedidos" className="link inline-flex min-h-11 items-center text-sm">
         ← Pedidos
       </Link>
       <div className="mt-3">

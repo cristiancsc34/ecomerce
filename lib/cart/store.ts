@@ -79,6 +79,9 @@ function subscribe(listener: () => void) {
   };
 }
 
+/** Avisa a interface (ex.: o contador do cabeçalho) que um item acabou de entrar na sacola. */
+export const CART_ADDED_EVENT = "sacola:adicionado";
+
 export const cart = {
   add(productId: string, variantId: string | null, quantity = 1) {
     const items = [...getSnapshot()];
@@ -90,6 +93,7 @@ export const cart = {
       items.push({ productId, variantId, quantity: Math.min(MAX_QUANTITY_PER_LINE, Math.max(1, quantity)) });
     }
     write(items);
+    window.dispatchEvent(new Event(CART_ADDED_EVENT));
     return true;
   },
   setQuantity(productId: string, variantId: string | null, quantity: number) {

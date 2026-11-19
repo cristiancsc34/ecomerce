@@ -51,7 +51,7 @@ export default async function AdminOrdersPage({ searchParams }: PageProps<"/admi
               <Link
                 href={key === "abertos" ? "/admin/pedidos" : `/admin/pedidos?filtro=${key}`}
                 aria-current={key === filter ? "page" : undefined}
-                className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-medium text-ink hover:border-deep-fjord aria-[current=page]:border-deep-fjord aria-[current=page]:bg-deep-fjord aria-[current=page]:text-white"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-medium text-ink hover:border-deep-fjord aria-[current=page]:border-deep-fjord aria-[current=page]:bg-deep-fjord aria-[current=page]:text-white"
               >
                 {FILTERS[key].label}
                 <span className="text-xs opacity-70">{all.filter(FILTERS[key].match).length}</span>

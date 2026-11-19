@@ -32,6 +32,29 @@
   --animate-vai-e-volta: vai-e-volta 1.4s ease-in-out infinite;
   --animate-brilho: brilho 1.6s linear infinite;
   --animate-girar-devagar: spin 3s linear infinite;
+  /* Avisos que surgem (ex.: "Adicionado à sacola"), contador da sacola e conteúdo que chega. */
+  --animate-aparecer: aparecer 0.2s ease-out both;
+  --animate-pulsar: pulsar 0.35s ease-out;
+  --animate-surgir: surgir 0.25s ease-out both;
+
+  @keyframes aparecer {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+  }
+
+  @keyframes pulsar {
+    50% {
+      transform: scale(1.3);
+    }
+  }
+
+  @keyframes surgir {
+    from {
+      opacity: 0;
+    }
+  }
 
   @keyframes vai-e-volta {
     from {

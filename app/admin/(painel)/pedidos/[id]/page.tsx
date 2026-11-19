@@ -38,7 +38,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/pedidos/[i
 
   return (
     <div className="mx-auto max-w-5xl">
-      <Link href="/admin/pedidos" className="link text-sm">
+      <Link href="/admin/pedidos" className="link inline-flex min-h-11 items-center text-sm">
         ← Pedidos
       </Link>
       <header className="mb-4 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -180,7 +180,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/pedidos/[i
             {order.carrier ? <p className="mt-2 text-sm">Transportadora: {order.carrier}</p> : null}
             {order.trackingCode ? <p className="text-sm">Rastreio: {order.trackingCode}</p> : null}
             {order.trackingUrl ? (
-              <a href={order.trackingUrl} target="_blank" rel="noopener" className="link text-sm">
+              <a href={order.trackingUrl} target="_blank" rel="noopener" className="link inline-flex min-h-11 items-center text-sm">
                 Abrir rastreio
               </a>
             ) : null}

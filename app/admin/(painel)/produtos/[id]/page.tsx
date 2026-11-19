@@ -48,7 +48,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
 
   return (
     <div>
-      <Link href="/admin/produtos" className="link text-sm">
+      <Link href="/admin/produtos" className="link inline-flex min-h-11 items-center text-sm">
         ← Produtos
       </Link>
       <header className="mb-4 mt-3 flex items-center gap-3">
