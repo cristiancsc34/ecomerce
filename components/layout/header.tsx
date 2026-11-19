@@ -1,6 +1,5 @@
 import Form from "next/form";
 import Link from "next/link";
-import { brand } from "@/config/brand";
 import { SearchIcon } from "@/components/ui/icons";
 import { Logo } from "./logo";
 import { CartLink } from "./cart-link";
@@ -23,7 +22,7 @@ export function Header() {
             id="header-search"
             name="q"
             type="search"
-            placeholder={`Buscar na ${brand.name}`}
+            placeholder="Buscar móveis"
             className="h-11 w-full min-w-0 rounded-l-lg rounded-r-none border-0 bg-white pl-3.5 pr-2 text-base text-ink placeholder:text-muted sm:h-12"
           />
           <button

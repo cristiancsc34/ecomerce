@@ -31,7 +31,7 @@ export type BrandConfig = {
 export const brand: BrandConfig = {
   name: process.env.NEXT_PUBLIC_BRAND_NAME?.trim() || "AzConfort",
   slogan: "Móveis para a sua casa.",
-  tagline: "Sofás, mesas, poltronas e cadeiras.",
+  tagline: "Sofás, mesas, poltronas e cadeiras",
   description:
     "Loja online de móveis: sofás, mesas, poltronas e cadeiras, com fotos de todos os ângulos e visualização em 3D.",
   announcement: null,

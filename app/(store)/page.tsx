@@ -16,7 +16,7 @@ import { isDemoMode, siteUrl } from "@/config/site";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = {
-  title: { absolute: `${brand.name} — ${brand.slogan} ${brand.tagline}` },
+  title: { absolute: `${brand.name} — ${brand.slogan} ${brand.tagline}.` },
   description: brand.description,
   alternates: { canonical: "/" },
 };
