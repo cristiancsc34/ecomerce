@@ -7,10 +7,10 @@ import { CartLink } from "./cart-link";
 /** Cabeçalho de loja: marca, busca em destaque e sacola. Sem menus extras. */
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 bg-air-blue-ink text-white shadow-[0_2px_12px_rgb(19_41_64/0.18)]">
+    <header className="sticky top-0 z-40 border-b border-line bg-white text-deep-fjord shadow-[0_2px_12px_rgb(19_41_64/0.08)]">
       <div className="container-page flex h-16 items-center gap-3 sm:h-[4.5rem] sm:gap-6">
         <Link href="/" className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg py-1 pr-1">
-          <Logo tone="white" className="text-xl sm:text-2xl" />
+          <Logo className="text-xl sm:text-2xl" />
           <span className="sr-only">, página inicial</span>
         </Link>
 
@@ -23,7 +23,7 @@ export function Header() {
             name="q"
             type="search"
             placeholder="Buscar móveis"
-            className="h-11 w-full min-w-0 rounded-l-lg rounded-r-none border-0 bg-white pl-3.5 pr-2 text-base text-ink placeholder:text-muted sm:h-12"
+            className="h-11 w-full min-w-0 rounded-l-lg rounded-r-none border border-r-0 border-air-blue bg-white pl-3.5 pr-2 text-base text-ink placeholder:text-muted sm:h-12"
           />
           <button
             type="submit"
