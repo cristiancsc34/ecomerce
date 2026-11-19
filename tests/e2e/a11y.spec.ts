@@ -23,6 +23,9 @@ for (const path of PAGES) {
     await page.waitForLoadState("networkidle");
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+      // O logo é o nome da marca: logotipos não têm exigência de contraste (WCAG 1.4.3, exceção "Logotipos").
+      // Só o desenho do logo fica de fora; o resto do cabeçalho continua sendo conferido.
+      .exclude("[data-logo]")
       .analyze();
     const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
     expect(
