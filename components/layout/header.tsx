@@ -22,7 +22,7 @@ export function Header() {
             id="header-search"
             name="q"
             type="search"
-            placeholder="Buscar móveis"
+            placeholder="Buscar"
             className="h-11 w-full min-w-0 rounded-l-lg rounded-r-none border border-r-0 border-air-blue bg-white pl-3.5 pr-2 text-base text-ink placeholder:text-muted sm:h-12"
           />
           <button
