@@ -37,6 +37,13 @@ export default async function ShippingSettingsPage() {
                 Ambiente: {carriers.ambiente === "sandbox" ? "testes (sandbox)" : "produção"}. CEP de origem:{" "}
                 {carriers.cepOrigem?.replace(/^(\d{5})(\d{3})$/, "$1-$2")}. Produto sem caixas cadastradas (aba Preço do
                 produto) continua com frete “a combinar”.
+                {carriers.tokenExpiresAt ? (
+                  <span className="mt-2 block">
+                    O token vence em {new Date(carriers.tokenExpiresAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.
+                    Gere um novo e troque na Vercel antes disso (sem token válido, as transportadoras somem e o frete fica
+                    “a combinar”).
+                  </span>
+                ) : null}
               </Notice>
             ) : (
               <Notice tone="info" title="Desligada">

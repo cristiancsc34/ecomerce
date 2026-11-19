@@ -2,7 +2,7 @@ import "server-only";
 import { isSupabaseConfigured } from "@/config/site";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createServiceClient } from "@/lib/supabase/service";
-import { melhorEnvioStatus, quoteMelhorEnvio, type CarrierQuote, type MelhorEnvioConfig, type PackedItem } from "./melhor-envio";
+import { melhorEnvioStatus, quoteMelhorEnvio, tokenExpiresAt, type CarrierQuote, type MelhorEnvioConfig, type PackedItem } from "./melhor-envio";
 import { boxesFor } from "./packages";
 import { carrierOptionId, type ShippingOption } from "./types";
 
@@ -178,6 +178,8 @@ export type CarrierPanelStatus = {
   missing: string[];
   ambiente: "producao" | "sandbox" | null;
   cepOrigem: string | null;
+  /** Quando o token vence (ISO), se der para ler; o dono gera outro antes. */
+  tokenExpiresAt: string | null;
   /** null = não deu para conferir (sem a chave de serviço). */
   migrationApplied: boolean | null;
 };
@@ -192,6 +194,7 @@ export async function carrierPanelStatus(env?: Record<string, string | undefined
     missing: status.enabled ? [] : status.missing,
     ambiente: status.enabled ? status.config.ambiente : null,
     cepOrigem: status.enabled ? status.config.cepOrigem : null,
+    tokenExpiresAt: status.enabled ? (tokenExpiresAt(status.config.token)?.toISOString() ?? null) : null,
     migrationApplied: applied,
   };
 }

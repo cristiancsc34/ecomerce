@@ -34,6 +34,21 @@ export type MelhorEnvioConfig = {
   servicos: number[];
 };
 
+/**
+ * Validade do token: a documentação diz que o access_token vale 30 dias e que a validade está no campo `exp` do
+ * token (JWT). Lê só a data (não confere assinatura); null se não der para ler.
+ */
+export function tokenExpiresAt(token: string): Date | null {
+  const part = token.split(".")[1];
+  if (!part) return null;
+  try {
+    const json = JSON.parse(Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8")) as { exp?: unknown };
+    return typeof json.exp === "number" && Number.isFinite(json.exp) ? new Date(json.exp * 1000) : null;
+  } catch {
+    return null;
+  }
+}
+
 export type MelhorEnvioStatus =
   | { enabled: true; config: MelhorEnvioConfig }
   | { enabled: false; missing: string[] };

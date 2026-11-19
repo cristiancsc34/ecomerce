@@ -123,6 +123,13 @@ describe("configuração (desligada até o dono configurar)", () => {
     expect(me.melhorEnvioStatus({ ...ENV, MELHOR_ENVIO_AMBIENTE: "teste" }).enabled).toBe(false);
   });
 
+  it("lê a validade do token (campo exp) sem quebrar com token qualquer", () => {
+    const payload = Buffer.from(JSON.stringify({ exp: 1_800_000_000 })).toString("base64url");
+    expect(me.tokenExpiresAt(`h.${payload}.s`)?.toISOString()).toBe(new Date(1_800_000_000_000).toISOString());
+    expect(me.tokenExpiresAt("token-de-teste")).toBeNull();
+    expect(me.tokenExpiresAt("a.@@@.b")).toBeNull();
+  });
+
   it("nenhuma variável do frete é pública (NEXT_PUBLIC_)", () => {
     const s = me.melhorEnvioStatus({ ...ENV, MELHOR_ENVIO_TOKEN: undefined, NEXT_PUBLIC_MELHOR_ENVIO_TOKEN: "x" });
     expect(s.enabled).toBe(false);
