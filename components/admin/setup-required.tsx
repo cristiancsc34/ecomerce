@@ -22,7 +22,7 @@ export function SetupRequired() {
         </ol>
         <p className="mt-2">O passo a passo completo está no README do repositório.</p>
       </Notice>
-      <Link href="/" className="link mt-8">
+      <Link href="/" className="link mt-6 inline-flex min-h-11 items-center">
         Voltar para a loja
       </Link>
     </main>

@@ -39,7 +39,7 @@ export function ProductSection({
         <div className="rounded-lg bg-white px-6 py-12 text-center">
           <p className="text-lg font-semibold text-ink">{empty.title}</p>
           {empty.text ? <p className="mt-1 text-muted">{empty.text}</p> : null}
-          <Link href="/" className="link mt-4 inline-block">
+          <Link href="/" className="link mt-2 inline-flex min-h-11 items-center">
             Ver todos os produtos
           </Link>
         </div>

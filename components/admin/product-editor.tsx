@@ -156,7 +156,7 @@ export function ProductEditor({
             </div>
             <button
               type="button"
-              className="inline-flex min-h-10 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-deep-fjord hover:bg-pale-blue xl:hidden"
+              className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold text-deep-fjord hover:bg-pale-blue xl:hidden"
               aria-expanded={panelOpen}
               aria-controls="pronto-conteudo"
               onClick={() => setPanelOpen((v) => !v)}

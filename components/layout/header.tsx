@@ -9,7 +9,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 bg-air-blue-ink text-white shadow-[0_2px_12px_rgb(19_41_64/0.18)]">
       <div className="container-page flex h-16 items-center gap-3 sm:h-[4.5rem] sm:gap-6">
-        <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg py-1 pr-1">
+        <Link href="/" className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg py-1 pr-1">
           <Logo tone="white" className="text-xl sm:text-2xl" />
           <span className="sr-only">, página inicial</span>
         </Link>

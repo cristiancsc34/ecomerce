@@ -72,7 +72,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                 <Link
                   href={href(s)}
                   aria-current={s === status ? "page" : undefined}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-medium text-ink hover:border-deep-fjord aria-[current=page]:border-deep-fjord aria-[current=page]:bg-deep-fjord aria-[current=page]:text-white"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-medium text-ink hover:border-deep-fjord aria-[current=page]:border-deep-fjord aria-[current=page]:bg-deep-fjord aria-[current=page]:text-white"
                 >
                   {s ? STATUS_LABELS[s] : "Todos"}
                   <span className="text-xs opacity-70">{countFor(s)}</span>

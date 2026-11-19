@@ -18,7 +18,7 @@ export default async function NewProductPage() {
   const categories = await listAdminCategories();
   return (
     <div className="mx-auto max-w-xl">
-      <Link href="/admin/produtos" className="link text-sm">
+      <Link href="/admin/produtos" className="link inline-flex min-h-11 items-center text-sm">
         ← Produtos
       </Link>
       <div className="mt-3">

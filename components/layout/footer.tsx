@@ -20,17 +20,17 @@ export function Footer() {
     <footer className="mt-12 border-t border-line bg-white">
       <div className="container-page flex flex-col gap-4 pb-24 pt-8 text-sm text-muted lg:pb-8">
         <nav aria-label="Links da loja">
-          <ul className="flex flex-wrap gap-x-5 gap-y-1">
+          <ul className="flex flex-wrap gap-x-5 gap-y-0">
             {wa ? (
               <li>
-                <a href={wa} rel="noopener noreferrer" target="_blank" className="inline-flex min-h-10 items-center text-ink hover:underline">
+                <a href={wa} rel="noopener noreferrer" target="_blank" className="inline-flex min-h-11 items-center text-ink hover:underline">
                   WhatsApp
                 </a>
               </li>
             ) : null}
             {links.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="inline-flex min-h-10 items-center text-ink hover:underline">
+                <Link href={l.href} className="inline-flex min-h-11 items-center text-ink hover:underline">
                   {l.label}
                 </Link>
               </li>

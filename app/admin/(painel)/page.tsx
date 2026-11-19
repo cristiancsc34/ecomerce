@@ -125,7 +125,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
           title="Acessos"
           description="Dê acesso a só uma parte do painel (itens, pedidos ou entrega) com um link. Revogue quando quiser."
           actions={
-            <Link href="/admin/acessos" className="link text-sm">
+            <Link href="/admin/acessos" className="link inline-flex min-h-11 items-center text-sm">
               Gerenciar links
             </Link>
           }
@@ -198,7 +198,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
               id="pedidos"
               title="Pedidos"
               actions={
-                <Link href="/admin/pedidos" className="link text-sm">
+                <Link href="/admin/pedidos" className="link inline-flex min-h-11 items-center text-sm">
                   Ver pedidos
                 </Link>
               }
@@ -263,7 +263,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
               <Card
                 title="Atividade recente"
                 actions={
-                  <Link href="/admin/atividade" className="link text-sm">
+                  <Link href="/admin/atividade" className="link inline-flex min-h-11 items-center text-sm">
                     Ver tudo
                   </Link>
                 }
@@ -279,7 +279,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
         <Card
           title="Produtos"
           actions={
-            <Link href="/admin/produtos" className="link text-sm">
+            <Link href="/admin/produtos" className="link inline-flex min-h-11 items-center text-sm">
               Ver todos
             </Link>
           }

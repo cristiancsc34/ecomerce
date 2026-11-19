@@ -21,7 +21,7 @@ export default async function PreviewPage({ params }: PageProps<"/admin/produtos
           <strong>Pré-visualização</strong> — status: {STATUS_LABELS[product.status]}. Visitantes{" "}
           {product.status === "published" ? "veem esta página." : "não veem esta página."}
         </p>
-        <Link href={`/admin/produtos/${product.id}`} className="inline-flex min-h-10 items-center font-semibold underline underline-offset-2">
+        <Link href={`/admin/produtos/${product.id}`} className="inline-flex min-h-11 items-center font-semibold underline underline-offset-2">
           Voltar à edição
         </Link>
       </div>

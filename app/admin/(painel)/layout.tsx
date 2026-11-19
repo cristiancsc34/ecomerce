@@ -31,14 +31,14 @@ export default async function PanelLayout({ children }: { children: React.ReactN
             href="/"
             target="_blank"
             rel="noopener"
-            className="flex min-h-10 items-center gap-3 rounded-xl px-3 text-white/80 hover:bg-white/10 hover:text-white"
+            className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-white/80 hover:bg-white/10 hover:text-white"
           >
             <ExternalIcon className="h-5 w-5" /> Ver loja
           </a>
           <form action={signOutAction}>
             <button
               type="submit"
-              className="flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-white/80 hover:bg-white/10 hover:text-white"
+              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-white/80 hover:bg-white/10 hover:text-white"
             >
               <LogoutIcon className="h-5 w-5" /> Sair
             </button>
