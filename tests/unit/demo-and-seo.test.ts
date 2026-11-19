@@ -60,7 +60,10 @@ describe("dados estruturados (schema.org)", () => {
   });
 
   it("preço igual ao exibido e sem disponibilidade inventada", () => {
-    const p = makeProduct({ variants: [makeVariant({ priceCents: 100000 }), makeVariant({ priceCents: 150000 })] });
+    // Variações sem cor nem tamanho (sem link próprio): faixa de preço.
+    const p = makeProduct({
+      variants: [makeVariant({ priceCents: 100000, size: null }), makeVariant({ priceCents: 150000, size: null })],
+    });
     const ld = productJsonLd(p, base)!;
     expect(ld.offers).toMatchObject({ "@type": "AggregateOffer", lowPrice: "1000.00", highPrice: "1500.00", priceCurrency: "BRL" });
     expect(ld.offers).not.toHaveProperty("availability");

@@ -7,27 +7,13 @@ import { breadcrumbJsonLd, productJsonLd } from "@/lib/seo/structured-data";
 import { JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { FaqList } from "@/components/ui/faq-list";
+import { Paragraphs } from "@/components/ui/paragraphs";
 import { FirmnessScale } from "./firmness-scale";
 import { ArchitectsSection } from "./architects";
 import { ProductMedia } from "./product-media";
 import { PurchasePanel, PurchasePanelWithParams } from "./purchase-panel";
 import { SizeTable, SpecsList } from "./specs";
 import { VariantSelectionProvider } from "./variant-selection";
-
-/** Texto simples em parágrafos (sem HTML vindo do banco). */
-function Paragraphs({ text }: { text: string }) {
-  return (
-    <div className="space-y-3 text-[0.9375rem] leading-relaxed text-ink sm:text-base">
-      {text
-        .split(/\n{2,}/)
-        .map((p) => p.trim())
-        .filter(Boolean)
-        .map((p, i) => (
-          <p key={i}>{p}</p>
-        ))}
-    </div>
-  );
-}
 
 /** Bloco branco da página de produto (estilo marketplace). */
 function Block({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {

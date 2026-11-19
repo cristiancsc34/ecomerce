@@ -57,12 +57,21 @@ export function ProductCard({
   );
 }
 
-export function ProductGrid({ products, priorityCount = 0 }: { products: Product[]; priorityCount?: number }) {
+export function ProductGrid({
+  products,
+  priorityCount = 0,
+  headingLevel = "h3",
+}: {
+  products: Product[];
+  priorityCount?: number;
+  /** Nível do nome do produto: um abaixo do título da seção (h1 → h2, h2 → h3). */
+  headingLevel?: "h2" | "h3";
+}) {
   return (
     <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
       {products.map((p, i) => (
         <li key={p.id} className="min-w-0">
-          <ProductCard product={p} priority={i < priorityCount} />
+          <ProductCard product={p} priority={i < priorityCount} headingLevel={headingLevel} />
         </li>
       ))}
     </ul>
