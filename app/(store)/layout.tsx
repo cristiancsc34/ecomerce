@@ -10,7 +10,7 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
       <SkipLink />
       <AnnouncementBar />
       <Header />
-      <main id="conteudo" tabIndex={-1} className="flex-1 outline-none">
+      <main id="conteudo" tabIndex={-1} className="min-h-svh flex-1 outline-none">
         {children}
       </main>
       <Footer />
