@@ -48,6 +48,9 @@ export function PurchasePanel({
   const variantId = shared ? shared.variantId : localId;
   const setVariantId = shared ? shared.setVariantId : setLocalId;
   const [feedback, setFeedback] = useState<"added" | "full" | null>(null);
+  // Celular: o aviso fica uns segundos acima da barra fixa (quem rolou até a descrição também vê).
+  const [floating, setFloating] = useState(false);
+  const [feedbackKey, setFeedbackKey] = useState(0);
   const groupId = useId();
 
   // Tamanho vindo do link (?tamanho=): entra na seleção compartilhada.
@@ -56,6 +59,12 @@ export function PurchasePanel({
     // Só na chegada.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!floating) return;
+    const t = setTimeout(() => setFloating(false), 4000);
+    return () => clearTimeout(t);
+  }, [floating, feedbackKey]);
 
   const variant: ProductVariant | null = variants.find((v) => v.id === variantId) ?? null;
   const price = variant ? variant.priceCents : needsVariant ? null : product.priceCents;
@@ -70,6 +79,8 @@ export function PurchasePanel({
     if (!canAdd) return false;
     const ok = cart.add(product.id, variant?.id ?? null, 1);
     setFeedback(ok ? "added" : "full");
+    setFloating(true);
+    setFeedbackKey((k) => k + 1);
     return ok;
   }
 
@@ -246,14 +257,18 @@ export function PurchasePanel({
       {/* Espaço reservado: a mensagem não empurra o conteúdo ao aparecer. */}
       <div id={`${groupId}-feedback`} role="status" className="min-h-6 text-sm">
         {feedback === "added" ? (
-          <p className="flex flex-wrap items-center gap-2 font-medium text-success">
+          <p
+            key={feedbackKey}
+            data-aviso-sacola
+            className={`flex flex-wrap items-center gap-2 font-medium text-success ${floating ? floatingClasses : ""}`}
+          >
             <CheckIcon className="h-5 w-5" /> Adicionado à sacola.
-            <Link href="/carrinho" className="link">
+            <Link href="/carrinho" className="link inline-flex min-h-11 items-center">
               Ver sacola
             </Link>
           </p>
         ) : feedback === "full" ? (
-          <p className="font-medium text-danger">Sua sacola atingiu o limite de itens diferentes.</p>
+          <p key={feedbackKey} className={`font-medium text-danger ${floating ? floatingClasses : ""}`}>Sua sacola atingiu o limite de itens diferentes.</p>
         ) : null}
       </div>
 
@@ -288,3 +303,7 @@ export function PurchasePanel({
     </div>
   );
 }
+
+/** Aviso flutuante só no celular (no computador ele já aparece ao lado dos botões). */
+const floatingClasses =
+  "max-lg:fixed max-lg:inset-x-3 max-lg:bottom-[calc(4.25rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-lg max-lg:border max-lg:border-line max-lg:bg-white max-lg:px-4 max-lg:py-2 max-lg:shadow-[var(--shadow-lift)] max-lg:animate-aparecer";

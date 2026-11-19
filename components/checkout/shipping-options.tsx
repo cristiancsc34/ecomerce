@@ -169,31 +169,34 @@ export function ShippingEstimate() {
           Calcular
         </button>
       </form>
-      {submitted && submitted.length !== 8 ? <p className="text-sm font-medium text-danger">Digite o CEP com 8 números.</p> : null}
-      {state.status === "loading" ? <p className="text-sm text-muted">Calculando o frete…</p> : null}
-      {state.status === "error" ? <p className="text-sm font-medium text-danger">{state.message}</p> : null}
-      {state.status === "done" ? (
-        state.options.length ? (
-          <ul className="space-y-1 text-sm" aria-live="polite">
-            {state.options.map((o) => {
-              const eta = shippingEta(o);
-              return (
-                <li key={o.id} className="flex justify-between gap-3">
-                  <span className="text-ink">
-                    {o.name}
-                    {eta ? <span className="block text-muted">{eta}</span> : null}
-                  </span>
-                  <span className="shrink-0 font-semibold text-air-blue-ink">{shippingPriceLabel(o, formatPrice)}</span>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted" aria-live="polite">
-            {NONE_TEXT}
-          </p>
-        )
-      ) : null}
+      {/* Uma só região anunciada: "calculando", erro e resultado são lidos pelo leitor de tela. */}
+      <div aria-live="polite" className="space-y-2">
+        {submitted && submitted.length !== 8 ? <p className="text-sm font-medium text-danger">Digite o CEP com 8 números.</p> : null}
+        {state.status === "loading" ? <p className="text-sm text-muted">Calculando o frete…</p> : null}
+        {state.status === "error" ? <p className="text-sm font-medium text-danger">{state.message}</p> : null}
+        {state.status === "done" ? (
+          state.options.length ? (
+            <ul className="animate-aparecer space-y-1 text-sm">
+              {state.options.map((o) => {
+                const eta = shippingEta(o);
+                return (
+                  <li key={o.id} className="flex justify-between gap-3">
+                    <span className="text-ink">
+                      {o.name}
+                      {eta ? <span className="block text-muted">{eta}</span> : null}
+                    </span>
+                    <span className="shrink-0 font-semibold text-air-blue-ink">{shippingPriceLabel(o, formatPrice)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted">
+              {NONE_TEXT}
+            </p>
+          )
+        ) : null}
+      </div>
     </div>
   );
 }
