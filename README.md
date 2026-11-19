@@ -1,11 +1,11 @@
-# Cuxões — loja de colchões (MVP)
+# AzConfort — loja de móveis (azconfort.com.br)
 
-Loja online responsiva para colchões e produtos de descanso, com painel administrativo seguro e base pronta para
+Loja online responsiva de móveis (sofás, mesas, poltronas e cadeiras), com painel administrativo seguro e base pronta para
 pagamento, frete, IA de imagens e visualização 3D (sem fingir que essas integrações já existem).
 
 <!-- kit:remover -->
-A especificação completa está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md). “Cuxões” é um nome provisório: troque em
-[`config/brand.ts`](config/brand.ts).
+A especificação original está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md) (a loja nasceu como “Cuxões”; desde
+19/11/2026 a marca é **AzConfort**, em [`config/brand.ts`](config/brand.ts)).
 <!-- /kit:remover -->
 
 ## Estado atual
@@ -21,7 +21,8 @@ A especificação completa está em [`SPEC-MVP-CUXOES.md`](SPEC-MVP-CUXOES.md). 
 | Avisos de pedido (WhatsApp e e-mail) | 🧱 Estrutura pronta e testada (mensagens, fila idempotente, novas tentativas); falta checkout e provedor ([`docs/NOTIFICACOES.md`](docs/NOTIFICACOES.md)) |
 | Pedidos e entregas (pós-compra) | ✅ Painel **Pedidos**: venda fechada no atendimento vira pedido, com etapas (pago, preparação, enviado/agendado, saiu para entrega, entregue, troca), aviso ao cliente no WhatsApp com um toque e página **Acompanhar pedido** para o cliente — [`docs/LOGISTICA.md`](docs/LOGISTICA.md) |
 | Fábrica e logística (Trama) | ✅ Pedido confirmado vai sozinho para o Trama, que reserva do estoque (expedição) ou abre a ordem de produção (fábrica); cada etapa (produção, entrega agendada, saiu, entregue, cancelado) volta por webhook para a página do cliente. Liga com `TRAMA_API_URL` e `TRAMA_API_KEY` — [`docs/INTEGRACAO-TRAMA.md`](docs/INTEGRACAO-TRAMA.md) |
-| Checkout, pagamento online, frete automático | ⏳ Depende das decisões do dono (opções e preços em [`docs/LOGISTICA.md`](docs/LOGISTICA.md)) |
+| Frete por CEP na sacola e no checkout | ✅ Formas de entrega cadastradas no painel (Entrega e avisos); o valor entra no pedido, conferido no banco. CEP sem forma cadastrada = “a combinar” |
+| Pagamento (Pix, cartão, boleto) | 🧱 O cliente escolhe a forma e ela fica no pedido; a cobrança online espera a API do banco Blue ([`docs/PAGAMENTO.md`](docs/PAGAMENTO.md)) |
 | Estúdio de fotos e 3D no painel | ✅ Tudo na nuvem (Vercel), sem computador ligado — [`docs/ESTUDIO-IA.md`](docs/ESTUDIO-IA.md). Fotos do celular com limpeza de fundo pelo ChatGPT (~20 s), 4 fotos de catálogo recriadas por IA (~45 s, com conferência humana), nome e descrição lidos das fotos uma vez e guardados (“Aprimorar descrição”), 3D pela API do Tripo. |
 
 **Nada aqui é dado comercial real.** Os produtos “Nuvem Essencial”, “Brisa Premium” e “Sereno Híbrido” são
@@ -56,7 +57,7 @@ Copie [`.env.example`](.env.example) para `.env.local`.
 | Variável | Pública? | Para quê |
 | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | sim | URL canônica (SEO, sitemap, Open Graph) |
-| `NEXT_PUBLIC_BRAND_NAME` | sim | Nome da marca (padrão: Cuxões) |
+| `NEXT_PUBLIC_BRAND_NAME` | sim | Nome da marca (padrão: AzConfort) |
 | `CATALOG_SOURCE` | não | `demo` ou `supabase`. Vazio: Supabase se configurado, senão demonstração |
 | `NEXT_PUBLIC_SUPABASE_URL` | sim | URL do projeto Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sim | Chave pública (anon/publishable). Segura por causa do RLS |

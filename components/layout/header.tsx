@@ -1,7 +1,8 @@
 import Form from "next/form";
 import Link from "next/link";
 import { brand } from "@/config/brand";
-import { LogoMark, SearchIcon } from "@/components/ui/icons";
+import { SearchIcon } from "@/components/ui/icons";
+import { Logo } from "./logo";
 import { CartLink } from "./cart-link";
 
 /** Cabeçalho de loja: marca, busca em destaque e sacola. Sem menus extras. */
@@ -10,9 +11,8 @@ export function Header() {
     <header className="sticky top-0 z-40 bg-air-blue-ink text-white shadow-[0_2px_12px_rgb(19_41_64/0.18)]">
       <div className="container-page flex h-16 items-center gap-3 sm:h-[4.5rem] sm:gap-6">
         <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg py-1 pr-1">
-          <LogoMark className="h-9 w-9 rounded-lg ring-1 ring-white/40" />
-          <span className="hidden text-xl font-bold tracking-tight sm:inline">{brand.name}</span>
-          <span className="sr-only sm:hidden">{brand.name}, página inicial</span>
+          <Logo tone="white" className="text-xl sm:text-2xl" />
+          <span className="sr-only">, página inicial</span>
         </Link>
 
         <Form action="/busca" role="search" className="relative flex min-w-0 flex-1 lg:max-w-3xl">

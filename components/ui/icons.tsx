@@ -268,15 +268,6 @@ export const DotsIcon = (p: IconProps) => (
   </Icon>
 );
 
-export const LogoMark = (p: IconProps) => (
-  <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" focusable="false" {...p}>
-    <rect width="32" height="32" rx="9" fill="#132940" />
-    <path d="M7 19.5c0-2.5 2-4.5 4.5-4.5h9c2.5 0 4.5 2 4.5 4.5V22H7v-2.5Z" fill="#C4E0F5" />
-    <path d="M9 15v-2.5A2.5 2.5 0 0 1 11.5 10h2A2.5 2.5 0 0 1 16 12.5V15" fill="#F6FAFC" />
-    <rect x="6" y="22" width="20" height="2.5" rx="1.25" fill="#408AC2" />
-  </svg>
-);
-
 export const TruckIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M3 6h11v10H3zM14 9h4l3 3v4h-7" />

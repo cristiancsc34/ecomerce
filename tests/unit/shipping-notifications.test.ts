@@ -76,12 +76,12 @@ const order: OrderForMessage = {
   scheduled_window: null,
   items: [{ name: "Poltrona Azul", variant_name: null, quantity: 1, sort_order: 0 }],
 };
-const opts = { site: "https://loja.exemplo", brandName: "Cuxões", dedupeKey: "etapa:1:email", publicNote: "Vamos confirmar o pagamento pelo WhatsApp." };
+const opts = { site: "https://loja.exemplo", brandName: "AzConfort", dedupeKey: "etapa:1:email", publicNote: "Vamos confirmar o pagamento pelo WhatsApp." };
 
 describe("avisos automáticos: mensagens", () => {
   it("e-mail da etapa: assunto, texto do pedido, recado da etapa e link de acompanhamento", () => {
     const m = renderStatusNotification("email", "maria@exemplo.com", "recebido", order, opts);
-    expect(m.email?.subject).toBe("Pedido PED-1042: Pedido recebido — Cuxões");
+    expect(m.email?.subject).toBe("Pedido PED-1042: Pedido recebido — AzConfort");
     expect(m.text).toContain("Olá, Maria!");
     expect(m.text).toContain("Vamos confirmar o pagamento pelo WhatsApp.");
     expect(m.text).toContain("https://loja.exemplo/pedido/PED-1042?t=11111111-2222-4333-8444-555555555555");
@@ -113,13 +113,13 @@ describe("avisos automáticos: provedores", () => {
 
   it("Resend: chamada com chave no cabeçalho e chave de idempotência", async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "em_123" }), { status: 200 }));
-    const provider = resendProvider("re_teste", "Cuxões <pedidos@loja.exemplo>", fetchMock as unknown as typeof fetch);
+    const provider = resendProvider("re_teste", "AzConfort <pedidos@loja.exemplo>", fetchMock as unknown as typeof fetch);
     const message = renderStatusNotification("email", "maria@exemplo.com", "pago", order, opts);
     await expect(provider.send(message)).resolves.toEqual({ providerMessageId: "em_123" });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.resend.com/emails");
     expect(init.headers).toMatchObject({ Authorization: "Bearer re_teste", "Idempotency-Key": "etapa:1:email" });
-    expect(JSON.parse(String(init.body))).toMatchObject({ from: "Cuxões <pedidos@loja.exemplo>", to: ["maria@exemplo.com"], subject: message.email?.subject });
+    expect(JSON.parse(String(init.body))).toMatchObject({ from: "AzConfort <pedidos@loja.exemplo>", to: ["maria@exemplo.com"], subject: message.email?.subject });
   });
 
   it("WhatsApp: modelo aprovado com os 3 campos; erro do provedor vira nova tentativa (lança)", async () => {

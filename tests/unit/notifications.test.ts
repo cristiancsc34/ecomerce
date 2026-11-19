@@ -20,7 +20,7 @@ describe("avisos de pedido: mensagens", () => {
     const [email, whatsapp] = renderOrderMessages("pedido_confirmado", order());
     expect(email.channel).toBe("email");
     expect(email.to).toBe("maria@exemplo.com");
-    expect(email.email?.subject).toBe("Pedido CX-1042 confirmado — Cuxões");
+    expect(email.email?.subject).toBe("Pedido CX-1042 confirmado — AzConfort");
     expect(email.text).toContain("Olá, Maria!");
     expect(email.text).toContain("Pagamento confirmado! Recebemos o seu pedido CX-1042.");
     expect(email.text).toMatch(/1× Poltrona Azul Estrutura Clara — R\$\s1\.299,90/);

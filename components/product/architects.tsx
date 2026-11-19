@@ -8,9 +8,9 @@ import { ArchitectsInterestLink } from "./architects-interest-link";
 const cm = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 const NOT_INFORMED = "Ainda não informado pela loja";
 
-/** Nome legível do arquivo baixado: cuxoes-poltrona-azul.glb (ou -marrom.glb para uma cor). */
+/** Nome legível do arquivo baixado: azconfort-poltrona-azul.glb (ou -marrom.glb para uma cor). */
 export function downloadName(slug: string, ext: "glb" | "usdz", color?: string) {
-  return `cuxoes-${slug}${color ? `-${color}` : ""}.${ext}`;
+  return `azconfort-${slug}${color ? `-${color}` : ""}.${ext}`;
 }
 
 /**

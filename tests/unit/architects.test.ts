@@ -50,9 +50,9 @@ describe("área de arquitetos e designers", () => {
       }),
     );
     expect(html).toContain("Para arquitetos e designers");
-    expect(html).toContain('download="cuxoes-poltrona-x.glb"');
-    expect(html).toContain('download="cuxoes-poltrona-x.usdz"');
-    expect(html).toContain("?download=cuxoes-poltrona-x.glb");
+    expect(html).toContain('download="azconfort-poltrona-x.glb"');
+    expect(html).toContain('download="azconfort-poltrona-x.usdz"');
+    expect(html).toContain("?download=azconfort-poltrona-x.glb");
     // Texto conferido nas documentações: Revit não abre .glb; SketchUp só no computador (Pro/Studio).
     expect(html).toContain("o Revit não abre .glb");
     expect(html).toContain("SketchUp para computador (2024 ou mais recente, planos Pro e Studio)");

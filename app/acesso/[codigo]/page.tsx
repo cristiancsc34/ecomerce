@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { brand } from "@/config/brand";
 import { isSupabaseConfigured } from "@/config/site";
 import { linkPeloCodigo } from "@/lib/admin/access-links";
 import { ROTULO_AREA } from "@/lib/auth/areas";
 import { getStaff } from "@/lib/auth/staff";
 import { AccessLinkEnterForm } from "@/components/admin/access-link-enter";
-import { LogoMark } from "@/components/ui/icons";
+import { Logo } from "@/components/layout/logo";
 import { Notice } from "@/components/ui/notice";
 
 export const metadata: Metadata = { title: "Acesso ao painel", robots: { index: false, follow: false } };
@@ -20,8 +19,7 @@ export default function AcessoPage({ params }: PageProps<"/acesso/[codigo]">) {
     <main id="conteudo" className="flex min-h-svh items-center justify-center bg-gradient-to-b from-pale-blue to-cloud px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center justify-center gap-2 text-deep-fjord">
-          <LogoMark className="h-10 w-10" />
-          <span className="text-2xl font-bold">{brand.name}</span>
+          <Logo className="text-2xl" />
           <span className="rounded-full bg-deep-fjord px-2 py-0.5 text-xs font-semibold text-white">Painel</span>
         </div>
         <div className="rounded-2xl border border-line bg-white p-6 shadow-[var(--shadow-soft)] sm:p-8">

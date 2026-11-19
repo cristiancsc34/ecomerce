@@ -135,16 +135,16 @@ describe("exemplo de cores (só desenvolvimento)", () => {
 });
 
 describe("arquitetos: arquivos com nome legível", () => {
-  it("nomes cuxoes-<produto>[-<cor>].glb|usdz", () => {
-    expect(downloadName("poltrona-azul", "glb")).toBe("cuxoes-poltrona-azul.glb");
-    expect(downloadName("poltrona-azul", "usdz")).toBe("cuxoes-poltrona-azul.usdz");
-    expect(downloadName("poltrona-azul", "glb", "marrom")).toBe("cuxoes-poltrona-azul-marrom.glb");
+  it("nomes azconfort-<produto>[-<cor>].glb|usdz", () => {
+    expect(downloadName("poltrona-azul", "glb")).toBe("azconfort-poltrona-azul.glb");
+    expect(downloadName("poltrona-azul", "usdz")).toBe("azconfort-poltrona-azul.usdz");
+    expect(downloadName("poltrona-azul", "glb", "marrom")).toBe("azconfort-poltrona-azul-marrom.glb");
   });
 
   it("no Storage o nome vai por ?download=; arquivos do próprio site usam o atributo download", () => {
-    expect(downloadHref("/demo/poltrona-azul.glb", "cuxoes-poltrona-azul.glb")).toBe("/demo/poltrona-azul.glb");
+    expect(downloadHref("/demo/poltrona-azul.glb", "azconfort-poltrona-azul.glb")).toBe("/demo/poltrona-azul.glb");
     expect(
-      downloadHref("https://x.supabase.co/storage/v1/object/public/product-media/products/p/m.glb", "cuxoes-poltrona-azul.glb"),
-    ).toBe("https://x.supabase.co/storage/v1/object/public/product-media/products/p/m.glb?download=cuxoes-poltrona-azul.glb");
+      downloadHref("https://x.supabase.co/storage/v1/object/public/product-media/products/p/m.glb", "azconfort-poltrona-azul.glb"),
+    ).toBe("https://x.supabase.co/storage/v1/object/public/product-media/products/p/m.glb?download=azconfort-poltrona-azul.glb");
   });
 });

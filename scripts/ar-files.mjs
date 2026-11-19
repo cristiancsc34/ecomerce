@@ -383,7 +383,7 @@ ${shaders.join("\n")}
   const usda = `#usda 1.0
 (
     customLayerData = {
-        string creator = "Cuxões (estúdio de IA)"
+        string creator = "AzConfort (estúdio de IA)"
     }
     defaultPrim = "Root"
     metersPerUnit = 1

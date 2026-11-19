@@ -284,7 +284,7 @@ function UploadForm({ productId, onDone }: { productId: string; onDone: (text: s
           required
           minLength={5}
           maxLength={300}
-          placeholder="Ex.: Colchão Brisa visto de lado, mostrando a altura"
+          placeholder="Ex.: Sofá visto de lado, mostrando a altura"
           aria-invalid={fieldErrors.altText ? true : undefined}
           aria-describedby={fieldErrors.altText ? "upload-alt-error" : undefined}
           className={controlClasses}

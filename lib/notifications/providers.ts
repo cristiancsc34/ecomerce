@@ -2,7 +2,7 @@ import type { NotificationChannel, NotificationProvider, OutgoingMessage } from 
 
 /**
  * Provedores de envio. Só ligam com as chaves no servidor (variáveis de ambiente; nunca NEXT_PUBLIC_):
- *   E-mail:   RESEND_API_KEY + EMAIL_FROM (ex.: "Cuxões <pedidos@seudominio.com.br>", domínio verificado no Resend).
+ *   E-mail:   RESEND_API_KEY + EMAIL_FROM (ex.: "AzConfort <pedidos@seudominio.com.br>", domínio verificado no Resend).
  *   WhatsApp: WHATSAPP_TOKEN + WHATSAPP_PHONE_NUMBER_ID (API oficial da Meta; modelos aprovados — docs/CHECKOUT.md).
  * Sem as chaves, nada é enviado (e o painel não deixa ligar os avisos automáticos).
  */

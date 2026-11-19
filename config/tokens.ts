@@ -1,5 +1,5 @@
 /**
- * Tokens de cor da identidade Cuxões.
+ * Tokens de cor da identidade AzConfort.
  *
  * Fonte única para código TypeScript (OG image, SVGs, testes de contraste).
  * O CSS usa os mesmos valores em `app/globals.css` (@theme); um teste unitário

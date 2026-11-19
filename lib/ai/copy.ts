@@ -56,7 +56,7 @@ export function confirmedFacts(product: Product) {
   };
 }
 
-const INSTRUCTIONS = `Você escreve textos de vitrine para uma loja online brasileira de móveis e colchões.
+const INSTRUCTIONS = `Você escreve textos de vitrine para uma loja online brasileira de móveis.
 Escreva em português do Brasil, tom acolhedor e direto, frases curtas, sem exageros nem clichês.
 
 Regras obrigatórias:

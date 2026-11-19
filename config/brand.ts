@@ -29,11 +29,11 @@ export type BrandConfig = {
 };
 
 export const brand: BrandConfig = {
-  name: process.env.NEXT_PUBLIC_BRAND_NAME?.trim() || "Cuxões",
-  slogan: "Seu melhor descanso começa aqui.",
-  tagline: "Poltronas, cadeiras e produtos de descanso.",
+  name: process.env.NEXT_PUBLIC_BRAND_NAME?.trim() || "AzConfort",
+  slogan: "Móveis para a sua casa.",
+  tagline: "Sofás, mesas, poltronas e cadeiras.",
   description:
-    "Loja de poltronas, cadeiras e produtos de descanso, com fotos de todos os ângulos e visualização em 3D.",
+    "Loja online de móveis: sofás, mesas, poltronas e cadeiras, com fotos de todos os ângulos e visualização em 3D.",
   announcement: null,
   contact: {
     email: "",

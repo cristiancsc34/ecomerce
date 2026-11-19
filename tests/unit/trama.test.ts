@@ -28,7 +28,7 @@ const pedido = (over: Partial<PedidoDaLoja> = {}): PedidoDaLoja => ({
 
 describe("loja → Trama: corpo do POST /api/v1/pedidos", () => {
   it("pedido pago com entrega: cliente, endereço, itens pelo SKU, frete e pagamento confirmado pela loja", () => {
-    const r = montarPedidoParaTrama(pedido(), "Cuxões");
+    const r = montarPedidoParaTrama(pedido(), "AzConfort");
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.pedido).toEqual({
@@ -59,7 +59,7 @@ describe("loja → Trama: corpo do POST /api/v1/pedidos", () => {
       desconto_centavos: 0,
       pagamento: { situacao: "pago", forma: "pix", valor_centavos: 139890, id_transacao_gateway: "loja:PED-1042" },
       observacoes: [
-        "Pedido PED-1042 da loja Cuxões.",
+        "Pedido PED-1042 da loja AzConfort.",
         "Acesso para a entrega: 3º andar, sem elevador",
         "Inclui montagem.",
         "Pagamento confirmado pela loja: Pix.",
@@ -68,7 +68,7 @@ describe("loja → Trama: corpo do POST /api/v1/pedidos", () => {
   });
 
   it("sem pagamento: paga na entrega; retirada vai sem endereço; frete a combinar vira 0", () => {
-    const r = montarPedidoParaTrama(pedido({ paid_at: null, delivery_method: "retirada", address: {}, shipping_cents: null }), "Cuxões");
+    const r = montarPedidoParaTrama(pedido({ paid_at: null, delivery_method: "retirada", address: {}, shipping_cents: null }), "AzConfort");
     expect(r.ok && r.pedido.pagamento).toEqual({ situacao: "na_entrega" });
     expect(r.ok && r.pedido.entrega).toEqual({ modalidade: "retirada", endereco: null });
     expect(r.ok && r.pedido.frete_centavos).toBe(0);
@@ -83,7 +83,7 @@ describe("loja → Trama: corpo do POST /api/v1/pedidos", () => {
           { name: "Poltrona", variant_name: "Cor: Areia", unit_price_cents: 100, quantity: 1, sort_order: 0, variant_sku: null, product_sku: "POL" },
         ],
       }),
-      "Cuxões",
+      "AzConfort",
     );
     expect(r.ok && r.pedido.itens).toEqual([
       { sku: "POL", quantidade: 1, preco_unitario_centavos: 100, desconto_centavos: 0, personalizacao: "Variação escolhida: Cor: Areia" },
@@ -97,7 +97,7 @@ describe("loja → Trama: corpo do POST /api/v1/pedidos", () => {
         address: { cep: "123", rua: "", bairro: "", cidade: "X", uf: "" },
         items: [{ name: "Cadeira", variant_name: null, unit_price_cents: 1, quantity: 1, sort_order: 0, variant_sku: null, product_sku: null }],
       }),
-      "Cuxões",
+      "AzConfort",
     );
     expect(r).toEqual({
       ok: false,
@@ -106,7 +106,7 @@ describe("loja → Trama: corpo do POST /api/v1/pedidos", () => {
   });
 
   it("número vazio vira s/n; link de pagamento fica como transferência", () => {
-    const r = montarPedidoParaTrama(pedido({ address: { ...pedido().address, numero: "" }, payment_method: "link" }), "Cuxões");
+    const r = montarPedidoParaTrama(pedido({ address: { ...pedido().address, numero: "" }, payment_method: "link" }), "AzConfort");
     expect(r.ok && r.pedido.entrega.endereco?.numero).toBe("s/n");
     expect(r.ok && r.pedido.pagamento).toMatchObject({ forma: "transferencia" });
     expect(r.ok && r.pedido.observacoes).toContain("link de pagamento");
@@ -224,7 +224,7 @@ describe("cliente da API", () => {
       return new Response(JSON.stringify(corpo), { status, headers: { "Content-Type": "application/json", ...headers } });
     };
   const corpo = (() => {
-    const r = montarPedidoParaTrama(pedido(), "Cuxões");
+    const r = montarPedidoParaTrama(pedido(), "AzConfort");
     if (!r.ok) throw new Error("montagem");
     return r.pedido;
   })();

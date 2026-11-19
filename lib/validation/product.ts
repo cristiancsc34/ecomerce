@@ -17,7 +17,7 @@ export const slugSchema = z
   .trim()
   .min(2, "Use pelo menos 2 caracteres.")
   .max(80, "Use no máximo 80 caracteres.")
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use só letras minúsculas sem acento, números e hífens (ex.: colchao-nuvem).");
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use só letras minúsculas sem acento, números e hífens (ex.: sofa-retratil-cinza).");
 
 const shortText = (max: number) => z.string().trim().min(1).max(max);
 
