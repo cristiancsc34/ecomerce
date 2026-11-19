@@ -51,6 +51,8 @@ const input = (over: Partial<CheckoutInput> = {}): CheckoutInput => ({
     uf: "sp",
     referencia: "",
   },
+  shippingOptionId: null,
+  paymentMethod: "pix",
   deliveryNotes: "",
   acceptTerms: true,
   items: [{ productId: PRODUCT, variantId: null, quantity: 1 }],
@@ -81,6 +83,27 @@ describe("placeOrderAction", () => {
     expect(payload).not.toHaveProperty("totalCents");
     expect(payload).not.toHaveProperty("status");
     expect(payload.customerPhone).toBe("5511987654321");
+    expect(payload.paymentMethod).toBe("pix");
+    expect(payload.shippingOptionId).toBeNull();
+  });
+
+  it("manda a forma de entrega escolhida (nunca o valor) e a tira na retirada", async () => {
+    const option = "22222222-2222-4222-8222-222222222222";
+    await placeOrderAction({ ...input({ shippingOptionId: option, paymentMethod: "boleto" }), shippingCents: 1 } as never);
+    const payload = state.rpcCalls[0].args.p_data as Record<string, unknown>;
+    expect(payload.shippingOptionId).toBe(option);
+    expect(payload.paymentMethod).toBe("boleto");
+    expect(payload).not.toHaveProperty("shippingCents");
+
+    state.rpcCalls = [];
+    await placeOrderAction(input({ deliveryMethod: "retirada", shippingOptionId: option }));
+    expect((state.rpcCalls[0].args.p_data as Record<string, unknown>).shippingOptionId).toBeNull();
+  });
+
+  it("exige a forma de pagamento", async () => {
+    const r = await placeOrderAction(input({ paymentMethod: "dinheiro" as never }));
+    expect(r.ok).toBe(false);
+    expect(state.rpcCalls).toHaveLength(0);
   });
 
   it("erros de validação voltam por campo, com as chaves do contrato", async () => {

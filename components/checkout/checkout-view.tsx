@@ -8,7 +8,14 @@ import { cart, useCartItems } from "@/lib/cart/store";
 import { lookupCepPublicAction, placeOrderAction } from "@/lib/orders/checkout-actions";
 import { formatPhone } from "@/lib/orders/status";
 import { useHydrated } from "@/lib/use-hydrated";
-import { checkoutInputSchema, type CheckoutInput } from "@/lib/validation/checkout";
+import type { ShippingOption } from "@/lib/shipping/types";
+import {
+  checkoutInputSchema,
+  PAYMENT_METHOD_LABELS,
+  SITE_PAYMENT_METHODS,
+  type CheckoutInput,
+  type SitePaymentMethod,
+} from "@/lib/validation/checkout";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { controlClasses, FieldError, HelpText, Label } from "@/components/ui/field";
 import { BagIcon } from "@/components/ui/icons";
@@ -17,6 +24,7 @@ import { Notice } from "@/components/ui/notice";
 import { CheckField, CheckoutSection, TextField } from "./fields";
 import { OrderSummary } from "./order-summary";
 import { useCartQuote } from "./use-cart-quote";
+import { rememberCep, rememberedCep, ShippingChoice, useShippingOptions } from "./shipping-options";
 
 type DeliveryMethod = CheckoutInput["deliveryMethod"];
 type Address = CheckoutInput["address"];
@@ -50,7 +58,9 @@ const FIELD_ORDER = [
   "address.cidade",
   "address.uf",
   "address.referencia",
+  "shippingOptionId",
   "deliveryNotes",
+  "paymentMethod",
   "whatsappOptIn",
   "acceptTerms",
 ] as const;
@@ -81,8 +91,11 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("entrega_propria");
-  const [address, setAddress] = useState<Address>(EMPTY_ADDRESS);
+  // CEP calculado na sacola (só nesta aba) já vem preenchido. O formulário só aparece no navegador.
+  const [address, setAddress] = useState<Address>(() => ({ ...EMPTY_ADDRESS, cep: formatCep(rememberedCep()) }));
   const [deliveryNotes, setDeliveryNotes] = useState("");
+  const [shipping, setShipping] = useState<ShippingOption | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<SitePaymentMethod | null>(null);
   const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
 
@@ -93,6 +106,7 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
   const [cepStatus, setCepStatus] = useState<{ text: string; tone: "muted" | "danger" } | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
   const submitting = useRef(false);
+  const shippingState = useShippingOptions(deliveryMethod === "entrega_propria" ? address.cep : "");
 
   if (!enabled) {
     return (
@@ -153,6 +167,9 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
 
   const { quote } = state;
   const entrega = deliveryMethod === "entrega_propria";
+  // A escolha só vale se a forma ainda atende o CEP digitado.
+  const chosenShipping =
+    entrega && shipping && shippingState.status === "done" && shippingState.options.some((o) => o.id === shipping.id) ? shipping : null;
   const blockedByDemo = quote.hasDemoItems;
   const canSubmit = inSync && !blockedByDemo && quote.lines.length > 0;
 
@@ -175,6 +192,7 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
     setCepLoading(true);
     setCepStatus({ text: "Buscando endereço…", tone: "muted" });
     try {
+      rememberCep(digits);
       const r = await lookupCepPublicAction(digits);
       if (!r.ok) {
         setCepStatus({ text: r.error, tone: "danger" });
@@ -222,6 +240,8 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
       whatsappOptIn,
       deliveryMethod,
       address: entrega ? address : EMPTY_ADDRESS,
+      shippingOptionId: chosenShipping?.id ?? null,
+      paymentMethod: paymentMethod ?? ("" as SitePaymentMethod),
       deliveryNotes: entrega ? deliveryNotes : "",
       acceptTerms,
       items: quote.normalizedItems.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
@@ -231,6 +251,10 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
     const local: Errors = {};
     const parsed = checkoutInputSchema.safeParse(input);
     if (!parsed.success) Object.assign(local, zodFieldErrors(parsed.error.issues));
+    if (entrega && shippingState.status === "done" && shippingState.options.length && !chosenShipping) {
+      local.shippingOptionId = "Escolha a forma de entrega.";
+    }
+    if (!paymentMethod) local.paymentMethod = "Escolha a forma de pagamento: Pix, cartão ou boleto.";
     if (!whatsappOptIn) local.whatsappOptIn = "Marque para a loja poder falar com você pelo WhatsApp sobre o pedido.";
     if (!acceptTerms) local.acceptTerms = "Marque para confirmar que leu as políticas de entrega e de trocas.";
     if (Object.keys(local).length) {
@@ -528,6 +552,17 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
                 </HelpText>
                 <FieldError id={`${fieldId("deliveryNotes")}-error`}>{err("deliveryNotes")}</FieldError>
               </div>
+              <div id={fieldId("shippingOptionId")} tabIndex={-1} className="outline-none">
+                <ShippingChoice
+                  state={shippingState}
+                  selectedId={chosenShipping?.id ?? null}
+                  onSelect={(o) => {
+                    setShipping(o);
+                    clearError("shippingOptionId");
+                  }}
+                />
+                <FieldError id={`${fieldId("shippingOptionId")}-error`}>{err("shippingOptionId")}</FieldError>
+              </div>
             </>
           ) : (
             <p className="rounded-xl bg-pale-blue p-4 text-[0.9375rem] text-ink">
@@ -543,9 +578,37 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
         </CheckoutSection>
 
         <CheckoutSection number={3} title="Pagamento" id="etapa-pagamento">
-          <p className="text-[0.9375rem] text-ink">
-            Depois de enviar o pedido, a loja confirma o pagamento (Pix ou link) e a data de entrega com você pelo WhatsApp. O
-            frete é combinado nesse contato.
+          <fieldset aria-describedby={err("paymentMethod") ? `${fieldId("paymentMethod")}-error` : "checkout-pagamento-ajuda"}>
+            <legend className="mb-2 text-sm font-medium text-ink">Como você quer pagar?</legend>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {SITE_PAYMENT_METHODS.map((m, index) => (
+                <label
+                  key={m}
+                  className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-3 ${
+                    paymentMethod === m ? "border-deep-fjord bg-pale-blue" : "border-line"
+                  }`}
+                >
+                  <input
+                    id={index === 0 ? fieldId("paymentMethod") : undefined}
+                    type="radio"
+                    name="paymentMethod"
+                    value={m}
+                    checked={paymentMethod === m}
+                    onChange={() => {
+                      setPaymentMethod(m);
+                      clearError("paymentMethod");
+                    }}
+                    className="h-5 w-5 accent-deep-fjord"
+                  />
+                  <span className="font-medium text-ink">{PAYMENT_METHOD_LABELS[m]}</span>
+                </label>
+              ))}
+            </div>
+            <FieldError id={`${fieldId("paymentMethod")}-error`}>{err("paymentMethod")}</FieldError>
+          </fieldset>
+          <p id="checkout-pagamento-ajuda" className="text-[0.9375rem] text-ink">
+            Depois de enviar o pedido, a loja confirma os itens e a entrega e envia a cobrança pela forma escolhida. Nada é
+            cobrado agora.
           </p>
           <CheckField
             id={fieldId("whatsappOptIn")}
@@ -581,7 +644,7 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
       </div>
 
       <aside aria-labelledby="resumo-titulo" className="min-w-0 lg:sticky lg:top-24 lg:self-start">
-        <OrderSummary quote={quote}>
+        <OrderSummary quote={quote} shipping={entrega ? (chosenShipping ? { label: chosenShipping.name, cents: chosenShipping.priceCents } : null) : "retirada"}>
           {formError ? (
             <div id="checkout-erro" tabIndex={-1} className="outline-none">
               <Notice tone="danger" role="alert" title="Pedido não enviado">

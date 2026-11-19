@@ -9,6 +9,7 @@ import { cart, useCartItems } from "@/lib/cart/store";
 import { MAX_QUANTITY_PER_LINE, type CartItem, type CartQuote } from "@/lib/cart/types";
 import { formatPrice } from "@/lib/catalog/money";
 import { useHydrated } from "@/lib/use-hydrated";
+import { ShippingEstimate } from "@/components/checkout/shipping-options";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { BagIcon, MinusIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/misc";
@@ -169,11 +170,11 @@ export function CartView() {
               <dt className="text-muted">Subtotal</dt>
               <dd className="font-semibold text-ink">{formatPrice(quote.subtotalCents)}</dd>
             </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted">Frete</dt>
-              <dd className="text-right text-muted">Calculado pelo CEP na compra online</dd>
-            </div>
           </dl>
+          <div className="space-y-2 border-t border-line pt-3">
+            <h3 className="text-[0.9375rem] font-semibold text-ink">Calcular frete</h3>
+            <ShippingEstimate />
+          </div>
           <p className="text-xs text-muted">Valores recalculados pela loja agora; o navegador não define preços.</p>
           {canCheckout ? (
             <>

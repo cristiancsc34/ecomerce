@@ -6,12 +6,15 @@ import { friendlyDbError } from "@/lib/admin/errors";
 import type { ActionResult } from "@/lib/admin/types";
 import { rateLimit } from "@/lib/auth/rate-limit";
 import { kickOrderNotifications } from "@/lib/notifications/order-dispatch";
+import { shippingOptionsForCep } from "@/lib/shipping/quote";
+import type { ShippingOption } from "@/lib/shipping/types";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { checkoutInputSchema, checkoutToRpc, type CheckoutInput } from "@/lib/validation/checkout";
 
 /**
- * Checkout do site (sem pagamento online). O pedido entra como "recebido" e a loja confirma o pagamento
- * (Pix ou link) e a entrega pelo WhatsApp. Preço e totais são calculados no banco (public.place_site_order).
+ * Checkout do site. O cliente escolhe a forma de entrega (frete pelo CEP) e a de pagamento (Pix, cartão ou boleto);
+ * o pedido entra como "recebido". Enquanto o pagamento online (banco Blue) não estiver ligado, a loja envia a
+ * cobrança e confirma o pagamento pelo painel. Preço, frete e totais são calculados no banco (public.place_site_order).
  */
 
 const TEN_MINUTES = 10 * 60_000;
@@ -83,5 +86,22 @@ export async function lookupCepPublicAction(
     return { ok: true, data: { rua: body.logradouro ?? "", bairro: body.bairro ?? "", cidade: body.localidade ?? "", uf: body.uf ?? "" } };
   } catch {
     return { ok: false, error: "Não foi possível consultar o CEP agora. Preencha o endereço à mão." };
+  }
+}
+
+/**
+ * Formas de entrega que atendem o CEP (cadastradas pelo dono em Entrega e avisos), para a sacola e o checkout.
+ * Lista vazia = a loja ainda não definiu entrega para esse CEP: o frete fica "a combinar" (nunca inventado).
+ */
+export async function shippingOptionsPublicAction(cep: string): Promise<ActionResult<{ options: ShippingOption[] }>> {
+  const digits = String(cep ?? "").replace(/\D/g, "");
+  if (digits.length !== 8) return { ok: false, error: "CEP com 8 números." };
+  if (!rateLimit(`frete:${await clientIp()}`, { limit: 30, windowMs: TEN_MINUTES }).allowed) {
+    return { ok: false, error: "Muitas consultas de frete seguidas. Tente de novo em alguns minutos." };
+  }
+  try {
+    return { ok: true, data: { options: await shippingOptionsForCep(digits) } };
+  } catch {
+    return { ok: false, error: "Não foi possível calcular o frete agora. Tente de novo." };
   }
 }

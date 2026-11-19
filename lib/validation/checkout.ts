@@ -10,6 +10,11 @@ import { normalizePhone } from "@/lib/orders/status";
 export const SITE_DELIVERY_METHODS = ["entrega_propria", "retirada"] as const;
 export type SiteDeliveryMethod = (typeof SITE_DELIVERY_METHODS)[number];
 
+/** Formas de pagamento que o cliente escolhe no site. A cobrança online (banco Blue) entra em lib/payments. */
+export const SITE_PAYMENT_METHODS = ["pix", "cartao", "boleto"] as const;
+export type SitePaymentMethod = (typeof SITE_PAYMENT_METHODS)[number];
+export const PAYMENT_METHOD_LABELS: Record<SitePaymentMethod, string> = { pix: "Pix", cartao: "Cartão de crédito", boleto: "Boleto" };
+
 export const CHECKOUT_MAX_ITEMS = 20;
 export const CHECKOUT_MAX_QUANTITY = 10;
 
@@ -50,6 +55,9 @@ export const checkoutInputSchema = z
       .refine((v) => v, "Para fazer o pedido, aceite que a loja fale com você pelo WhatsApp."),
     deliveryMethod: z.enum(SITE_DELIVERY_METHODS, "Escolha entre entrega e retirada na loja."),
     address: checkoutAddressSchema,
+    /** Forma de entrega escolhida (frete calculado pelo CEP). null = sem escolha: frete a combinar. */
+    shippingOptionId: z.uuid("Forma de entrega inválida. Calcule o frete de novo.").nullable(),
+    paymentMethod: z.enum(SITE_PAYMENT_METHODS, "Escolha a forma de pagamento: Pix, cartão ou boleto."),
     deliveryNotes: text(1000, "Observações: no máximo 1000 caracteres."),
     acceptTerms: z.boolean().refine((v) => v, "Para fazer o pedido, aceite as condições de compra."),
     items: z
@@ -94,6 +102,8 @@ export type CheckoutInput = {
     uf: string;
     referencia: string;
   };
+  shippingOptionId: string | null;
+  paymentMethod: SitePaymentMethod;
   deliveryNotes: string;
   acceptTerms: boolean;
   items: { productId: string; variantId: string | null; quantity: number }[];
@@ -116,6 +126,8 @@ export function checkoutToRpc(o: CheckoutOutput) {
     whatsappOptIn: o.whatsappOptIn,
     deliveryMethod: o.deliveryMethod,
     address: retirada ? {} : o.address,
+    shippingOptionId: retirada ? null : o.shippingOptionId,
+    paymentMethod: o.paymentMethod,
     deliveryNotes: o.deliveryNotes,
     acceptTerms: o.acceptTerms,
     items: o.items.map(({ productId, variantId, quantity }) => ({ productId, variantId, quantity })),

@@ -3,9 +3,27 @@ import type { ReactNode } from "react";
 import type { CartQuote } from "@/lib/cart/types";
 import { formatPrice } from "@/lib/catalog/money";
 
-/** Resumo do pedido com os valores recalculados pelo servidor. Frete sempre “a combinar”. */
-export function OrderSummary({ quote, children }: { quote: CartQuote; children?: ReactNode }) {
+/** Frete escolhido: forma de entrega (valor null = a combinar), "retirada" (sem custo) ou null (ainda sem escolha). */
+export type SummaryShipping = { label: string; cents: number | null } | "retirada" | null;
+
+/**
+ * Resumo do pedido com os valores recalculados pelo servidor. O frete vem da forma de entrega escolhida (cadastrada
+ * pelo dono); sem escolha ou sem valor cadastrado, fica "a combinar" e o total é parcial.
+ */
+export function OrderSummary({
+  quote,
+  shipping = null,
+  children,
+}: {
+  quote: CartQuote;
+  shipping?: SummaryShipping;
+  children?: ReactNode;
+}) {
   const count = quote.lines.reduce((sum, l) => sum + l.quantity, 0);
+  const shippingCents = shipping === "retirada" ? 0 : (shipping?.cents ?? null);
+  const complete = shippingCents !== null;
+  const shippingText =
+    shipping === "retirada" ? "Retirada na loja (sem custo)" : shippingCents === null ? "A combinar" : shippingCents === 0 ? "Grátis" : formatPrice(shippingCents);
   return (
     <div className="space-y-4 rounded-lg bg-white p-4 shadow-[var(--shadow-soft)] sm:p-5">
       <h2 id="resumo-titulo" className="text-lg font-bold">
@@ -44,15 +62,20 @@ export function OrderSummary({ quote, children }: { quote: CartQuote; children?:
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-muted">Frete</dt>
-          <dd className="text-right text-ink">A combinar</dd>
+          <dd className="text-right text-ink">
+            {shippingText}
+            {shipping && shipping !== "retirada" ? <span className="block text-xs text-muted">{shipping.label}</span> : null}
+          </dd>
         </div>
         <div className="flex justify-between gap-4 border-t border-line pt-2">
-          <dt className="font-semibold text-ink">Total parcial</dt>
-          <dd className="text-lg font-bold text-air-blue-ink">{formatPrice(quote.subtotalCents)}</dd>
+          <dt className="font-semibold text-ink">{complete ? "Total" : "Total parcial"}</dt>
+          <dd className="text-lg font-bold text-air-blue-ink">{formatPrice(quote.subtotalCents + (shippingCents ?? 0))}</dd>
         </div>
       </dl>
       <p className="text-xs text-muted">
-        Valores conferidos pela loja agora. O total parcial ainda não inclui o frete, que é combinado com você pelo WhatsApp.
+        {complete
+          ? "Valores conferidos pela loja agora. O frete é recalculado no servidor ao enviar o pedido."
+          : "Valores conferidos pela loja agora. O total parcial ainda não inclui o frete, que é combinado com você pelo WhatsApp."}
       </p>
       {children}
     </div>
