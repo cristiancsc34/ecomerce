@@ -35,6 +35,7 @@ export function ProductEditor({
   publishIssues,
   photos,
   history,
+  packaging,
   aiCopyEnabled = false,
 }: {
   product: Product;
@@ -48,6 +49,8 @@ export function ProductEditor({
   /** Estúdio de IA + fotos na loja (aba "Fotos e 3D"). */
   photos: ReactNode;
   history: ReactNode;
+  /** Caixas da embalagem para o frete (aba "Preço"), salvas à parte do formulário. */
+  packaging?: ReactNode;
   /** A chave da OpenAI está no servidor ("Aprimorar descrição" na aba Informações). */
   aiCopyEnabled?: boolean;
 }) {
@@ -138,6 +141,7 @@ export function ProductEditor({
             onDirtyChange={setDirty}
             aiCopyEnabled={aiCopyEnabled}
           />
+          {packaging ? <div hidden={tab !== "preco"}>{packaging}</div> : null}
         </div>
       </div>
 

@@ -171,3 +171,27 @@ export async function confirmCarrierQuote(
     return { ok: false, error: unavailable };
   }
 }
+
+export type CarrierPanelStatus = {
+  enabled: boolean;
+  /** Variáveis que faltam na Vercel (nunca mostra os valores). */
+  missing: string[];
+  ambiente: "producao" | "sandbox" | null;
+  cepOrigem: string | null;
+  /** null = não deu para conferir (sem a chave de serviço). */
+  migrationApplied: boolean | null;
+};
+
+/** Para o painel (Entrega e avisos): o que está ligado e o que falta. Não chama a API do Melhor Envio. */
+export async function carrierPanelStatus(env?: Record<string, string | undefined>): Promise<CarrierPanelStatus> {
+  const status = melhorEnvioStatus(env);
+  const canCheck = isSupabaseConfigured() && Boolean(createServiceClient());
+  const applied = canCheck ? await migrationApplied().catch(() => false) : null;
+  return {
+    enabled: status.enabled && applied === true,
+    missing: status.enabled ? [] : status.missing,
+    ambiente: status.enabled ? status.config.ambiente : null,
+    cepOrigem: status.enabled ? status.config.cepOrigem : null,
+    migrationApplied: applied,
+  };
+}
