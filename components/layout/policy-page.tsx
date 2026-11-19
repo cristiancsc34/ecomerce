@@ -14,7 +14,7 @@ export function PolicyPage({ title, updatedAt, children }: { title: string; upda
           <ul className="space-y-1 text-[0.9375rem]">
             {POLICY_LINKS.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} className="inline-flex min-h-10 items-center text-ink hover:text-air-blue-ink hover:underline">
+                <Link href={l.href} className="inline-flex min-h-11 items-center text-ink hover:text-air-blue-ink hover:underline">
                   {l.label}
                 </Link>
               </li>
