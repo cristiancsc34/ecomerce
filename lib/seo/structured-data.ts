@@ -24,7 +24,11 @@ export function productJsonLd(product: Product, baseUrl: string): Record<string,
   const url = `${baseUrl}/produtos/${product.slug}`;
   const stock = availability(product);
   const availabilityUrl =
-    stock === "in_stock" ? "https://schema.org/InStock" : stock === "out_of_stock" ? "https://schema.org/OutOfStock" : undefined;
+    stock === "in_stock"
+      ? "https://schema.org/InStock"
+      : stock === "out_of_stock"
+        ? "https://schema.org/OutOfStock"
+        : undefined;
 
   const offers =
     product.variants.length > 0
@@ -73,5 +77,50 @@ export function breadcrumbJsonLd(items: { name: string; path: string }[], baseUr
       name: item.name,
       item: `${baseUrl}${item.path}`,
     })),
+  };
+}
+
+/**
+ * schema.org/Organization (OnlineStore) da loja: só com os dados que existem
+ * em config/brand.ts. Contato, CNPJ e endereço entram sozinhos quando forem
+ * preenchidos; campo vazio fica de fora (nunca inventado).
+ */
+export function organizationJsonLd(baseUrl: string): Record<string, unknown> {
+  const { contact, legal, social } = brand;
+  const phone = contact.phone || contact.whatsapp;
+  return {
+    "@context": "https://schema.org",
+    "@type": "OnlineStore",
+    "@id": `${baseUrl}/#loja`,
+    name: brand.name,
+    url: `${baseUrl}/`,
+    description: brand.description,
+    ...(legal.companyName ? { legalName: legal.companyName } : {}),
+    ...(legal.cnpj ? { taxID: legal.cnpj } : {}),
+    ...(legal.address ? { address: legal.address } : {}),
+    ...(contact.email ? { email: contact.email } : {}),
+    ...(phone ? { telephone: phone } : {}),
+    ...(social.length ? { sameAs: social.map((s) => s.href) } : {}),
+  };
+}
+
+/** schema.org/WebSite com a busca da loja (caixa de busca nos resultados do Google). */
+export function websiteJsonLd(baseUrl: string): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${baseUrl}/#site`,
+    name: brand.name,
+    url: `${baseUrl}/`,
+    inLanguage: "pt-BR",
+    publisher: { "@id": `${baseUrl}/#loja` },
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${baseUrl}/busca?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
   };
 }

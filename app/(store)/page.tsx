@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { connection } from "next/server";
@@ -9,6 +10,16 @@ import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/pro
 import { buttonClasses } from "@/components/ui/button";
 import { CubeIcon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/misc";
+import { JsonLd } from "@/components/seo/json-ld";
+import { brand } from "@/config/brand";
+import { isDemoMode, siteUrl } from "@/config/site";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/seo/structured-data";
+
+export const metadata: Metadata = {
+  title: { absolute: `${brand.name} — ${brand.slogan} ${brand.tagline}` },
+  description: brand.description,
+  alternates: { canonical: "/" },
+};
 
 /**
  * Página de venda: banner de destaque, vantagens reais da loja, vitrine e
@@ -17,6 +28,12 @@ import { Skeleton } from "@/components/ui/misc";
 export default function HomePage() {
   return (
     <div className="mx-auto w-full max-w-[80rem] space-y-3 px-2 pt-2 sm:space-y-5 sm:px-6 sm:pt-6 lg:px-8">
+      {isDemoMode() ? null : (
+        <>
+          <JsonLd data={organizationJsonLd(siteUrl())} />
+          <JsonLd data={websiteJsonLd(siteUrl())} />
+        </>
+      )}
       <Suspense fallback={<HomeSkeleton />}>
         <HomeContent />
       </Suspense>
@@ -40,7 +57,10 @@ async function HomeContent() {
           title="Escolha o seu"
           products={products}
           priorityCount={2}
-          empty={{ title: "Catálogo em preparação", text: "Os produtos aparecem aqui assim que forem publicados." }}
+          empty={{
+            title: "Catálogo em preparação",
+            text: "Os produtos aparecem aqui assim que forem publicados.",
+          }}
         />
       </div>
       {with3d[0] ? <Showcase3D product={with3d[0]} /> : null}
@@ -60,20 +80,33 @@ function Hero({ product }: { product: Product | null }) {
     <section
       aria-labelledby="destaque-titulo"
       // Mesmo degradê das fotos de catálogo: a foto se funde ao banner, sem emenda.
-      className="grid grid-cols-[minmax(0,1fr)_48%] items-center overflow-hidden rounded-xl bg-gradient-to-b from-[#F9F5EF] to-[#EFE7DB] sm:grid-cols-[minmax(0,1fr)_42%]"
+      className={`grid items-center overflow-hidden rounded-xl bg-gradient-to-b from-[#F9F5EF] to-[#EFE7DB] ${
+        image ? "grid-cols-[minmax(0,1fr)_48%] sm:grid-cols-[minmax(0,1fr)_42%]" : "grid-cols-1"
+      }`}
     >
-      <div className="py-4 pl-4 pr-1 sm:py-10 sm:pl-10 lg:pl-14">
-        <p className="text-xs font-bold uppercase tracking-wider text-air-blue-ink sm:text-sm">Cadeiras e poltronas</p>
-        <h1 id="destaque-titulo" className="mt-1.5 text-[1.375rem] font-bold leading-tight text-deep-fjord sm:text-4xl lg:text-5xl">
-          Conforto e estilo para a sua casa
+      <div className={image ? "py-4 pl-4 pr-1 sm:py-10 sm:pl-10 lg:pl-14" : "px-4 py-8 sm:px-10 sm:py-14 lg:px-14"}>
+        <p className="text-xs font-bold uppercase tracking-wider text-air-blue-ink sm:text-sm">{brand.tagline}</p>
+        <h1
+          id="destaque-titulo"
+          className="mt-1.5 text-[1.375rem] font-bold leading-tight text-deep-fjord sm:text-4xl lg:text-5xl"
+        >
+          Móveis com conforto e estilo para a sua casa
         </h1>
-        <p className="mt-4 hidden text-lg text-ink/80 sm:block">Veja cada peça de todos os ângulos e gire em 3D antes de escolher.</p>
-        <a href="#produtos" className={buttonClasses({ size: "md", className: "mt-3 sm:mt-6 sm:min-h-12 sm:px-7 sm:text-base" })}>
+        <p className="mt-4 hidden text-lg text-ink/80 sm:block">
+          Veja cada peça de todos os ângulos e gire em 3D antes de escolher.
+        </p>
+        <a
+          href="#produtos"
+          className={buttonClasses({
+            size: "md",
+            className: "mt-3 sm:mt-6 sm:min-h-12 sm:px-7 sm:text-base",
+          })}
+        >
           Ver produtos
         </a>
       </div>
-      <div className="relative aspect-square">
-        {image && product ? (
+      {image && product ? (
+        <div className="relative aspect-square">
           <Link href={`/produtos/${product.slug}`} tabIndex={-1} aria-hidden="true">
             <Image
               src={image.url}
@@ -84,8 +117,8 @@ function Hero({ product }: { product: Product | null }) {
               className="object-cover object-center"
             />
           </Link>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -102,7 +135,9 @@ function Showcase3D({ product }: { product: Product }) {
           <h2 id="vitrine-3d-titulo" className="mt-2 text-lg font-bold leading-tight text-white sm:text-3xl">
             Gire a {product.name} em 3D
           </h2>
-          <p className="mt-1.5 text-sm text-white/80 sm:text-base">Veja de todos os lados, como se estivesse na loja.</p>
+          <p className="mt-1.5 text-sm text-white/80 sm:text-base">
+            Veja de todos os lados, como se estivesse na loja.
+          </p>
           <Link
             href={`/produtos/${product.slug}#visualizador-3d`}
             className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-deep-fjord hover:bg-pale-blue sm:text-base"
@@ -112,7 +147,9 @@ function Showcase3D({ product }: { product: Product }) {
         </div>
         <div className="p-3 sm:p-6">
           <div className="relative aspect-square overflow-hidden rounded-lg">
-            {image ? <Image src={image.url} alt="" fill sizes="(min-width: 1024px) 400px, 38vw" className="object-cover" /> : null}
+            {image ? (
+              <Image src={image.url} alt="" fill sizes="(min-width: 1024px) 400px, 38vw" className="object-cover" />
+            ) : null}
           </div>
         </div>
       </div>
