@@ -67,6 +67,7 @@ const products = await import("@/lib/admin/actions/products");
 const media = await import("@/lib/admin/actions/media");
 const categories = await import("@/lib/admin/actions/categories");
 const colors = await import("@/lib/admin/actions/colors");
+const packaging = await import("@/lib/admin/actions/packaging");
 
 function as(role: Role, logged = true) {
   state.user = logged ? { id: "00000000-0000-4000-8000-0000000000aa", email: "x@y.z" } : null;
@@ -108,6 +109,8 @@ describe("sem sessão ou fora da equipe", () => {
       await colors.requestColorVariantAction(PRODUCT, { name: "Marrom", color: "#6B4A35" }),
       await colors.publishColorVariantAction(MEDIA, { mediaIds: [MEDIA], price: "1.299,90", stock: "" }),
       await colors.discardColorJobAction(MEDIA),
+      // Caixas da embalagem (frete por transportadora).
+      await packaging.saveProductPackagingAction(PRODUCT, { product: [{ weightKg: 1, lengthCm: 1, widthCm: 1, heightCm: 1 }], variants: [] }),
     ];
     for (const r of results) expect(r.ok).toBe(false);
     expect(writes()).toEqual([]);

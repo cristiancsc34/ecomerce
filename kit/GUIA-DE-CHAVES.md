@@ -27,6 +27,7 @@ npm run config:verificar
 | `ANTHROPIC_API_KEY` | console.anthropic.com → API Keys | Não (assistente) | **não** |
 | `FAL_KEY` | fal.ai → Dashboard → Keys | Não (recorte exato) | **não** |
 | `ADMIN_PIN`, `ADMIN_PIN_EMAIL`, `ADMIN_PIN_PASSWORD` | Você escolhe (entrada rápida no painel) | Não | **não** |
+| `MELHOR_ENVIO_TOKEN`, `MELHOR_ENVIO_CONTATO`, `FRETE_CEP_ORIGEM` (opcionais: `MELHOR_ENVIO_AMBIENTE`, `MELHOR_ENVIO_SERVICOS`) | Melhor Envio → Integrações → Área Dev. (ver `docs/FRETE-TRANSPORTADORAS.md`) | Não (frete por transportadora) | **não** |
 | `CATALOG_SOURCE` | `supabase` quando os produtos reais estiverem publicados | Não | não |
 
 ## 1. GitHub (onde o código fica)

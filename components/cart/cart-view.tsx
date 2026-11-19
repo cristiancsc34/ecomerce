@@ -173,7 +173,7 @@ export function CartView() {
           </dl>
           <div className="space-y-2 border-t border-line pt-3">
             <h3 className="text-[0.9375rem] font-semibold text-ink">Calcular frete</h3>
-            <ShippingEstimate />
+            <ShippingEstimate items={quote.normalizedItems} />
           </div>
           <p className="text-xs text-muted">Valores recalculados pela loja agora; o navegador não define preços.</p>
           {canCheckout ? (

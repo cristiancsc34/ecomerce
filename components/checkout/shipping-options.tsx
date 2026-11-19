@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { formatPrice } from "@/lib/catalog/money";
 import { shippingOptionsPublicAction } from "@/lib/orders/checkout-actions";
 import { shippingEta, shippingPriceLabel, type ShippingOption } from "@/lib/shipping/types";
+import type { CheckoutInput } from "@/lib/validation/checkout";
+
+type QuoteItems = CheckoutInput["items"];
 
 /** CEP guardado só nesta aba, para a sacola e o checkout usarem o mesmo (nenhum outro dado pessoal). */
 const CEP_KEY = "azconfort:cep";
@@ -30,35 +33,48 @@ type State =
   | { status: "error"; message: string }
   | { status: "done"; options: ShippingOption[] };
 
-/** Formas de entrega (sem a retirada) que atendem o CEP, como o dono cadastrou no painel. */
-export function useShippingOptions(cep: string): State {
+/**
+ * Formas de entrega (sem a retirada) que atendem o CEP, como o dono cadastrou no painel, e, se a integração estiver
+ * ligada, as cotações das transportadoras para os itens da sacola (por isso os itens entram no cálculo).
+ */
+export function useShippingOptions(cep: string, items: QuoteItems = [], version = 0): State {
   const digits = cep.replace(/\D/g, "");
-  const [state, setState] = useState<{ cep: string; value: State }>({ cep: "", value: { status: "idle" } });
+  const itemsKey = JSON.stringify(items.map(({ productId, variantId, quantity }) => ({ productId, variantId, quantity })));
+  const requestKey = `${digits}|${itemsKey}|${version}`;
+  const [state, setState] = useState<{ key: string; value: State }>({ key: "", value: { status: "idle" } });
 
   useEffect(() => {
     if (digits.length !== 8) return;
     let active = true;
+    const key = `${digits}|${itemsKey}|${version}`;
     const timer = setTimeout(async () => {
-      setState({ cep: digits, value: { status: "loading" } });
+      setState({ key, value: { status: "loading" } });
       try {
-        const r = await shippingOptionsPublicAction(digits);
+        const r = await shippingOptionsPublicAction(digits, JSON.parse(itemsKey) as QuoteItems);
         if (!active) return;
         setState({
-          cep: digits,
+          key,
           value: r.ok ? { status: "done", options: r.data.options.filter((o) => o.method !== "retirada") } : { status: "error", message: r.error },
         });
       } catch {
-        if (active) setState({ cep: digits, value: { status: "error", message: "Não foi possível calcular o frete agora." } });
+        if (active) setState({ key, value: { status: "error", message: "Não foi possível calcular o frete agora." } });
       }
     }, 250);
     return () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [digits]);
+  }, [digits, itemsKey, version]);
 
   if (digits.length !== 8) return { status: "idle" };
-  return state.cep === digits ? state.value : { status: "loading" };
+  return state.key === requestKey ? state.value : { status: "loading" };
+}
+
+/** Prazo na tela: o da loja conta da confirmação do pagamento; o da transportadora, da postagem. */
+export function etaText(o: ShippingOption): string | null {
+  const eta = shippingEta(o);
+  if (!eta) return null;
+  return o.carrier ? `Prazo da transportadora: ${eta} após a postagem` : `Chega ${eta} após a confirmação do pagamento`;
 }
 
 const NONE_TEXT =
@@ -103,7 +119,7 @@ export function ShippingChoice({
       <legend className="mb-2 text-sm font-medium text-ink">Forma de entrega</legend>
       <div className="space-y-2">
         {state.options.map((o) => {
-          const eta = shippingEta(o);
+          const eta = etaText(o);
           const checked = selectedId === o.id;
           return (
             <label
@@ -123,7 +139,7 @@ export function ShippingChoice({
                   <span className="font-semibold text-ink">{o.name}</span>
                   <span className="font-semibold text-air-blue-ink">{shippingPriceLabel(o, formatPrice)}</span>
                 </span>
-                {eta ? <span className="block text-sm text-muted">Chega {eta} após a confirmação do pagamento</span> : null}
+                {eta ? <span className="block text-sm text-muted">{eta}</span> : null}
                 {o.details ? <span className="block text-sm text-muted">{o.details}</span> : null}
               </span>
             </label>
@@ -135,11 +151,11 @@ export function ShippingChoice({
 }
 
 /** Calculadora de frete da sacola: só informa (a escolha é feita ao finalizar). */
-export function ShippingEstimate() {
+export function ShippingEstimate({ items = [] }: { items?: QuoteItems }) {
   // Só aparece depois de a sacola carregar no navegador: dá para ler o CEP guardado já no primeiro render.
   const [cep, setCep] = useState(() => formatCepInput(rememberedCep()));
   const [submitted, setSubmitted] = useState(() => (rememberedCep().length === 8 ? rememberedCep() : ""));
-  const state = useShippingOptions(submitted);
+  const state = useShippingOptions(submitted, items);
 
   return (
     <div className="space-y-2">
@@ -176,7 +192,7 @@ export function ShippingEstimate() {
         state.options.length ? (
           <ul className="space-y-1 text-sm" aria-live="polite">
             {state.options.map((o) => {
-              const eta = shippingEta(o);
+              const eta = o.carrier ? etaText(o) : shippingEta(o);
               return (
                 <li key={o.id} className="flex justify-between gap-3">
                   <span className="text-ink">

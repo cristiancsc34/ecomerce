@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { siteUrl } from "@/config/site";
 import { getAiStudioSnapshot } from "@/lib/admin/ai";
 import { getAdminProduct, listAdminCategories, listAuditEvents } from "@/lib/admin/data";
+import { getProductPackaging } from "@/lib/admin/packaging";
+import { melhorEnvioStatus } from "@/lib/shipping/melhor-envio";
 import { isProductTab, readiness } from "@/lib/admin/readiness";
 import { requireStaffPage } from "@/lib/auth/staff";
 import { arFiles, model3d } from "@/lib/catalog/product-helpers";
@@ -12,6 +14,7 @@ import { AiStudio } from "@/components/admin/ai-studio";
 import { ArScalePanel } from "@/components/admin/ar-scale-panel";
 import { AuditList } from "@/components/admin/audit-list";
 import { MediaManager } from "@/components/admin/media-manager";
+import { PackagingPanel } from "@/components/admin/packaging-panel";
 import { ProductEditor } from "@/components/admin/product-editor";
 import { ProductThumb } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/badge";
@@ -27,11 +30,12 @@ export const maxDuration = 300;
 export default async function EditProductPage({ params, searchParams }: PageProps<"/admin/produtos/[id]">) {
   const staff = await requireStaffPage("editor", "itens");
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const [product, categories, events, studio] = await Promise.all([
+  const [product, categories, events, studio, packaging] = await Promise.all([
     getAdminProduct(id),
     listAdminCategories(),
     listAuditEvents({ productId: id, limit: 15 }),
     getAiStudioSnapshot(id),
+    getProductPackaging(id),
   ]);
   if (!product) notFound();
 
@@ -96,6 +100,14 @@ export default async function EditProductPage({ params, searchParams }: PageProp
           readiness={readiness(product)}
           publishIssues={issues}
           aiCopyEnabled={Boolean(process.env.OPENAI_API_KEY)}
+          packaging={
+            <PackagingPanel
+              productId={product.id}
+              canEdit={canEdit}
+              packaging={packaging}
+              carrierEnabled={melhorEnvioStatus().enabled}
+            />
+          }
           photos={
             <>
               <AiStudio

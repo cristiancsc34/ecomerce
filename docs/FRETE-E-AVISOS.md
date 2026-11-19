@@ -16,6 +16,9 @@ Só administradores mudam. O público não lê a tabela: consulta pela função 
 formas ativas que atendem aquele CEP (a retirada aparece para qualquer CEP). CEP fora de todas as regiões = frete a
 combinar, nunca um valor inventado.
 
+**Transportadoras (Melhor Envio):** cotação automática pelo CEP e pelas caixas de cada produto, junto destas formas.
+Desligada até o dono configurar: [`FRETE-TRANSPORTADORAS.md`](FRETE-TRANSPORTADORAS.md).
+
 **Para o checkout (`/finalizar`):** `lib/shipping/quote.ts`
 
 - `shippingOptionsForCep(cep)` → lista para o cliente escolher (nome, valor ou `null` = a combinar, prazo, detalhes);

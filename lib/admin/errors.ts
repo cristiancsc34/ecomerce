@@ -58,6 +58,8 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   orders_tracking_url: "O link de rastreio precisa começar com https://",
   orders_customer_phone: "Celular com DDD, ex.: (11) 98765-4321.",
   orders_customer_email: "E-mail inválido.",
+  products_shipping_packages_valid: "Caixas da embalagem inválidas: informe peso e medidas maiores que zero (até 10 caixas).",
+  product_variants_shipping_packages_valid: "Caixas da embalagem inválidas: informe peso e medidas maiores que zero (até 10 caixas).",
 };
 
 /**
