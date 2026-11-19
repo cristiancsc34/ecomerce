@@ -255,7 +255,7 @@ export function PurchasePanel({
       </div>
 
       {/* Espaço reservado: a mensagem não empurra o conteúdo ao aparecer. */}
-      <div id={`${groupId}-feedback`} role="status" className="min-h-6 text-sm">
+      <div id={`${groupId}-feedback`} role="status" className="min-h-11 text-sm">
         {feedback === "added" ? (
           <p
             key={feedbackKey}
