@@ -70,7 +70,7 @@ export function CartView() {
     // Só mostra avisos quando foi o servidor que esvaziou a sacola (itens inválidos).
     const removed = state.status === "ready" && state.quote.lines.length === 0 ? state.quote.issues : [];
     return (
-      <div className="space-y-5">
+      <div className="animate-surgir space-y-5">
         {removed.length ? <Issues issues={removed} /> : null}
         <div className="flex flex-col items-center rounded-lg bg-white px-6 py-12 text-center">
           <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-pale-blue text-air-blue-ink">
@@ -104,7 +104,7 @@ export function CartView() {
   const canCheckout = SITE_CHECKOUT_ENABLED && quote.lines.length > 0 && !quote.hasDemoItems;
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-6">
+    <div className="grid animate-surgir grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-6">
       <div className="min-w-0 space-y-4">
         {quote.issues.length ? <Issues issues={quote.issues} /> : null}
         {quote.hasDemoItems ? (
@@ -160,7 +160,7 @@ export function CartView() {
         </ul>
       </div>
 
-      <aside aria-labelledby="resumo-titulo" className="lg:sticky lg:top-24 lg:self-start">
+      <aside aria-labelledby="resumo-titulo" className="min-w-0 lg:sticky lg:top-24 lg:self-start">
         <div className="space-y-4 rounded-lg bg-white p-4 shadow-[var(--shadow-soft)] sm:p-5">
           <h2 id="resumo-titulo" className="text-lg font-bold">
             Resumo
@@ -251,7 +251,7 @@ function QuantityStepper({ name, quantity, onChange }: { name: string; quantity:
 
 function CartSkeleton() {
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]" aria-busy="true" aria-label="Carregando sacola">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-6" aria-busy="true" aria-label="Carregando sacola">
       <div className="space-y-3 rounded-[1.25rem] border border-line bg-white p-5">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-24 w-full" />
