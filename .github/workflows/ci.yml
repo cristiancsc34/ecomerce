@@ -30,6 +30,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+        env:
+          # Build de conferência em modo demonstração, como o E2E da vitrine:
+          # em produção a loja exige endereço e fonte do catálogo explícitos.
+          CATALOG_SOURCE: demo
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
 
   e2e-vitrine:
     name: E2E da vitrine (modo demonstração)
