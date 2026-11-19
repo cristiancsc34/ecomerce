@@ -12,7 +12,15 @@ export type ShippingOption = {
   daysMax: number | null;
   /** Texto do dono (ex.: endereço e horário da retirada). */
   details: string | null;
+  /**
+   * Cotação de transportadora (Melhor Envio), calculada pelo CEP e pelas caixas dos produtos. O prazo é o da
+   * transportadora, contado a partir da postagem. No pedido, o servidor cota de novo e o banco confere o valor.
+   */
+  carrier?: { provider: "melhor_envio"; serviceId: number; company: string; service: string };
 };
+
+/** Id da opção de transportadora na tela (as formas da loja usam o id do banco). */
+export const carrierOptionId = (serviceId: number) => `melhor_envio:${serviceId}`;
 
 /** "de 2 a 5 dias úteis" / "em até 5 dias úteis" / null (sem prazo informado: não prometer nada). */
 export function shippingEta(o: { daysMin: number | null; daysMax: number | null }): string | null {

@@ -57,6 +57,10 @@ export const checkoutInputSchema = z
     address: checkoutAddressSchema,
     /** Forma de entrega escolhida (frete calculado pelo CEP). null = sem escolha: frete a combinar. */
     shippingOptionId: z.uuid("Forma de entrega inválida. Calcule o frete de novo.").nullable(),
+    /** Transportadora escolhida (cotação do Melhor Envio). O servidor cota de novo; o banco confere o valor. */
+    carrierServiceId: z.number().int().positive("Frete da transportadora inválido. Calcule o frete de novo.").nullable().optional(),
+    /** Valor que o cliente viu, só para avisar se mudou (nunca é o valor gravado). */
+    carrierExpectedCents: z.number().int().min(0).nullable().optional(),
     paymentMethod: z.enum(SITE_PAYMENT_METHODS, "Escolha a forma de pagamento: Pix, cartão ou boleto."),
     deliveryNotes: text(1000, "Observações: no máximo 1000 caracteres."),
     acceptTerms: z.boolean().refine((v) => v, "Para fazer o pedido, aceite as condições de compra."),
@@ -77,6 +81,9 @@ export const checkoutInputSchema = z
     }
 
     if (o.deliveryMethod === "retirada") return;
+    if (o.shippingOptionId && o.carrierServiceId) {
+      ctx.addIssue({ code: "custom", path: ["shippingOptionId"], message: "Escolha só uma forma de entrega." });
+    }
     const a = o.address;
     if (a.cep.length !== 8) ctx.addIssue({ code: "custom", path: ["address", "cep"], message: "CEP com 8 números." });
     for (const [key, label] of [["rua", "a rua"], ["numero", "o número (ou s/n)"], ["cidade", "a cidade"]] as const) {
@@ -103,6 +110,8 @@ export type CheckoutInput = {
     referencia: string;
   };
   shippingOptionId: string | null;
+  carrierServiceId?: number | null;
+  carrierExpectedCents?: number | null;
   paymentMethod: SitePaymentMethod;
   deliveryNotes: string;
   acceptTerms: boolean;

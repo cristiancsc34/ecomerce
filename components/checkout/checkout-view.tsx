@@ -106,7 +106,10 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
   const [cepStatus, setCepStatus] = useState<{ text: string; tone: "muted" | "danger" } | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
   const submitting = useRef(false);
-  const shippingState = useShippingOptions(deliveryMethod === "entrega_propria" ? address.cep : "");
+  const quoteItems = state.status === "ready" && inSync ? state.quote.normalizedItems : [];
+  // Sobe quando o servidor avisa que o frete mudou: calcula de novo para mostrar o valor atual.
+  const [shippingVersion, setShippingVersion] = useState(0);
+  const shippingState = useShippingOptions(deliveryMethod === "entrega_propria" ? address.cep : "", quoteItems, shippingVersion);
 
   if (!enabled) {
     return (
@@ -168,8 +171,9 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
   const { quote } = state;
   const entrega = deliveryMethod === "entrega_propria";
   // A escolha só vale se a forma ainda atende o CEP digitado.
+  // Usa a opção da lista atual (valor recalculado), não a guardada no clique.
   const chosenShipping =
-    entrega && shipping && shippingState.status === "done" && shippingState.options.some((o) => o.id === shipping.id) ? shipping : null;
+    (entrega && shipping && shippingState.status === "done" && shippingState.options.find((o) => o.id === shipping.id)) || null;
   const blockedByDemo = quote.hasDemoItems;
   const canSubmit = inSync && !blockedByDemo && quote.lines.length > 0;
 
@@ -240,7 +244,10 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
       whatsappOptIn,
       deliveryMethod,
       address: entrega ? address : EMPTY_ADDRESS,
-      shippingOptionId: chosenShipping?.id ?? null,
+      // Forma da loja: id do banco. Transportadora: o serviço cotado (o servidor cota de novo e o banco confere).
+      shippingOptionId: chosenShipping && !chosenShipping.carrier ? chosenShipping.id : null,
+      carrierServiceId: chosenShipping?.carrier?.serviceId ?? null,
+      carrierExpectedCents: chosenShipping?.carrier ? chosenShipping.priceCents : null,
       paymentMethod: paymentMethod ?? ("" as SitePaymentMethod),
       deliveryNotes: entrega ? deliveryNotes : "",
       acceptTerms,
@@ -269,6 +276,7 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
       const r = await placeOrderAction(input);
       if (!r.ok) {
         if (r.fieldErrors && Object.keys(r.fieldErrors).length) {
+          if (r.fieldErrors.shippingOptionId) setShippingVersion((v) => v + 1);
           showErrors(r.fieldErrors, r.error || "Revise os campos destacados.");
         } else {
           setErrors({});

@@ -6,10 +6,12 @@ import { friendlyDbError } from "@/lib/admin/errors";
 import type { ActionResult } from "@/lib/admin/types";
 import { rateLimit } from "@/lib/auth/rate-limit";
 import { kickOrderNotifications } from "@/lib/notifications/order-dispatch";
+import { carrierOptionsFor, confirmCarrierQuote } from "@/lib/shipping/carrier";
 import { shippingOptionsForCep } from "@/lib/shipping/quote";
 import type { ShippingOption } from "@/lib/shipping/types";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { checkoutInputSchema, checkoutToRpc, type CheckoutInput } from "@/lib/validation/checkout";
+import { z } from "zod";
+import { checkoutInputSchema, checkoutItemSchema, checkoutToRpc, CHECKOUT_MAX_ITEMS, type CheckoutInput } from "@/lib/validation/checkout";
 
 /**
  * Checkout do site. O cliente escolhe a forma de entrega (frete pelo CEP) e a de pagamento (Pix, cartão ou boleto);
@@ -49,8 +51,22 @@ export async function placeOrderAction(input: CheckoutInput): Promise<ActionResu
   if (!limited.allowed) {
     return { ok: false, error: "Muitos pedidos seguidos. Aguarde alguns minutos ou fale com o atendimento." };
   }
+  // Transportadora (Melhor Envio): cota de novo aqui no servidor e grava a cotação; o banco confere o valor.
+  let carrierQuoteId: string | null = null;
+  const order = parsed.data;
+  if (order.deliveryMethod === "entrega_propria" && order.carrierServiceId) {
+    const confirmed = await confirmCarrierQuote({
+      cep: order.address.cep,
+      lines: order.items,
+      serviceId: order.carrierServiceId,
+      expectedCents: order.carrierExpectedCents ?? null,
+    });
+    if (!confirmed.ok) return { ok: false, error: confirmed.error, fieldErrors: { shippingOptionId: confirmed.error } };
+    carrierQuoteId = confirmed.quoteId;
+  }
   try {
-    const { data, error } = await createPublicSupabaseClient().rpc("place_site_order", { p_data: checkoutToRpc(parsed.data) });
+    const payload = { ...checkoutToRpc(order), ...(carrierQuoteId ? { carrierQuoteId } : {}) };
+    const { data, error } = await createPublicSupabaseClient().rpc("place_site_order", { p_data: payload });
     const result = data as { code?: unknown; token?: unknown } | null;
     if (error || !result || typeof result.code !== "string" || typeof result.token !== "string") {
       return { ok: false, error: friendlyDbError(error, "Não foi possível fazer o pedido. Tente de novo ou fale com o atendimento.") };
@@ -89,18 +105,29 @@ export async function lookupCepPublicAction(
   }
 }
 
+const quoteItemsSchema = z.array(checkoutItemSchema).max(CHECKOUT_MAX_ITEMS);
+
 /**
- * Formas de entrega que atendem o CEP (cadastradas pelo dono em Entrega e avisos), para a sacola e o checkout.
+ * Formas de entrega que atendem o CEP (cadastradas pelo dono em Entrega e avisos) e, se ligada e com as caixas dos
+ * produtos cadastradas, as cotações das transportadoras (Melhor Envio) para os itens da sacola.
  * Lista vazia = a loja ainda não definiu entrega para esse CEP: o frete fica "a combinar" (nunca inventado).
  */
-export async function shippingOptionsPublicAction(cep: string): Promise<ActionResult<{ options: ShippingOption[] }>> {
+export async function shippingOptionsPublicAction(
+  cep: string,
+  items: CheckoutInput["items"] = [],
+): Promise<ActionResult<{ options: ShippingOption[] }>> {
   const digits = String(cep ?? "").replace(/\D/g, "");
   if (digits.length !== 8) return { ok: false, error: "CEP com 8 números." };
   if (!rateLimit(`frete:${await clientIp()}`, { limit: 30, windowMs: TEN_MINUTES }).allowed) {
     return { ok: false, error: "Muitas consultas de frete seguidas. Tente de novo em alguns minutos." };
   }
+  const lines = quoteItemsSchema.safeParse(items);
   try {
-    return { ok: true, data: { options: await shippingOptionsForCep(digits) } };
+    const [store, carriers] = await Promise.all([
+      shippingOptionsForCep(digits),
+      lines.success && lines.data.length ? carrierOptionsFor(digits, lines.data) : Promise.resolve([]),
+    ]);
+    return { ok: true, data: { options: [...store, ...carriers] } };
   } catch {
     return { ok: false, error: "Não foi possível calcular o frete agora. Tente de novo." };
   }

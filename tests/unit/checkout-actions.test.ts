@@ -19,6 +19,20 @@ const state = {
 vi.mock("server-only", () => ({}));
 // Avisos automáticos rodam em segundo plano (after); aqui só não podem atrapalhar o pedido.
 vi.mock("@/lib/notifications/order-dispatch", () => ({ kickOrderNotifications: vi.fn() }));
+// Transportadora: a confirmação no servidor é testada em tests/unit/frete-transportadoras.test.ts; aqui, só o uso.
+const carrierState = {
+  calls: [] as unknown[],
+  result: { ok: true, quoteId: "44444444-4444-4444-8444-444444444444", priceCents: 19990 } as
+    | { ok: true; quoteId: string; priceCents: number }
+    | { ok: false; error: string },
+};
+vi.mock("@/lib/shipping/carrier", () => ({
+  carrierOptionsFor: vi.fn(async () => []),
+  confirmCarrierQuote: vi.fn(async (input: unknown) => {
+    carrierState.calls.push(input);
+    return carrierState.result;
+  }),
+}));
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ "x-forwarded-for": `${state.ip}, 10.0.0.1` }),
 }));
@@ -67,6 +81,8 @@ beforeEach(() => {
   state.ip = `203.0.113.${++ipSeq}`;
   state.rpcCalls = [];
   state.rpcResult = { data: { code: "PED-1001", token: "8f0e2b5c-1d3a-4c5e-9f7a-0b1c2d3e4f5a" }, error: null };
+  carrierState.calls = [];
+  carrierState.result = { ok: true, quoteId: "44444444-4444-4444-8444-444444444444", priceCents: 19990 };
 });
 
 describe("placeOrderAction", () => {
@@ -98,6 +114,32 @@ describe("placeOrderAction", () => {
     state.rpcCalls = [];
     await placeOrderAction(input({ deliveryMethod: "retirada", shippingOptionId: option }));
     expect((state.rpcCalls[0].args.p_data as Record<string, unknown>).shippingOptionId).toBeNull();
+  });
+
+  it("transportadora: o servidor confirma a cotação e manda só o id dela ao banco (nunca o valor)", async () => {
+    await placeOrderAction({ ...input({ carrierServiceId: 3, carrierExpectedCents: 19990 }), shippingCents: 1 } as never);
+    expect(carrierState.calls).toEqual([
+      { cep: "01310100", lines: [{ productId: PRODUCT, variantId: null, quantity: 1 }], serviceId: 3, expectedCents: 19990 },
+    ]);
+    const payload = state.rpcCalls[0].args.p_data as Record<string, unknown>;
+    expect(payload.carrierQuoteId).toBe("44444444-4444-4444-8444-444444444444");
+    expect(payload).not.toHaveProperty("carrierExpectedCents");
+    expect(payload).not.toHaveProperty("shippingCents");
+  });
+
+  it("transportadora com valor mudado ou indisponível: não chega ao banco", async () => {
+    carrierState.result = { ok: false, error: "O frete da Jadlog mudou para R$ 210,00. Confira e envie o pedido de novo." };
+    const r = await placeOrderAction(input({ carrierServiceId: 3, carrierExpectedCents: 19990 }));
+    expect(r).toMatchObject({ ok: false, fieldErrors: { shippingOptionId: expect.stringMatching(/mudou/) } });
+    expect(state.rpcCalls).toHaveLength(0);
+  });
+
+  it("transportadora na retirada é ignorada; forma da loja e transportadora juntas são recusadas", async () => {
+    await placeOrderAction(input({ deliveryMethod: "retirada", carrierServiceId: 3 }));
+    expect(carrierState.calls).toHaveLength(0);
+    expect((state.rpcCalls[0].args.p_data as Record<string, unknown>).carrierQuoteId).toBeUndefined();
+    const r = await placeOrderAction(input({ shippingOptionId: "22222222-2222-4222-8222-222222222222", carrierServiceId: 3 }));
+    expect(r.ok).toBe(false);
   });
 
   it("exige a forma de pagamento", async () => {
