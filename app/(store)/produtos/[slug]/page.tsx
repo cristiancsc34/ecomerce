@@ -9,7 +9,11 @@ import { ProductView } from "@/components/product/product-view";
 import { Skeleton } from "@/components/ui/misc";
 
 export async function generateStaticParams() {
-  const products = await getVisibleProducts();
+  const products = await getVisibleProducts().catch((error: unknown) => {
+    // Falha no catálogo não quebra o build: segue só o placeholder e as páginas são montadas na visita.
+    console.error("Produtos: falha ao ler o catálogo no generateStaticParams; usando só o placeholder.", error);
+    return [];
+  });
   // Cache Components exige ao menos um parâmetro; o placeholder cai em notFound().
   return products.length ? products.map((p) => ({ slug: p.slug })) : [{ slug: "__vazio__" }];
 }
