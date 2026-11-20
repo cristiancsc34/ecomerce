@@ -13,11 +13,33 @@ export function SizeTable({ product }: { product: Product }) {
   const variants = sortedVariants(product).filter((v) => !v.colorHex);
   if (!variants.length) return null;
   const height = product.dimensions.heightCm;
+  const rows = variants.map((v) => {
+    const w = v.widthCm ?? (v.size ? SIZE_INFO[v.size].widthCm : null);
+    const l = v.lengthCm ?? (v.size ? SIZE_INFO[v.size].lengthCm : null);
+    return {
+      id: v.id,
+      label: v.size ? SIZE_INFO[v.size].label : v.name,
+      measures: w && l ? `${w} × ${l} cm` : null,
+      price: v.priceCents === null ? null : formatPrice(v.priceCents),
+    };
+  });
   return (
     <div>
       <h3 className="mb-3 text-lg font-semibold">Medidas por tamanho</h3>
-      <div className="overflow-x-auto rounded-2xl border border-line bg-white" tabIndex={0} role="region" aria-label="Tabela de medidas (role para os lados se precisar)">
-        <table className="w-full min-w-[28rem] text-left text-[0.9375rem]">
+      {/* Celular: um cartão por tamanho, sem rolagem lateral. Só aparece o que existe no cadastro. */}
+      <ul className="space-y-2 sm:hidden" aria-label={`Medidas de ${product.name} por tamanho`}>
+        {rows.map((r) => (
+          <li key={r.id} className="rounded-lg border border-line p-3">
+            <p className="font-semibold text-ink">{r.label}</p>
+            {r.measures ? <p className="text-[0.9375rem]">{r.measures}</p> : null}
+            {height ? <p className="text-sm text-muted">Altura: {formatCm(height)}</p> : null}
+            {r.price ? <p className="mt-1 font-semibold text-deep-fjord">{r.price}</p> : null}
+          </li>
+        ))}
+      </ul>
+      {/* A partir de `sm`: tabela completa. */}
+      <div className="hidden overflow-hidden rounded-2xl border border-line bg-white sm:block">
+        <table className="w-full text-left text-[0.9375rem]">
           <caption className="sr-only">Medidas e preços de {product.name} por tamanho</caption>
           <thead className="bg-pale-blue text-deep-fjord">
             <tr>
@@ -28,20 +50,16 @@ export function SizeTable({ product }: { product: Product }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
-            {variants.map((v) => {
-              const w = v.widthCm ?? (v.size ? SIZE_INFO[v.size].widthCm : null);
-              const l = v.lengthCm ?? (v.size ? SIZE_INFO[v.size].lengthCm : null);
-              return (
-                <tr key={v.id}>
-                  <th scope="row" className="px-4 py-3 font-medium text-ink">
-                    {v.size ? SIZE_INFO[v.size].label : v.name}
-                  </th>
-                  <td className="px-4 py-3">{w && l ? `${w} × ${l} cm` : "—"}</td>
-                  <td className="px-4 py-3">{height ? formatCm(height) : "—"}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-deep-fjord">{v.priceCents === null ? "—" : formatPrice(v.priceCents)}</td>
-                </tr>
-              );
-            })}
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <th scope="row" className="px-4 py-3 font-medium text-ink">
+                  {r.label}
+                </th>
+                <td className="px-4 py-3">{r.measures ?? "—"}</td>
+                <td className="px-4 py-3">{height ? formatCm(height) : "—"}</td>
+                <td className="px-4 py-3 text-right font-semibold text-deep-fjord">{r.price ?? "—"}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
