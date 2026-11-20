@@ -11,7 +11,11 @@ import { categoryDescription, categoryTitle, OPEN_GRAPH_BASE, shareableImage } f
 import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo/structured-data";
 
 export async function generateStaticParams() {
-  const categories = await getCategories();
+  const categories = await getCategories().catch((error: unknown) => {
+    // Falha no catálogo não quebra o build: segue só o placeholder e as páginas são montadas na visita.
+    console.error("Categorias: falha ao ler o catálogo no generateStaticParams; usando só o placeholder.", error);
+    return [];
+  });
   // Cache Components exige ao menos um parâmetro; um placeholder cai em notFound().
   return categories.length ? categories.map((c) => ({ slug: c.slug })) : [{ slug: "__vazio__" }];
 }

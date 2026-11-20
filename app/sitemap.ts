@@ -14,7 +14,11 @@ function latest(dates: string[]): string | undefined {
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
-  const [products, categories] = await Promise.all([getVisibleProducts(), getCategoriesWithProducts()]);
+  const [products, categories] = await Promise.all([getVisibleProducts(), getCategoriesWithProducts()]).catch((error: unknown) => {
+    // Catálogo fora do ar não derruba o /sitemap.xml: sai o sitemap mínimo (início e páginas fixas).
+    console.error("Sitemap: falha ao ler o catálogo; publicando só o início e as páginas fixas.", error);
+    return [[], []] as const;
+  });
   const real = products.filter((p) => !p.isDemo);
   const newest = latest(real.map((p) => p.updatedAt));
 
