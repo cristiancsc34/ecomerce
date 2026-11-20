@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Product } from "@/lib/catalog/types";
-import { ProductGrid } from "@/components/product/product-card";
+import { gridCols, ProductGrid } from "@/components/product/product-card";
 import { Skeleton } from "@/components/ui/misc";
 
 /**
@@ -56,7 +56,7 @@ export function ProductSectionSkeleton() {
   return (
     <div aria-busy="true" aria-label="Carregando produtos">
       <Skeleton className="mb-3 h-12 w-full rounded-none sm:rounded-t-lg" />
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+      <div className={`grid gap-2 sm:gap-4 ${gridCols(4)}`}>
         {Array.from({ length: 4 }, (_, i) => (
           <Skeleton key={i} className="aspect-[3/4] rounded-lg" />
         ))}

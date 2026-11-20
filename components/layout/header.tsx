@@ -1,10 +1,11 @@
 import Form from "next/form";
 import Link from "next/link";
 import { SearchIcon } from "@/components/ui/icons";
+import { CategoryNav } from "./category-nav";
 import { Logo } from "./logo";
 import { CartLink } from "./cart-link";
 
-/** Cabeçalho de loja: marca, busca em destaque e sacola. Sem menus extras. */
+/** Cabeçalho de loja: marca, busca em destaque, sacola e (com 2+ categorias) o menu de categorias. */
 export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-white text-deep-fjord shadow-[0_2px_12px_rgb(19_41_64/0.08)]">
@@ -38,6 +39,7 @@ export function Header() {
           <CartLink />
         </div>
       </div>
+      <CategoryNav />
     </header>
   );
 }

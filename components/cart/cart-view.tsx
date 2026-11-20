@@ -131,7 +131,10 @@ export function CartView() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
                   <div className="min-w-0">
-                    <Link href={`/produtos/${line.slug}`} className="font-semibold text-deep-fjord hover:underline">
+                    <Link
+                      href={`/produtos/${line.slug}`}
+                      className="inline-flex min-h-11 items-center font-semibold text-deep-fjord hover:underline"
+                    >
                       {line.name}
                     </Link>
                     {line.variantName ? <p className="text-sm text-muted">{line.variantName}</p> : null}

@@ -132,9 +132,12 @@ export function AssistantWidget() {
             setOpen(true);
           }}
           // No celular fica no canto; só sobe quando a página tem a barra fixa de compra (produto).
-          className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-3 max-lg:[body:has([data-barra-fixa])_&]:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 inline-flex h-12 items-center gap-2 rounded-full bg-deep-fjord pl-4 pr-5 font-semibold text-white shadow-[var(--shadow-lift)] hover:bg-[#1d3a58] lg:bottom-6 lg:right-6"
+          className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-3 max-lg:[body:has([data-barra-fixa])_&]:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 inline-flex h-12 w-12 items-center justify-center gap-2 rounded-full bg-deep-fjord font-semibold text-white shadow-[var(--shadow-lift)] hover:bg-[#1d3a58] lg:bottom-6 lg:right-6 lg:w-auto lg:pl-4 lg:pr-5"
+          // No celular fica só o ícone (48×48) para não cobrir preço, botão de compra nem card.
+          aria-label="Ajuda"
         >
-          <ChatIcon className="h-5 w-5" /> Ajuda
+          <ChatIcon className="h-5 w-5" />
+          <span className="sr-only lg:not-sr-only">Ajuda</span>
         </button>
       ) : null}
 

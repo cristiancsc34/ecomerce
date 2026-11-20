@@ -57,6 +57,18 @@ export function ProductCard({
   );
 }
 
+/**
+ * Colunas da grade conforme a quantidade de produtos: com poucos itens os cards
+ * não ficam gigantes nem deixam buracos (1 → coluna estreita, 2 → duas colunas
+ * contidas, 3 → até três colunas, 4 ou mais → grade completa).
+ */
+export function gridCols(n: number): string {
+  if (n <= 1) return "grid-cols-1 max-w-sm";
+  if (n === 2) return "grid-cols-2 max-w-3xl";
+  if (n === 3) return "grid-cols-2 sm:grid-cols-3";
+  return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
+}
+
 export function ProductGrid({
   products,
   priorityCount = 0,
@@ -68,7 +80,7 @@ export function ProductGrid({
   headingLevel?: "h2" | "h3";
 }) {
   return (
-    <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+    <ul className={`grid gap-2 sm:gap-4 ${gridCols(products.length)}`}>
       {products.map((p, i) => (
         <li key={p.id} className="min-w-0">
           <ProductCard product={p} priority={i < priorityCount} headingLevel={headingLevel} />

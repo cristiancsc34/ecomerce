@@ -92,7 +92,7 @@ function Hero({ product }: { product: Product | null }) {
         >
           Móveis com conforto e estilo para a sua casa
         </h1>
-        <p className="mt-4 hidden text-lg text-ink/80 sm:block">
+        <p className="mt-2 text-sm text-ink/80 sm:mt-4 sm:text-lg">
           Veja cada peça de todos os ângulos e gire em 3D antes de escolher.
         </p>
         <a
