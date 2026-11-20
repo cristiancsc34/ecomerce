@@ -56,9 +56,9 @@ Copie [`.env.example`](.env.example) para `.env.local`.
 
 | Variável | Pública? | Para quê |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | sim | URL canônica (SEO, sitemap, Open Graph) |
+| `NEXT_PUBLIC_SITE_URL` | sim | URL canônica (SEO, sitemap, Open Graph). Obrigatória em produção: sem ela o build falha (só a prévia da Vercel usa o próprio endereço) |
 | `NEXT_PUBLIC_BRAND_NAME` | sim | Nome da marca (padrão: AzConfort) |
-| `CATALOG_SOURCE` | não | `demo` ou `supabase`. Vazio: Supabase se configurado, senão demonstração |
+| `CATALOG_SOURCE` | não | `demo` ou `supabase`. Vazio: Supabase se configurado, senão demonstração (em produção, com aviso no log; na produção da Vercel, o build falha) |
 | `NEXT_PUBLIC_SUPABASE_URL` | sim | URL do projeto Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sim | Chave pública (anon/publishable). Segura por causa do RLS |
 | `SUPABASE_SERVICE_ROLE_KEY` | **não** | `npm run admin:create` na sua máquina e a **IA na nuvem** (estúdio de fotos e 3D). Na Vercel, só como variável **Sensitive** do servidor; nunca com prefixo `NEXT_PUBLIC_` |
@@ -164,7 +164,8 @@ A vitrine continua com `CATALOG_SOURCE=demo` até os produtos terem preço e ser
 
 1. Importe o repositório na Vercel (framework Next.js detectado automaticamente).
 2. Variáveis: `NEXT_PUBLIC_SITE_URL` (URL final), `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-   Sem as do Supabase, o deploy sobe em modo demonstração.
+   Sem as do Supabase, defina `CATALOG_SOURCE=demo` para subir em modo demonstração de propósito; na produção da
+   Vercel, faltar as duas sem `CATALOG_SOURCE` faz o build falhar (evita a loja no ar com `noindex` sem ninguém ver).
 3. Assistente de vendas (botão "Ajuda"): Settings → Environment Variables → `ANTHROPIC_API_KEY`, marcada como
    **Sensitive** (não aparece mais nem no painel da Vercel), em Production. Variável nova só vale a partir do
    **próximo deploy** (Redeploy ou um push). Nunca com prefixo `NEXT_PUBLIC_`. Ver [`docs/ASSISTENTE.md`](docs/ASSISTENTE.md).
