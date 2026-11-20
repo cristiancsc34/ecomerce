@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { sectionRedirects } from "./lib/catalog/sections";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseOrigin = supabaseUrl ? new URL(supabaseUrl).origin : null;
@@ -89,6 +90,11 @@ const nextConfig: NextConfig = {
       // das funções a 4,5 MB, por isso o limite de arquivo é 4 MB.
       bodySizeLimit: "4.4mb",
     },
+  },
+  // Endereços antigos /categorias/<slug> e o atalho /sofas apontam para a arquitetura
+  // nova (/colchoes, /estofados, /moveis), com redirecionamento permanente (308).
+  async redirects() {
+    return sectionRedirects();
   },
   async headers() {
     return [

@@ -10,7 +10,12 @@ const LARGURAS = [360, 390, 768];
 const PAGINAS = [
   "/",
   "/produtos",
-  "/categorias/cadeiras",
+  "/moveis/cadeiras",
+  "/colchoes",
+  "/colchoes/casal",
+  "/entrega",
+  "/entrega/maringa",
+  "/entrega/londrina",
   "/produtos/poltrona-azul",
   "/produtos/cadeira-cinza-trama",
   "/busca?q=poltrona",

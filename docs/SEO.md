@@ -5,21 +5,47 @@ Guia para o dono da loja, em passos. O site já faz a parte técnica sozinho; aq
 
 ## 1. O que o site já faz sozinho
 
-- **Mapa do site** em `https://www.azconfort.com.br/sitemap.xml`: página inicial, todos os produtos publicados (com as
-  fotos de cada um e a data da última alteração), categorias com produto e as páginas de políticas e atendimento.
-  Produto novo entra sozinho quando é publicado.
-- **robots.txt** em `https://www.azconfort.com.br/robots.txt`: libera a loja e esconde painel, sacola, checkout,
-  pedidos e busca.
-- **Endereço oficial (canonical)** em cada página, para o Google não achar que há páginas repetidas.
-- **Título e resumo** de cada produto e categoria (os que você escrever no painel; sem eles, o site monta com o nome,
-  a categoria e as medidas cadastradas).
+- **Trava até o lançamento (issue #17):** enquanto `INDEXING_ALLOWED` for `false` em `config/site.ts`, a loja inteira
+  fica fora do Google: `robots.txt` com `Disallow: /` (sem a linha do sitemap), `noindex, nofollow` em todas as
+  páginas, sitemap só com o início e as páginas fixas e nenhum dado de produto (Product/Offer/ItemList). Ver a seção 8.
+- **Arquitetura de endereços** (o que o Google lê como “mapa” da loja):
+  - `/colchoes`, com `/colchoes/solteiro`, `/solteiro-king`, `/casal`, `/queen` e `/king` (calculados pelas
+    variações de tamanho ou pelas medidas do cadastro);
+  - `/estofados` (o atalho `/sofas` leva para lá), com `/estofados/sofa-2-lugares` e `/sofa-3-lugares` (pela
+    especificação “Lugares” do cadastro ou pelo nome, ex.: “Sofá 3 lugares retrátil”);
+  - `/moveis`, com uma subpágina por categoria do painel (ex.: `/moveis/cadeiras`);
+  - a categoria do painel entra na seção pelo começo do endereço: `colch…` → colchões; `sofa…`, `estofad…`,
+    `poltrona…`, `puf…` → estofados; o resto → móveis (regra em `lib/catalog/sections.ts`);
+  - os endereços antigos `/categorias/<categoria>` redirecionam para os novos (308, permanente).
+- **Páginas de entrega:** `/entrega` (todas as cidades atendidas com frete grátis, a mesma lista da regra de frete
+  em `lib/shipping/served-cities.ts`) e páginas próprias para **Maringá** e **Londrina** (`/entrega/maringa`,
+  `/entrega/londrina`), cada uma com texto exclusivo (textos em `content/cidades.ts`).
+- **Mapa do site** em `https://www.azconfort.com.br/sitemap.xml` (com a trava aberta): página inicial, todos os
+  produtos publicados (com fotos e data da última alteração), seções e subcategorias com produto, entrega e páginas
+  de cidade, atendimento e políticas. Produto de demonstração e categoria vazia ficam de fora.
+- **robots.txt** em `https://www.azconfort.com.br/robots.txt` (com a trava aberta): libera a loja e esconde painel,
+  sacola, checkout, pedidos e busca.
+- **Endereço oficial (canonical)** em cada página, para o Google não achar que há páginas repetidas (a página de
+  produto ignora `?cor=` e `?tamanho=`).
+- **Título, resumo, H1 e introdução próprios** em cada seção e subcategoria, com foco em Maringá e no Paraná, sem
+  repetir palavra-chave (textos em `content/categorias.ts`; os testes barram texto repetido entre páginas). O título e
+  o resumo escritos no painel para a categoria têm preferência.
+- **Trilha de navegação** visível (Início › Móveis › Cadeiras e poltronas › Produto) e o mesmo caminho em dados para
+  o Google (BreadcrumbList).
 - **Foto do produto** quando alguém compartilha o link no WhatsApp, Instagram ou Facebook.
-- **Dados para o Google** (schema.org): produto com preço, disponibilidade (só se o estoque for controlado), medidas,
-  materiais, cores/tamanhos com o preço de cada um; trilha “Início › Categoria › Produto”; lista de produtos nas
-  categorias; dados da loja.
-- **Nada inventado**: avaliações, frete, prazo, política de devolução, CNPJ e contatos só aparecem quando existirem de
-  verdade.
-- **Páginas vazias fora do Google**: categoria sem produto e catálogo vazio ficam com `noindex` até ganharem produto.
+- **Dados para o Google** (schema.org): loja (OnlineStore, com área atendida = Paraná) e busca do site (WebSite com
+  SearchAction) na página inicial; produto com preço, frete grátis para o Paraná (`shippingDetails`, valor 0, destino
+  BR-PR), disponibilidade (só se o estoque for controlado), medidas, materiais, cores/tamanhos com o preço de cada um;
+  lista de produtos nas categorias. **Negócio local (LocalBusiness)** só aparece quando o endereço real estiver em
+  `config/brand.ts` (`location`).
+- **Nada inventado**: avaliações, prazo de entrega, política de devolução, CNPJ, endereço e contatos só aparecem
+  quando existirem de verdade. Produto de demonstração nunca tem dados para o Google e sempre sai com `noindex`.
+- **Páginas vazias fora do Google**: seção ou subcategoria sem produto e catálogo vazio ficam com `noindex`.
+- **Página não encontrada (404)** com busca e atalhos para as seções e a entrega.
+- **Velocidade**: fotos pelo otimizador do Next (AVIF/WebP, tamanho certo para cada tela, só a primeira foto com
+  prioridade, o resto sob demanda), fonte com `display: swap` e métricas de reserva, e o visualizador 3D baixado só
+  quando o cliente pede (o arquivo .glb nunca vem antes; no celular com AR, a biblioteca chega depois da página
+  carregada, para a câmera abrir no mesmo toque).
 
 ## 2. Google Search Console (o mais importante)
 
@@ -108,12 +134,48 @@ Preencha em `config/brand.ts` (ou peça à IA): `contact.email`, `contact.whatsa
 rodapé, no atendimento e nos dados para o Google automaticamente. Use exatamente os mesmos dados no Merchant Center e
 no Perfil da Empresa.
 
+Para o **negócio local** (LocalBusiness, que ajuda no Google Maps e nas buscas “perto de mim”), preencha também
+`location` com o endereço em partes: `streetAddress` (rua e número), `addressLocality` (cidade), `postalCode` (CEP) e
+`addressRegion` (`PR`). Sem os quatro, nada é publicado.
+
 ## 7. Velocidade
 
 Medido no build de produção local, celular emulado (Moto G4, 4G lento, processador 4× mais lento), com o catálogo de
 demonstração: LCP ~0,85 s, CLS 0, INP ~40 ms — dentro do “bom” do Google (LCP até 2,5 s, CLS até 0,1, INP até
 200 ms). O número que vale é o dos clientes reais: veja em **Search Console → Core Web Vitals** ou em
 <https://pagespeed.web.dev> depois que a loja tiver visitas.
+
+## 8. Lançamento (11/01/2027): abrir para o Google
+
+1. Tirar os produtos de demonstração do ar (issue #29) e publicar os produtos reais.
+2. Conferir se a issue #28 (frete grátis por CEP no checkout) está no ar: as páginas de entrega já dizem que o frete
+   é grátis nas cidades atendidas.
+3. Em `config/site.ts`, trocar `INDEXING_ALLOWED = false` por `true` (ou, se aprovada, ligar a variável
+   `ALLOW_INDEXING` da issue #17) e publicar.
+4. Abrir `https://www.azconfort.com.br/robots.txt`: deve aparecer `Allow: /` e a linha `Sitemap:`.
+5. No Search Console, enviar o `sitemap.xml` (seção 2) e pedir indexação da página inicial, de `/colchoes`,
+   `/estofados`, `/moveis`, `/entrega/maringa` e `/entrega/londrina`.
+
+## 9. Como testar os dados para o Google e a velocidade
+
+**Teste de resultados avançados (Rich Results Test)** — <https://search.google.com/test/rich-results>
+
+- Depois do lançamento: cole o endereço de um produto com preço (ex.: `https://www.azconfort.com.br/produtos/...`).
+  Devem aparecer **Snippets de produto** / **Listagens do comerciante** (com o frete grátis) e **Navegação estrutural**.
+  Na página inicial: **Logotipo/Organização** e **Caixa de pesquisa** (WebSite). Em `/moveis/...` e
+  `/entrega/maringa`: **Navegação estrutural**.
+- Antes do lançamento (trava fechada, prévia protegida pela Vercel): o Google não consegue abrir a prévia. Abra a
+  página no navegador, clique com o botão direito → **Exibir código-fonte**, copie tudo e use a aba **Código** do
+  teste. Com a trava fechada, a página de produto mostra só a trilha (BreadcrumbList); Product/Offer aparecem com a
+  trava aberta e produto com preço. Para conferir o formato sem a trava, use também <https://validator.schema.org>.
+- O aviso “campo `deliveryTime` ausente” é esperado: a loja ainda não tem prazo de entrega e ele não é inventado.
+
+**Lighthouse** (Chrome → F12 → aba **Lighthouse**, ou <https://pagespeed.web.dev> depois do lançamento)
+
+1. Abra a prévia em uma janela anônima (sem extensões), modo **Celular**, categorias **Desempenho**, **SEO** e
+   **Acessibilidade**.
+2. Rode na página inicial e numa página de produto. Metas do Google: LCP até 2,5 s, CLS até 0,1, INP até 200 ms.
+3. Antes do lançamento, o item de SEO “A página está bloqueada para indexação” é **esperado** (é a trava da #17).
 
 ## Referências (Google Search Central)
 
@@ -122,3 +184,5 @@ demonstração: LCP ~0,85 s, CLS 0, INP ~40 ms — dentro do “bom” do Google
 - Sitemaps de imagem: <https://developers.google.com/search/docs/crawling-indexing/sitemaps/image-sitemaps>
 - Trilha de navegação: <https://developers.google.com/search/docs/appearance/structured-data/breadcrumb>
 - Core Web Vitals: <https://developers.google.com/search/docs/appearance/core-web-vitals>
+- Frete no produto (shippingDetails): <https://developers.google.com/search/docs/appearance/structured-data/merchant-listing#shipping-details>
+- Negócio local: <https://developers.google.com/search/docs/appearance/structured-data/local-business>

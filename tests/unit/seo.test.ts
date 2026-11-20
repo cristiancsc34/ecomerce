@@ -26,6 +26,11 @@ describe("JSON-LD do produto", () => {
       priceCurrency: "BRL",
       price: "1299.00",
       url: `${base}/produtos/poltrona-azul`,
+      shippingDetails: {
+        "@type": "OfferShippingDetails",
+        shippingRate: { "@type": "MonetaryAmount", value: 0, currency: "BRL" },
+        shippingDestination: { "@type": "DefinedRegion", addressCountry: "BR", addressRegion: "PR" },
+      },
       seller: { "@type": "Organization", name: "AzConfort" },
     });
     expect(ld.width).toEqual({ "@type": "QuantitativeValue", value: 80, unitCode: "CMT" });
@@ -35,10 +40,10 @@ describe("JSON-LD do produto", () => {
     expect(ld.material).toEqual(["Madeira maciça", "Linho"]);
   });
 
-  it("nunca inventa avaliação, frete, devolução, condição ou código de barras", () => {
+  it("nunca inventa avaliação, prazo de entrega, devolução, condição ou código de barras", () => {
     const p = makeProduct({ priceCents: 5000, variants: [] });
     const json = JSON.stringify(productJsonLd(p, base));
-    for (const field of ["aggregateRating", "review", "shippingDetails", "hasMerchantReturnPolicy", "itemCondition", "gtin", "priceValidUntil"]) {
+    for (const field of ["aggregateRating", "review", "deliveryTime", "hasMerchantReturnPolicy", "itemCondition", "gtin", "priceValidUntil"]) {
       expect(json).not.toContain(field);
     }
   });
@@ -160,12 +165,17 @@ describe("títulos e resumos", () => {
     expect(measuresText({ dimensions: { heightCm: 75 } })).toBeNull();
   });
 
-  it("categoria: título e resumo escritos, senão nome e contagem real", () => {
+  it("categoria: título e resumo escritos, senão nome e contagem real com a entrega no Paraná", () => {
     const cat = { name: "Cadeiras", seoTitle: null, seoDescription: null, description: null };
-    expect(categoryTitle(cat)).toBe("Cadeiras");
-    expect(categoryDescription(cat, 3)).toBe("Veja 3 modelos de cadeiras na AzConfort. Móveis para a sua casa.");
+    expect(categoryTitle(cat)).toBe("Cadeiras em Maringá e no Paraná");
+    expect(categoryDescription(cat, 3)).toBe(
+      "Veja 3 modelos de cadeiras na AzConfort. Saída de Maringá e frete grátis para as cidades atendidas no Paraná.",
+    );
     expect(categoryDescription(cat, 1)).toContain("1 modelo de");
-    expect(categoryDescription({ ...cat, description: "Cadeiras de jantar." }, 3)).toBe("Cadeiras de jantar.");
+    expect(categoryDescription({ ...cat, description: "Cadeiras de jantar." }, 3)).toBe(
+      "Cadeiras de jantar. Saída de Maringá e frete grátis para as cidades atendidas no Paraná.",
+    );
+    expect(categoryDescription({ ...cat, description: "Cadeiras de jantar" }, 3)).toMatch(/^Cadeiras de jantar\. Saída/);
     expect(categoryDescription({ ...cat, description: "x", seoDescription: "Para o Google" }, 3)).toBe("Para o Google");
     expect(categoryTitle({ ...cat, seoTitle: "Cadeiras de jantar" })).toBe("Cadeiras de jantar");
   });

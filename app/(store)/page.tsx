@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { imageMedia, model3d } from "@/lib/catalog/product-helpers";
 import { getVisibleProducts } from "@/lib/catalog/queries";
 import type { Product } from "@/lib/catalog/types";
+import { DeliveryNote } from "@/components/catalog/delivery-note";
 import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/product-section";
 import { buttonClasses } from "@/components/ui/button";
 import { CubeIcon } from "@/components/ui/icons";
@@ -13,12 +14,18 @@ import { Skeleton } from "@/components/ui/misc";
 import { JsonLd } from "@/components/seo/json-ld";
 import { brand } from "@/config/brand";
 import { isDemoMode, siteUrl } from "@/config/site";
-import { organizationJsonLd, websiteJsonLd } from "@/lib/seo/structured-data";
+import { OPEN_GRAPH_BASE } from "@/lib/seo/metadata";
+import { localBusinessJsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/seo/structured-data";
+
+const HOME_TITLE = `${brand.name}: colchões, sofás e móveis em Maringá e no Paraná`;
+const HOME_DESCRIPTION =
+  "Loja online de colchões, sofás e móveis com saída de Maringá e frete grátis para as cidades atendidas no Paraná. Veja cada peça de todos os ângulos.";
 
 export const metadata: Metadata = {
-  title: { absolute: `${brand.name} — ${brand.slogan} ${brand.tagline}.` },
-  description: brand.description,
+  title: { absolute: HOME_TITLE },
+  description: HOME_DESCRIPTION,
   alternates: { canonical: "/" },
+  openGraph: { ...OPEN_GRAPH_BASE, type: "website", title: HOME_TITLE, description: HOME_DESCRIPTION, url: "/" },
 };
 
 /**
@@ -28,16 +35,24 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <div className="mx-auto w-full max-w-[80rem] space-y-3 px-2 pt-2 sm:space-y-5 sm:px-6 sm:pt-6 lg:px-8">
-      {isDemoMode() ? null : (
-        <>
-          <JsonLd data={organizationJsonLd(siteUrl())} />
-          <JsonLd data={websiteJsonLd(siteUrl())} />
-        </>
-      )}
+      {isDemoMode() ? null : <HomeStructuredData />}
       <Suspense fallback={<HomeSkeleton />}>
         <HomeContent />
       </Suspense>
     </div>
+  );
+}
+
+/** Loja (Organization), site com busca (WebSite) e, com endereço real, o negócio local. */
+function HomeStructuredData() {
+  const base = siteUrl();
+  const local = localBusinessJsonLd(base);
+  return (
+    <>
+      <JsonLd data={organizationJsonLd(base)} />
+      <JsonLd data={websiteJsonLd(base)} />
+      {local ? <JsonLd data={local} /> : null}
+    </>
   );
 }
 
@@ -64,6 +79,7 @@ async function HomeContent() {
         />
       </div>
       {with3d[0] ? <Showcase3D product={with3d[0]} /> : null}
+      <DeliveryNote className="rounded-xl" />
     </>
   );
 }
@@ -112,7 +128,9 @@ function Hero({ product }: { product: Product | null }) {
               src={image.url}
               alt=""
               fill
-              priority
+              // Foto do banner = maior elemento da primeira tela (LCP): baixa já, com prioridade alta.
+              loading="eager"
+              fetchPriority="high"
               sizes="(min-width: 1280px) 560px, 45vw"
               className="object-cover object-center"
             />

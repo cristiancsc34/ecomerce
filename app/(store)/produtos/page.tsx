@@ -6,21 +6,24 @@ import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/pro
 import { JsonLd } from "@/components/seo/json-ld";
 import { brand } from "@/config/brand";
 import { isDemoMode, siteUrl } from "@/config/site";
+import { CATEGORY_DELIVERY_SENTENCE } from "@/content/categorias";
 import { OPEN_GRAPH_BASE } from "@/lib/seo/metadata";
+import { pageRobots, productStructuredDataAllowed } from "@/lib/seo/robots";
 import { itemListJsonLd } from "@/lib/seo/structured-data";
 
 const TITLE = "Todos os produtos";
-const DESCRIPTION = `Todos os móveis da ${brand.name}: ${brand.tagline.toLowerCase()}.`;
+const DESCRIPTION = `Colchões, sofás e móveis da ${brand.name}. ${CATEGORY_DELIVERY_SENTENCE}`;
 
 export async function generateMetadata(): Promise<Metadata> {
   await connection();
   const products = await getVisibleProducts();
+  // Catálogo ainda vazio (ou trava de indexação fechada): nada para o Google indexar.
+  const robots = pageRobots(products.length > 0);
   return {
     title: TITLE,
     description: DESCRIPTION,
     alternates: { canonical: "/produtos" },
-    // Catálogo ainda vazio: nada para o Google indexar.
-    ...(products.length ? {} : { robots: { index: false, follow: true } }),
+    ...(robots ? { robots } : {}),
     openGraph: { ...OPEN_GRAPH_BASE, type: "website", title: TITLE, description: DESCRIPTION, url: "/produtos" },
   };
 }
@@ -39,7 +42,7 @@ async function Results() {
   // Lista montada a cada visita (os dados vêm do cache): publicar/despublicar aparece na hora.
   await connection();
   const products = await getVisibleProducts();
-  const list = isDemoMode() ? null : itemListJsonLd(products, siteUrl(), TITLE);
+  const list = isDemoMode() || !productStructuredDataAllowed() ? null : itemListJsonLd(products, siteUrl(), TITLE);
   return (
     <>
       {list ? <JsonLd data={list} /> : null}

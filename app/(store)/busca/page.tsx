@@ -7,6 +7,7 @@ import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/pro
 export const metadata: Metadata = {
   title: "Buscar",
   description: "Busque produtos por nome ou descrição.",
+  alternates: { canonical: "/busca" },
   // Páginas de resultado de busca não devem ser indexadas.
   robots: { index: false, follow: true },
 };

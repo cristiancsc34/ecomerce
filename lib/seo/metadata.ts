@@ -1,4 +1,5 @@
 import { brand } from "@/config/brand";
+import { CATEGORY_DELIVERY_SENTENCE } from "@/content/categorias";
 import { imageMedia } from "@/lib/catalog/product-helpers";
 import type { Category, Product, ProductMedia } from "@/lib/catalog/types";
 
@@ -54,16 +55,23 @@ export function shareableImage(product: Pick<Product, "media">): ProductMedia | 
   );
 }
 
+/** Título da categoria: o escrito pela equipe para o Google; sem ele, o nome com o foco local. */
 export function categoryTitle(category: Pick<Category, "seoTitle" | "name">): string {
-  return category.seoTitle?.trim() || category.name;
+  return category.seoTitle?.trim() || `${category.name} em Maringá e no Paraná`;
 }
 
-/** Resumo da categoria: o escrito pela equipe; sem ele, uma frase com a contagem real. */
+/**
+ * Resumo da categoria: o escrito pela equipe para o Google; sem ele, a
+ * descrição da categoria (ou uma frase com a contagem real) mais a entrega no
+ * Paraná (saída de Maringá, frete grátis nas cidades atendidas).
+ */
 export function categoryDescription(category: Pick<Category, "seoDescription" | "description" | "name">, productCount: number): string {
-  const written = category.seoDescription ?? category.description;
-  if (written?.trim()) return clip(written);
+  const seo = category.seoDescription?.trim();
+  if (seo) return clip(seo);
+  const own = category.description?.trim();
+  if (own) return clip(`${/[.!?]$/.test(own) ? own : `${own}.`} ${CATEGORY_DELIVERY_SENTENCE}`);
   const count = productCount === 1 ? "1 modelo" : `${productCount} modelos`;
-  return clip(`Veja ${count} de ${category.name.toLowerCase()} na ${brand.name}. ${brand.slogan}`);
+  return clip(`Veja ${count} de ${category.name.toLowerCase()} na ${brand.name}. ${CATEGORY_DELIVERY_SENTENCE}`);
 }
 
 /**

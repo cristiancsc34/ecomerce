@@ -1,10 +1,13 @@
 import { Suspense } from "react";
-import { siteUrl } from "@/config/site";
+import { isDemoMode, siteUrl } from "@/config/site";
 import { arFiles, hasConfirmedSpecs, model3d, primaryImage } from "@/lib/catalog/product-helpers";
+import { productBreadcrumbs } from "@/lib/catalog/taxonomy";
 import { colorOptions, colorVariants, galleryFor } from "@/lib/catalog/variants";
 import type { Product } from "@/lib/catalog/types";
-import { breadcrumbJsonLd, productJsonLd } from "@/lib/seo/structured-data";
+import { productStructuredDataAllowed } from "@/lib/seo/robots";
+import { productJsonLd } from "@/lib/seo/structured-data";
 import { JsonLd } from "@/components/seo/json-ld";
+import { PageBreadcrumbs } from "@/components/seo/page-breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import { FaqList } from "@/components/ui/faq-list";
 import { Paragraphs } from "@/components/ui/paragraphs";
@@ -30,6 +33,10 @@ function Block({ id, title, children }: { id: string; title: string; children: R
 /**
  * Página de produto. Usada pela vitrine e pela pré-visualização do painel
  * (`preview`), que mostra rascunhos sem dados estruturados.
+ *
+ * Dados para o Google: a trilha (BreadcrumbList) sempre que o produto é real;
+ * Product/Offer só com preço real e a trava de indexação aberta (issue #17).
+ * Produto de demonstração e pré-visualização: nenhum JSON-LD.
  */
 export function ProductView({ product, preview = false }: { product: Product; preview?: boolean }) {
   // Fotos e 3D do produto (sem variação); cada cor pode ter os seus.
@@ -40,8 +47,8 @@ export function ProductView({ product, preview = false }: { product: Product; pr
   const firstColor = colorVariants(product)[0] ?? null;
   // Com cores, a primeira (a das fotos do produto) já vem escolhida; com uma variação só, ela.
   const initialVariantId = firstColor?.id ?? (product.variants.length === 1 ? product.variants[0].id : null);
-  const base = siteUrl();
-  const productLd = preview ? null : productJsonLd(product, base);
+  const structured = !preview && !product.isDemo && !isDemoMode();
+  const productLd = structured && productStructuredDataAllowed() ? productJsonLd(product, siteUrl()) : null;
   const panelProduct = {
     id: product.id,
     name: product.name,
@@ -55,21 +62,8 @@ export function ProductView({ product, preview = false }: { product: Product; pr
 
   return (
     <article className="mx-auto w-full max-w-[80rem] sm:px-6 sm:pt-6 lg:px-8">
-      {productLd ? (
-        <>
-          <JsonLd data={productLd} />
-          <JsonLd
-            data={breadcrumbJsonLd(
-              [
-                { name: "Início", path: "/" },
-                ...(product.category ? [{ name: product.category.name, path: `/categorias/${product.category.slug}` }] : []),
-                { name: product.name, path: `/produtos/${product.slug}` },
-              ],
-              base,
-            )}
-          />
-        </>
-      ) : null}
+      {productLd ? <JsonLd data={productLd} /> : null}
+      <PageBreadcrumbs items={productBreadcrumbs(product)} structured={structured} className="px-4 pb-1 sm:px-0 sm:pb-3" />
 
       <VariantSelectionProvider initialVariantId={initialVariantId} colors={colors.map((c) => ({ id: c.id, slug: c.slug }))}>
         <div className="grid gap-2 bg-white sm:rounded-lg lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-10 lg:p-6">

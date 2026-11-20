@@ -105,3 +105,22 @@ export function catalogSource(): CatalogSource {
 export function isDemoMode(): boolean {
   return catalogSource() === "demo";
 }
+
+/**
+ * Trava de indexação (issue #17): a loja fica fora do Google até o lançamento
+ * das vendas (11/01/2027). Com a trava fechada (`false`):
+ * - robots.txt com `Disallow: /` e sem a linha do sitemap;
+ * - `noindex, nofollow` em todas as páginas;
+ * - sitemap só com o início e as páginas fixas;
+ * - nenhum JSON-LD de produto (Product/Offer) nem de lista (ItemList).
+ *
+ * É uma constante de propósito: abrir a trava não exige variável de ambiente
+ * nova. TODO(#17): se o Cristian aprovar, trocar por `ALLOW_INDEXING` (padrão
+ * false quando ausente). Antes de abrir: tirar os produtos de demonstração do ar.
+ */
+export const INDEXING_ALLOWED = false;
+
+/** O Google pode indexar a loja? Nunca no modo demonstração (dados fictícios). */
+export function indexingAllowed(): boolean {
+  return INDEXING_ALLOWED && !isDemoMode();
+}

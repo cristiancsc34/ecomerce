@@ -48,6 +48,17 @@ function materials(product: Product): Record<string, unknown> {
   return list.length ? { material: list.length === 1 ? list[0] : list } : {};
 }
 
+/**
+ * Frete da oferta: grátis (R$ 0) para o Paraná, a única região onde a loja
+ * vende (decisão de 20/11/2026, issue #28; saída de Maringá). Sem prazo
+ * (`deliveryTime`): a loja ainda não tem esse dado.
+ */
+export const SHIPPING_DETAILS = {
+  "@type": "OfferShippingDetails",
+  shippingRate: { "@type": "MonetaryAmount", value: 0, currency: "BRL" },
+  shippingDestination: { "@type": "DefinedRegion", addressCountry: "BR", addressRegion: "PR" },
+} as const;
+
 function offer(priceCents: number, url: string, stock: "in_stock" | "out_of_stock" | null): Record<string, unknown> {
   return {
     "@type": "Offer",
@@ -55,6 +66,7 @@ function offer(priceCents: number, url: string, stock: "in_stock" | "out_of_stoc
     price: decimal(priceCents),
     url,
     ...(stock ? { availability: AVAILABILITY[stock] } : {}),
+    shippingDetails: SHIPPING_DETAILS,
     seller: { "@type": "Organization", name: brand.name },
   };
 }
@@ -73,8 +85,9 @@ function variantUrl(url: string, variant: ProductVariant): string | null {
  *
  * Com variações (cores ou tamanhos) vira um ProductGroup com uma oferta por
  * variação, o formato que o Google pede para "merchant listing" (ele não aceita
- * AggregateOffer ali). Nada de avaliação, frete, prazo, devolução, condição ou
- * código de barras: a loja ainda não tem esses dados cadastrados.
+ * AggregateOffer ali). Frete: grátis no Paraná (SHIPPING_DETAILS). Nada de
+ * avaliação, prazo, devolução, condição ou código de barras: a loja ainda não
+ * tem esses dados cadastrados.
  */
 export function productJsonLd(product: Product, baseUrl: string): Record<string, unknown> | null {
   if (product.isDemo) return null;
@@ -158,6 +171,7 @@ export function productJsonLd(product: Product, baseUrl: string): Record<string,
       offerCount: priced.length,
       url,
       ...(stock ? { availability: AVAILABILITY[stock] } : {}),
+      shippingDetails: SHIPPING_DETAILS,
     },
   };
 }
@@ -201,10 +215,14 @@ export function breadcrumbJsonLd(items: { name: string; path: string }[], baseUr
   };
 }
 
+/** Onde a loja vende: só no Paraná (Brasil). */
+export const AREA_SERVED = { "@type": "State", name: "Paraná", containedInPlace: { "@type": "Country", name: "Brasil" } } as const;
+
 /**
  * schema.org/Organization (OnlineStore) da loja: só com os dados que existem
  * em config/brand.ts. Contato, CNPJ e endereço entram sozinhos quando forem
- * preenchidos; campo vazio fica de fora (nunca inventado).
+ * preenchidos; campo vazio fica de fora (nunca inventado). A área atendida é
+ * o Paraná (a loja vende só no estado).
  */
 export function organizationJsonLd(baseUrl: string): Record<string, unknown> {
   const { contact, legal, social } = brand;
@@ -216,6 +234,7 @@ export function organizationJsonLd(baseUrl: string): Record<string, unknown> {
     name: brand.name,
     url: `${baseUrl}/`,
     description: brand.description,
+    areaServed: AREA_SERVED,
     ...(legal.companyName ? { legalName: legal.companyName } : {}),
     ...(legal.cnpj ? { taxID: legal.cnpj } : {}),
     ...(legal.address ? { address: legal.address } : {}),
@@ -243,5 +262,38 @@ export function websiteJsonLd(baseUrl: string): Record<string, unknown> {
       },
       "query-input": "required name=search_term_string",
     },
+  };
+}
+
+/**
+ * schema.org/LocalBusiness (FurnitureStore) só com endereço real completo
+ * (rua, cidade, CEP e UF em `brand.location`). O Google exige o endereço
+ * para negócio local; sem ele, nada é publicado (devolve null). Telefone,
+ * CNPJ e horário entram quando existirem em config/brand.ts.
+ * TODO(Cristian): endereço da loja/expedição e CNPJ.
+ */
+export function localBusinessJsonLd(baseUrl: string): Record<string, unknown> | null {
+  const { location, contact, legal } = brand;
+  if (!location.streetAddress || !location.addressLocality || !location.postalCode || !location.addressRegion) return null;
+  const phone = contact.phone || contact.whatsapp;
+  return {
+    "@context": "https://schema.org",
+    "@type": "FurnitureStore",
+    "@id": `${baseUrl}/#negocio-local`,
+    name: brand.name,
+    url: `${baseUrl}/`,
+    parentOrganization: { "@id": `${baseUrl}/#loja` },
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: location.streetAddress,
+      addressLocality: location.addressLocality,
+      addressRegion: location.addressRegion,
+      postalCode: location.postalCode,
+      addressCountry: "BR",
+    },
+    areaServed: AREA_SERVED,
+    ...(phone ? { telephone: phone } : {}),
+    ...(legal.cnpj ? { taxID: legal.cnpj } : {}),
+    ...(contact.hours ? { openingHours: contact.hours } : {}),
   };
 }

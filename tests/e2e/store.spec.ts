@@ -77,7 +77,7 @@ test.describe("vitrine em modo demonstração", () => {
   });
 
   test("categoria lista os dois produtos", async ({ page }) => {
-    await page.goto("/categorias/cadeiras");
+    await page.goto("/moveis/cadeiras");
     await expect(page.getByRole("heading", { level: 1, name: "Cadeiras e poltronas" })).toBeVisible();
     await expect(page.locator("article")).toHaveCount(2);
   });

@@ -19,13 +19,14 @@ export function ProductSection({
   id: string;
   title: string;
   headingLevel?: "h1" | "h2";
-  /** Frase curta abaixo do título (ex.: descrição da categoria). */
-  intro?: string | null;
+  /** Frase curta (ou parágrafos) abaixo do título (ex.: introdução da categoria). */
+  intro?: string | readonly string[] | null;
   products: Product[];
   priorityCount?: number;
   empty: { title: string; text?: string };
 }) {
   const Heading = headingLevel;
+  const paragraphs = (typeof intro === "string" ? [intro] : (intro ?? [])).map((p) => p.trim()).filter(Boolean);
   return (
     <section aria-labelledby={id}>
       <div className="mb-2 flex items-baseline justify-between gap-3 border-b-4 border-air-blue-ink bg-white px-4 py-3 sm:mb-3 sm:rounded-t-lg">
@@ -36,7 +37,13 @@ export function ProductSection({
           {products.length === 1 ? "1 produto" : `${products.length} produtos`}
         </p>
       </div>
-      {intro ? <p className="mb-2 bg-white px-4 py-3 text-[0.9375rem] text-muted sm:mb-3 sm:rounded-lg">{intro}</p> : null}
+      {paragraphs.length ? (
+        <div className="mb-2 space-y-2 bg-white px-4 py-3 text-[0.9375rem] text-muted sm:mb-3 sm:rounded-lg">
+          {paragraphs.map((p, i) => (
+            <p key={i}>{p}</p>
+          ))}
+        </div>
+      ) : null}
       {products.length ? (
         <ProductGrid products={products} priorityCount={priorityCount} headingLevel={headingLevel === "h1" ? "h2" : "h3"} />
       ) : (

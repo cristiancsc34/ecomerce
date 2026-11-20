@@ -1,47 +1,21 @@
 import type { MetadataRoute } from "next";
-import { siteUrl } from "@/config/site";
-import { getCategoriesWithProducts, getVisibleProducts } from "@/lib/catalog/queries";
-import { sitemapImages } from "@/lib/seo/sitemap";
-
-function latest(dates: string[]): string | undefined {
-  return dates.length ? dates.reduce((a, b) => (a > b ? a : b)) : undefined;
-}
+import { indexingAllowed, siteUrl } from "@/config/site";
+import { getCategories, getVisibleProducts } from "@/lib/catalog/queries";
+import { buildSitemap } from "@/lib/seo/sitemap";
 
 /**
  * Só páginas com conteúdo real: produtos de demonstração e categorias vazias
- * ficam de fora. Cada produto leva as suas fotos (o Google Imagens é uma porta
- * de entrada importante para móveis) e a data da última alteração.
+ * ficam de fora. Com a trava de indexação fechada (issue #17), só o início e
+ * as páginas fixas. Ver lib/seo/sitemap.ts.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
-  const [products, categories] = await Promise.all([getVisibleProducts(), getCategoriesWithProducts()]).catch((error: unknown) => {
-    // Catálogo fora do ar não derruba o /sitemap.xml: sai o sitemap mínimo (início e páginas fixas).
-    console.error("Sitemap: falha ao ler o catálogo; publicando só o início e as páginas fixas.", error);
+  const indexing = indexingAllowed();
+  if (!indexing) return buildSitemap({ base, products: [], categories: [], indexing });
+  const [products, categories] = await Promise.all([getVisibleProducts(), getCategories()]).catch((error: unknown) => {
+    // Catálogo fora do ar não derruba o /sitemap.xml: sai o sitemap sem catálogo (início, entrega e páginas fixas).
+    console.error("Sitemap: falha ao ler o catálogo; publicando sem produtos e categorias.", error);
     return [[], []] as const;
   });
-  const real = products.filter((p) => !p.isDemo);
-  const newest = latest(real.map((p) => p.updatedAt));
-
-  const listing = [
-    { url: `${base}/`, ...(newest ? { lastModified: newest } : {}) },
-    ...(real.length ? [{ url: `${base}/produtos`, ...(newest ? { lastModified: newest } : {}) }] : []),
-  ];
-  const staticPages = ["/atendimento", "/politicas/privacidade", "/politicas/trocas-e-devolucoes", "/politicas/entrega", "/politicas/termos-de-uso"].map(
-    (path) => ({ url: `${base}${path}` }),
-  );
-
-  return [
-    ...listing,
-    ...categories.flatMap((c) => {
-      const inCategory = real.filter((p) => p.category?.slug === c.slug);
-      if (!inCategory.length) return [];
-      const modified = latest(inCategory.map((p) => p.updatedAt));
-      return [{ url: `${base}/categorias/${c.slug}`, ...(modified ? { lastModified: modified } : {}) }];
-    }),
-    ...real.map((p) => {
-      const images = sitemapImages(p, base);
-      return { url: `${base}/produtos/${p.slug}`, lastModified: p.updatedAt, ...(images.length ? { images } : {}) };
-    }),
-    ...staticPages,
-  ];
+  return buildSitemap({ base, products: [...products], categories: [...categories], indexing });
 }

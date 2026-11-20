@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
-import { isDemoMode, siteUrl } from "@/config/site";
+import { indexingAllowed, siteUrl } from "@/config/site";
 
 export default function robots(): MetadataRoute.Robots {
-  // Modo demonstração: dados fictícios não devem ser indexados.
-  if (isDemoMode()) {
+  // Trava de indexação fechada (issue #17) ou modo demonstração: nada vai para o Google
+  // e o robots.txt não anuncia o sitemap.
+  if (!indexingAllowed()) {
     return { rules: [{ userAgent: "*", disallow: "/" }] };
   }
   return {

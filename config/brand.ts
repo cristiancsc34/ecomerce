@@ -24,6 +24,17 @@ export type BrandConfig = {
     cnpj: string;
     address: string;
   };
+  /**
+   * Endereço da loja/expedição em partes, para o Google (LocalBusiness). Só é
+   * publicado com rua, cidade, CEP e UF preenchidos. Use o mesmo endereço do
+   * Perfil da Empresa no Google.
+   */
+  location: {
+    streetAddress: string;
+    addressLocality: string;
+    postalCode: string;
+    addressRegion: string;
+  };
   /** Mostra aviso nas páginas de política enquanto o texto não for revisado. */
   policiesUnderReview: boolean;
 };
@@ -33,7 +44,7 @@ export const brand: BrandConfig = {
   slogan: "Móveis para a sua casa.",
   tagline: "Sofás, mesas, poltronas e cadeiras",
   description:
-    "Loja online de móveis: sofás, mesas, poltronas e cadeiras, com fotos de todos os ângulos e visualização em 3D.",
+    "Loja online de colchões, sofás e móveis no Paraná, com saída de Maringá, fotos de todos os ângulos e visualização em 3D.",
   announcement: null,
   contact: {
     email: "",
@@ -44,8 +55,16 @@ export const brand: BrandConfig = {
   social: [],
   legal: {
     companyName: "",
+    // TODO(Cristian): CNPJ da empresa.
     cnpj: "",
     address: "",
+  },
+  // TODO(Cristian): endereço real da loja/expedição em Maringá (rua e número, CEP).
+  location: {
+    streetAddress: "",
+    addressLocality: "",
+    postalCode: "",
+    addressRegion: "",
   },
   policiesUnderReview: true,
 };

@@ -1,8 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { brand } from "@/config/brand";
-import { isDemoMode, siteUrl } from "@/config/site";
+import { siteUrl } from "@/config/site";
 import { colors } from "@/config/tokens";
+import { siteRobots } from "@/lib/seo/robots";
 import "./globals.css";
 
 const inter = Inter({
@@ -28,8 +29,8 @@ export const metadata: Metadata = {
     title: `${brand.name} — ${brand.slogan}`,
     description: brand.description,
   },
-  // Em modo demonstração nada é indexado: os dados são fictícios.
-  robots: isDemoMode() ? { index: false, follow: false } : { index: true, follow: true },
+  // Trava de indexação (issue #17) e modo demonstração: noindex, nofollow em tudo.
+  robots: siteRobots(),
 };
 
 export const viewport: Viewport = {
