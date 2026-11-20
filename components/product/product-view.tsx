@@ -90,6 +90,11 @@ export function ProductView({ product, preview = false }: { product: Product; pr
           <div className="min-w-0 space-y-4 px-4 pb-5 pt-2 lg:px-0 lg:pt-0">
             {preview ? <Badge tone="dark">Pré-visualização</Badge> : null}
             <h1 className="text-xl font-semibold leading-snug text-ink sm:text-2xl">{product.name}</h1>
+            {showSpecs ? (
+              <a href="#especificacoes-titulo" className="link inline-flex min-h-11 items-center text-sm">
+                Ver medidas
+              </a>
+            ) : null}
             {product.shortDescription ? <p className="text-[0.9375rem] text-muted">{product.shortDescription}</p> : null}
 
             {product.attributes.firmness ? (
@@ -108,18 +113,18 @@ export function ProductView({ product, preview = false }: { product: Product; pr
       </VariantSelectionProvider>
 
       <div className="mt-2 space-y-2 sm:mt-4 sm:space-y-4">
-        {product.description ? (
-          <Block id="descricao-titulo" title="Descrição do produto">
-            <Paragraphs text={product.description} />
-          </Block>
-        ) : null}
-
         {showSpecs ? (
           <Block id="especificacoes-titulo" title="Especificações">
             <div className="space-y-6">
               <SpecsList product={product} showPending={false} />
               <SizeTable product={product} />
             </div>
+          </Block>
+        ) : null}
+
+        {product.description ? (
+          <Block id="descricao-titulo" title="Descrição do produto">
+            <Paragraphs text={product.description} />
           </Block>
         ) : null}
 
