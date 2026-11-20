@@ -111,6 +111,8 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
   const [errorSummary, setErrorSummary] = useState<[string, string][] | null>(null);
   // CEP sendo buscado agora: evita duas buscas do mesmo CEP (automática + botão/Enter) e ignora respostas antigas.
   const cepLookup = useRef<string | null>(null);
+  // Último CEP já encontrado: Buscar/Enter logo depois da busca automática não consulta de novo.
+  const cepFound = useRef<string | null>(null);
   const quoteItems = state.status === "ready" && inSync ? state.quote.normalizedItems : [];
   // Sobe quando o servidor avisa que o frete mudou: calcula de novo para mostrar o valor atual.
   const [shippingVersion, setShippingVersion] = useState(0);
@@ -209,6 +211,10 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
       return;
     }
     if (cepLookup.current === digits) return;
+    if (cepFound.current === digits) {
+      setCepStatus({ text: "Endereço encontrado. Confira e informe o número.", tone: "muted" });
+      return;
+    }
     cepLookup.current = digits;
     setCepLoading(true);
     setCepStatus({ text: "Buscando endereço…", tone: "muted" });
@@ -228,6 +234,7 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
         cidade: r.data.cidade || a.cidade,
         uf: r.data.uf || a.uf,
       }));
+      cepFound.current = digits;
       setErrors((e) => {
         const next = { ...e };
         for (const k of ["address.cep", "address.rua", "address.bairro", "address.cidade", "address.uf"]) delete next[k];
@@ -518,7 +525,8 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
                         const digits = cep.replace(/\D/g, "");
                         setAddr("cep")(cep);
                         setCepStatus(null);
-                        // Outro CEP: a busca em andamento deixa de valer.
+                        // Outro CEP: a busca em andamento e a anterior deixam de valer.
+                        if (cepFound.current !== digits) cepFound.current = null;
                         if (cepLookup.current && cepLookup.current !== digits) {
                           cepLookup.current = null;
                           setCepLoading(false);

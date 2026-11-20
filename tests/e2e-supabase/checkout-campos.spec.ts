@@ -27,7 +27,12 @@ test.beforeAll(async ({ browser }) => {
   const login = await admin.auth.signInWithPassword(ACCOUNTS.admin);
   if (login.error) throw login.error;
   const db = service();
-  const category = await db.from("categories").select("id").limit(1).single();
+  // Categoria própria do teste (sem exigência de 3D, que outros testes podem ligar nas categorias do seed).
+  const category = await db
+    .from("categories")
+    .insert({ slug: `checkout-e2e-${unique}`, name: `Checkout E2E ${unique}`, sort_order: 999 })
+    .select("id")
+    .single();
   if (category.error) throw category.error;
   const saved = await admin.rpc("save_product", {
     p_product_id: null,
@@ -84,6 +89,7 @@ test.beforeAll(async ({ browser }) => {
 
 test.afterAll(async () => {
   await service().from("products").delete().like("slug", "checkout-e2e-%");
+  await service().from("categories").delete().like("slug", "checkout-e2e-%");
 });
 
 async function openCheckout(page: Page) {
@@ -161,7 +167,15 @@ for (const { width, height, label } of [
       await expect(page.getByLabel("Cidade")).toHaveValue("Cidade do Teste");
       await expect(page.getByLabel("UF")).toHaveValue("SC");
       await expect(page.getByLabel("Número")).toBeFocused();
+      // Buscar depois da busca automática também não consulta de novo o mesmo CEP.
+      await page.getByRole("button", { name: "Buscar endereço pelo CEP" }).click();
+      await expect(page.getByText("Endereço encontrado. Confira e informe o número.")).toBeVisible();
       expect(viacepCalls()).toEqual(["88015200"]);
+      // Outro CEP busca de novo.
+      await cep.fill("");
+      await cep.pressSequentially("88015201");
+      await expect(page.getByText("Endereço encontrado. Confira e informe o número.")).toBeVisible();
+      expect(viacepCalls()).toEqual(["88015200", "88015201"]);
     });
 
     test("enviar vazio: lista 'Revise N campos' no topo, com links que focam o campo", async ({ page }) => {
