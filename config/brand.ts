@@ -1,6 +1,6 @@
 /**
  * Configuração central da marca. Nome, slogan, contatos e links ficam aqui
- * para que a marca provisória possa ser trocada sem mexer em componentes.
+ * para que a marca (AzConfort) possa ser ajustada sem mexer em componentes.
  *
  * Campos vazios ("") são tratados como "não configurado" e escondidos na
  * interface: nunca inventar telefone, e-mail, CNPJ ou endereço.
