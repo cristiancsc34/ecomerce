@@ -22,7 +22,7 @@ import { BagIcon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/misc";
 import { Notice } from "@/components/ui/notice";
 import { CheckField, CheckoutSection, TextField } from "./fields";
-import { OrderSummary } from "./order-summary";
+import { MobileOrderSummary, OrderSummary } from "./order-summary";
 import { useCartQuote } from "./use-cart-quote";
 import { rememberCep, rememberedCep, ShippingChoice, useShippingOptions } from "./shipping-options";
 
@@ -313,6 +313,12 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
       aria-label="Finalizar pedido"
       className="grid animate-surgir grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-6"
     >
+      {/* Celular: resumo recolhível no topo (no desktop o resumo lateral já fica fixo). */}
+      <MobileOrderSummary
+        quote={quote}
+        shipping={entrega ? (chosenShipping ? { label: chosenShipping.name, cents: chosenShipping.priceCents } : null) : "retirada"}
+      />
+
       <div className="min-w-0 space-y-3">
         {quote.issues.length ? (
           <Notice tone="warning" role="status" title="Sua sacola mudou">
