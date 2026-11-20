@@ -9,6 +9,7 @@ const PAGES = [
   "/categorias/cadeiras",
   "/entrega-parana",
   "/guias",
+  "/guias/como-escolher-o-tamanho-do-colchao",
   "/busca?q=poltrona",
   "/carrinho",
   "/finalizar",

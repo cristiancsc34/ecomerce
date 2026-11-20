@@ -33,8 +33,10 @@ Guia para o dono da loja, em passos. O site já faz a parte técnica sozinho; aq
   `proxy.ts` confere antes de a página começar a ser enviada).
 - **Entrega no Paraná** em `/entrega-parana`, com a lista de cidades da issue #28 (`content/cidades-atendidas.ts`).
   Fica com `noindex` até a lista e o frete serem aprovados; o texto de frete é um TODO.
-- **Guias de compra** em `/guias` (estrutura pronta, sem artigo ainda). Para publicar, os textos entram em
-  `content/guias/`.
+- **Guias de compra** em `/guias` (o "blog" da loja): 8 guias sobre tamanho do colchão, comprar colchão online no
+  Paraná, medir a sala para o sofá, sofá de 2 ou 3 lugares, cuidado com estofados, poltrona, mesa de jantar e o 3D.
+  Cada guia tem trilha, dados de artigo para o Google (Article) e links para a categoria e para os outros guias; a
+  home e as categorias ligam aos guias. Textos em `content/guias/index.ts`.
 
 ## 2. Google Search Console (o mais importante)
 
@@ -150,6 +152,63 @@ demonstração: LCP ~0,85 s, CLS 0, INP ~40 ms — dentro do “bom” do Google
   estrutural. Produto com preço mostra Product/Offer só com a trava aberta. Alternativa: <https://validator.schema.org>.
 - **Velocidade**: Chrome → F12 → **Lighthouse** → Celular, na home e numa página de produto. Antes do lançamento, o
   aviso "A página está bloqueada para indexação" é esperado.
+
+## 10. Plano para chegar ao topo nas buscas do Paraná
+
+O site já entrega a base técnica que o Google pede. O que coloca a loja no topo de buscas como "sofá Paraná", "colchão
+Maringá" ou "estofado Londrina" é o conjunto abaixo, feito com constância. Ninguém consegue garantir a primeira
+posição; quem promete isso costuma usar truque que o Google pune.
+
+### Antes do lançamento
+
+1. **Search Console** (seção 2): verificar o domínio já. Enquanto a trava estiver fechada nada é indexado, mas fica
+   tudo pronto para o dia de abrir.
+2. **Perfil da Empresa no Google** (seção 5): criar assim que houver endereço ou área de atendimento e telefone.
+   Categoria principal "Loja de móveis", com "Loja de colchões" e "Loja de sofás" como secundárias. Área de
+   atendimento: as cidades da lista de entrega. Pelo menos 10 fotos reais, horário e o link do site.
+3. **Quando abrir a trava:** o Google leva semanas para indexar e confiar num site novo. Vale avaliar abrir antes de
+   11/01/2027, assim que os produtos de demonstração saírem, para os guias e as categorias começarem a ganhar
+   posição (decisão do Cristian, issue #31, decisão 8).
+
+### Avaliações (o que mais pesa no Google Maps e na busca local)
+
+- Pedir avaliação a todo cliente real depois da entrega, pelo WhatsApp ou por e-mail, com o link direto "Escrever
+  avaliação" do Perfil da Empresa.
+- Responder todas, boas e ruins, com educação e rapidez. Resposta a crítica bem feita também conta a favor.
+- Sugerir que o cliente conte com as palavras dele o que comprou e em que cidade (por exemplo, "sofá entregue em
+  Londrina") ajuda a busca local, sem mandar texto pronto.
+- **Nunca** comprar avaliações, avaliar a própria loja, pedir para quem não comprou nem dar desconto ou brinde em troca
+  de avaliação: isso viola as regras do Google (o perfil pode ser suspenso) e pode ser publicidade enganosa pelo
+  Código de Defesa do Consumidor.
+- Estrelas nos resultados do Google (schema Review/AggregateRating) só com avaliações reais publicadas no próprio site.
+  Isso pede um recurso de avaliações na loja (issue futura, com migration e ok do Cristian).
+
+### Conteúdo (blog e vídeos)
+
+- **Guias** em `/guias`: publicar 1 ou 2 por mês, respondendo dúvidas reais que chegam pelo WhatsApp e pelo
+  assistente (exemplos: "sofá retrátil ou fixo", "como escolher a firmeza do colchão", "sofá para apartamento
+  pequeno"). O texto entra em `content/guias/index.ts` e aparece sozinho na home, na categoria e no sitemap.
+- **Vídeos**: YouTube (inclusive Shorts), Reels e TikTok mostrando o 3D, o "Ver no seu ambiente", as medidas e o
+  produto de todos os lados, com o link do site na descrição e no perfil. Vídeo do YouTube também aparece na busca do
+  Google.
+- **Fotos** com texto alternativo descritivo (o painel já pede) e nome de arquivo com o produto e a cor nos uploads
+  novos.
+
+### Presença local e links
+
+- Mesmo nome, telefone e endereço em todos os lugares: Perfil da Empresa, Instagram, Facebook, WhatsApp Business, Bing
+  Places e Apple Business Connect. Depois, preencher `social` em `config/brand.ts` com os perfis (entram nos dados
+  para o Google).
+- Links de sites da região contam muito: portais e imprensa de Maringá e Londrina, blogs de decoração, arquitetos e
+  designers parceiros (a página de produto já tem a seção para eles) e fornecedores.
+- **Merchant Center** (seção 4): produtos grátis na aba Shopping assim que houver preço, CNPJ e políticas revisadas.
+
+### Acompanhamento (uma vez por mês)
+
+- Search Console → Desempenho: buscas com muitas impressões e poucos cliques pedem um título ou resumo melhor (dá para
+  escrever no painel, na categoria ou no produto).
+- Perfil da Empresa: ligações, rotas e cliques no site.
+- Search Console → Core Web Vitals: velocidade real nos celulares dos clientes.
 
 ## Referências (Google Search Central)
 

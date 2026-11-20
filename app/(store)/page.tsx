@@ -7,6 +7,7 @@ import { imageMedia, model3d } from "@/lib/catalog/product-helpers";
 import { getVisibleProducts } from "@/lib/catalog/queries";
 import type { Product } from "@/lib/catalog/types";
 import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/product-section";
+import { GUIAS } from "@/content/guias";
 import { buttonClasses } from "@/components/ui/button";
 import { CubeIcon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/misc";
@@ -76,6 +77,7 @@ async function HomeContent() {
         />
       </div>
       {with3d[0] ? <Showcase3D product={with3d[0]} /> : null}
+      <GuidesTeaser />
     </>
   );
 }
@@ -167,6 +169,33 @@ function Showcase3D({ product }: { product: Product }) {
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+/** Guias de compra na home: ligação interna para o conteúdo que ajuda a escolher. */
+function GuidesTeaser() {
+  if (!GUIAS.length) return null;
+  return (
+    <section aria-labelledby="guias-titulo" className="rounded-xl bg-white px-4 py-5 sm:px-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="guias-titulo" className="text-base font-bold uppercase tracking-wide text-air-blue-ink">
+          Antes de escolher
+        </h2>
+        <Link href="/guias" className="link inline-flex min-h-11 items-center text-sm">
+          Todos os guias
+        </Link>
+      </div>
+      <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+        {GUIAS.slice(0, 4).map((g) => (
+          <li key={g.slug}>
+            <Link href={`/guias/${g.slug}`} className="block min-h-11 rounded-lg border border-line p-3 hover:border-air-blue hover:bg-pale-blue">
+              <span className="block font-semibold text-deep-fjord">{g.title}</span>
+              <span className="mt-0.5 block text-sm text-muted">{g.description}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

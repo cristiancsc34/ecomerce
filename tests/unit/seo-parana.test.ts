@@ -33,7 +33,8 @@ const { brand } = await import("@/config/brand");
 const { HOME_DESCRIPTION, HOME_H1, HOME_TITLE } = await import("@/lib/seo/home");
 const { CATEGORY_SEO } = await import("@/content/categorias-seo");
 const { DELIVERY_CITIES, normalizeCityName } = await import("@/content/cidades-atendidas");
-const { GUIAS } = await import("@/content/guias");
+const { GUIAS, guiasDaCategoria } = await import("@/content/guias");
+const { articleJsonLd } = await import("@/lib/seo/structured-data");
 const { default: robots } = await import("@/app/robots");
 const { pageRobots, siteRobots } = await import("@/lib/seo/robots");
 const { buildSitemap } = await import("@/lib/seo/sitemap");
@@ -195,23 +196,75 @@ describe("/entrega-parana", () => {
   });
 });
 
-describe("guias (estrutura, sem artigo inventado)", () => {
-  it("ainda sem guia publicado", () => {
-    expect(GUIAS).toEqual([]);
+describe("guias de compra", () => {
+  const texto = (g: (typeof GUIAS)[number]) => [g.title, g.description, ...g.intro, ...g.sections.flatMap((x) => [x.heading, ...x.paragraphs])].join(" ");
+
+  it("cobrem colchão, sofá, estofado, poltrona e mesa, cada um com título, resumo e slug próprios", () => {
+    expect(GUIAS.length).toBeGreaterThanOrEqual(6);
+    for (const field of ["slug", "title", "description"] as const) {
+      expect(new Set(GUIAS.map((g) => g[field])).size, field).toBe(GUIAS.length);
+    }
+    const all = GUIAS.map(texto).join(" ").toLowerCase();
+    for (const tema of ["colchão", "sofá", "estofado", "poltrona", "mesa"]) expect(all).toContain(tema);
   });
 
-  it("índice vazio com noindex e canonical; fora do sitemap", () => {
+  it("no formato que o Google mostra: título até ~60 com a marca, resumo até 155, slug limpo", () => {
+    for (const g of GUIAS) {
+      expect(`${g.title} | AzConfort`.length, g.slug).toBeLessThanOrEqual(62);
+      expect(g.description.length, g.slug).toBeLessThanOrEqual(155);
+      expect(g.description.length, g.slug).toBeGreaterThanOrEqual(80);
+      expect(g.slug, g.slug).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+      expect(g.sections.length, g.slug).toBeGreaterThanOrEqual(3);
+      for (const sec of g.sections) expect(sec.paragraphs.length, `${g.slug}: ${sec.heading}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("sem frete, prazo, preço, avaliação, garantia, superlativo nem travessão; região sem exagero", () => {
+    for (const g of GUIAS) {
+      const t = texto(g);
+      expect(t, g.slug).not.toMatch(PROIBIDO);
+      expect(t, g.slug).not.toMatch(TRAVESSAO);
+      expect(t, g.slug).not.toMatch(/sa[ií]da de Maring|entrega a partir/i);
+      expect((t.match(/Paraná|Maringá/g) ?? []).length, g.slug).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it("autor, datas e categoria reais: Article sai para todos; categoria só entre as cobertas", () => {
+    for (const g of GUIAS) {
+      expect(g.author.trim(), g.slug).not.toBe("");
+      expect(g.datePublished, g.slug).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(g.dateModified >= g.datePublished, g.slug).toBe(true);
+      if (g.categorySlug) expect(Object.keys(CATEGORY_SEO), g.slug).toContain(g.categorySlug);
+      expect(articleJsonLd(g, BASE), g.slug).toMatchObject({ "@type": "Article", headline: g.title, url: `${BASE}/guias/${g.slug}` });
+    }
+  });
+
+  it("índice: canonical, noindex com a trava fechada e indexável com ela aberta", () => {
+    expect(guidesPage.generateMetadata()).toMatchObject({ robots: { index: false, follow: false }, alternates: { canonical: "/guias" } });
     gate.open = true;
-    expect(guidesPage.generateMetadata()).toMatchObject({ robots: { index: false, follow: true }, alternates: { canonical: "/guias" } });
-    const urls = buildSitemap({ base: BASE, products: [], categories: [], guides: GUIAS, indexing: true }).map((e) => e.url);
-    expect(urls.some((u) => u.includes("/guias"))).toBe(false);
+    expect(guidesPage.generateMetadata()).not.toHaveProperty("robots");
   });
 
-  it("guia publicado entra no sitemap com a data; slug inexistente responde 404", async () => {
-    const urls = buildSitemap({ base: BASE, products: [], categories: [], guides: [{ slug: "como-medir", dateModified: "2026-12-02" }], indexing: true });
-    expect(urls).toEqual(expect.arrayContaining([{ url: `${BASE}/guias`, lastModified: "2026-12-02" }, { url: `${BASE}/guias/como-medir`, lastModified: "2026-12-02" }]));
+  it("guia: canonical e Open Graph de artigo; slug inexistente responde 404", async () => {
+    gate.open = true;
+    const g = GUIAS[0];
+    const meta = await guidePage.generateMetadata({ params: Promise.resolve({ slug: g.slug }) } as never);
+    expect(meta).toMatchObject({ title: g.title, description: g.description, alternates: { canonical: `/guias/${g.slug}` }, openGraph: { type: "article" } });
+    expect(meta).not.toHaveProperty("robots");
     await expect(guidePage.generateMetadata({ params: Promise.resolve({ slug: "nao-existe" }) } as never)).rejects.toMatchObject(NOT_FOUND);
-    expect(guidePage.generateStaticParams()).toEqual([{ slug: "__vazio__" }]);
+    expect(guidePage.generateStaticParams()).toEqual(GUIAS.map((x) => ({ slug: x.slug })));
+  });
+
+  it("sitemap: guias entram com a trava aberta, nunca com ela fechada", () => {
+    const aberta = buildSitemap({ base: BASE, products: [], categories: [], guides: GUIAS, indexing: true }).map((e) => e.url);
+    expect(aberta).toEqual(expect.arrayContaining([`${BASE}/guias`, ...GUIAS.map((g) => `${BASE}/guias/${g.slug}`)]));
+    const fechada = buildSitemap({ base: BASE, products: [], categories: [], guides: GUIAS, indexing: false }).map((e) => e.url);
+    expect(fechada.some((u) => u.includes("/guias"))).toBe(false);
+  });
+
+  it("categorias ligam aos seus guias (até 3)", () => {
+    expect(guiasDaCategoria("colchoes").map((g) => g.slug)).toEqual(["como-escolher-o-tamanho-do-colchao", "comprar-colchao-online-no-parana"]);
+    expect(guiasDaCategoria("sofas").length).toBeLessThanOrEqual(3);
   });
 });
 

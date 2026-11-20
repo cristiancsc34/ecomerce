@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 /**
  * Issue #31 (modo demonstração): rotas atuais mantidas, trilha visível na ficha
  * e na categoria, texto e perguntas da categoria, /entrega-parana com noindex,
- * guias sem artigo, 404 de verdade e a trava de indexação (#17) no cabeçalho.
+ * guias de compra, 404 de verdade e a trava de indexação (#17) no cabeçalho.
  */
 
 test.describe("rotas de categoria e produto", () => {
@@ -49,10 +49,25 @@ test.describe("entrega no Paraná e guias", () => {
     await expect(page.locator("main")).not.toContainText(/frete grátis/i);
   });
 
-  test("/guias: estrutura sem artigo inventado, com noindex", async ({ page }) => {
+  test("/guias: lista os guias e cada guia tem trilha, subtítulos e links; noindex com a trava fechada", async ({ page }) => {
     await page.goto("/guias");
     await expect(page.getByRole("heading", { level: 1, name: "Guias de compra" })).toBeVisible();
     await expect(page.locator('meta[name="robots"]').first()).toHaveAttribute("content", /noindex/);
+    await page.getByRole("link", { name: /Como escolher o tamanho do colchão/ }).click();
+    await expect(page).toHaveURL(/\/guias\/como-escolher-o-tamanho-do-colchao$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Como escolher o tamanho do colchão" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "As medidas-padrão no Brasil" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Trilha de navegação" }).getByRole("link", { name: "Guias de compra" })).toHaveAttribute("href", "/guias");
+    await expect(page.getByRole("link", { name: "Ver os produtos desta categoria" })).toHaveAttribute("href", "/categorias/colchoes");
+    await expect(page.getByRole("navigation", { name: "Outros guias" }).getByRole("link").first()).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/guias\/como-escolher-o-tamanho-do-colchao$/);
+  });
+
+  test("home liga aos guias de compra", async ({ page }) => {
+    await page.goto("/");
+    const bloco = page.getByRole("region", { name: "Antes de escolher" });
+    await expect(bloco.getByRole("link", { name: "Todos os guias" })).toHaveAttribute("href", "/guias");
+    await expect(bloco.getByRole("link", { name: /Como escolher o tamanho do colchão/ })).toBeVisible();
   });
 
   test("rodapé liga categorias, entrega no Paraná, guias e atendimento", async ({ page }) => {

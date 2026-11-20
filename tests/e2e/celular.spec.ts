@@ -13,6 +13,7 @@ const PAGINAS = [
   "/categorias/cadeiras",
   "/entrega-parana",
   "/guias",
+  "/guias/como-escolher-o-tamanho-do-colchao",
   "/produtos/poltrona-azul",
   "/produtos/cadeira-cinza-trama",
   "/busca?q=poltrona",

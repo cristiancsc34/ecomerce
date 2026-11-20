@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Category } from "@/lib/catalog/types";
+import { GUIAS } from "@/content/guias";
 import { makeMedia, makeProduct } from "./factories";
 
 /**
@@ -57,6 +58,12 @@ function makeCategory(partial: Partial<Category> = {}): Category {
   };
 }
 
+/** Guias publicados no sitemap (não dependem do catálogo). */
+const guideEntries = () => [
+  { url: `${BASE}/guias`, lastModified: GUIAS[0].dateModified },
+  ...GUIAS.map((g) => ({ url: `${BASE}/guias/${g.slug}`, lastModified: g.dateModified })),
+];
+
 const falha = () => Promise.reject(new Error("Falha ao carregar o catálogo: conexão recusada"));
 
 let consoleError: ReturnType<typeof vi.spyOn>;
@@ -87,7 +94,7 @@ describe("sitemap (app/sitemap.ts)", () => {
     expect(catalog.getVisibleProducts).not.toHaveBeenCalled();
   });
 
-  it("trava aberta e catálogo ok: início, listagem, categorias com produto, produtos reais com fotos e páginas fixas", async () => {
+  it("trava aberta e catálogo ok: início, listagem, categorias com produto, produtos reais com fotos, guias e páginas fixas", async () => {
     const real = makeProduct({
       slug: "colchao-real",
       updatedAt: "2026-11-02T00:00:00.000Z",
@@ -107,10 +114,12 @@ describe("sitemap (app/sitemap.ts)", () => {
       { url: `${BASE}/produtos`, lastModified: "2026-11-02T00:00:00.000Z" },
       { url: `${BASE}/categorias/colchoes`, lastModified: "2026-11-02T00:00:00.000Z" },
       { url: `${BASE}/produtos/colchao-real`, lastModified: "2026-11-02T00:00:00.000Z", images: ["https://cdn.exemplo/foto.jpg"] },
+      { url: `${BASE}/guias`, lastModified: GUIAS[0].dateModified },
+      ...GUIAS.map((g) => ({ url: `${BASE}/guias/${g.slug}`, lastModified: g.dateModified })),
       ...STATIC_PAGES.map((url) => ({ url })),
     ]);
-    // /entrega-parana fica fora do sitemap mesmo com a trava aberta (issue #31); sem guia publicado, sem /guias.
-    expect(entries.some((e) => e.url.includes("/entrega-parana") || e.url.includes("/guias"))).toBe(false);
+    // /entrega-parana fica fora do sitemap mesmo com a trava aberta (issue #31).
+    expect(entries.some((e) => e.url.includes("/entrega-parana"))).toBe(false);
     expect(consoleError).not.toHaveBeenCalled();
   });
 
@@ -120,7 +129,7 @@ describe("sitemap (app/sitemap.ts)", () => {
 
     const entries = await sitemap();
 
-    expect(entries).toEqual([{ url: `${BASE}/` }, ...STATIC_PAGES.map((url) => ({ url }))]);
+    expect(entries).toEqual([{ url: `${BASE}/` }, ...guideEntries(), ...STATIC_PAGES.map((url) => ({ url }))]);
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(String(consoleError.mock.calls[0]?.[0])).toMatch(/sitemap/i);
   });
@@ -131,7 +140,7 @@ describe("sitemap (app/sitemap.ts)", () => {
 
     const entries = await sitemap();
 
-    expect(entries).toEqual([{ url: `${BASE}/` }, ...STATIC_PAGES.map((url) => ({ url }))]);
+    expect(entries).toEqual([{ url: `${BASE}/` }, ...guideEntries(), ...STATIC_PAGES.map((url) => ({ url }))]);
     expect(consoleError).toHaveBeenCalledTimes(1);
   });
 });

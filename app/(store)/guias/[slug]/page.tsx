@@ -42,6 +42,8 @@ export default async function GuidePage({ params }: PageProps<"/guias/[slug]">) 
   if (!guia) notFound();
   const structured = !isDemoMode();
   const article = structured ? articleJsonLd(guia, siteUrl()) : null;
+  // Primeiro os da mesma categoria, depois os outros (ligação interna entre os guias).
+  const others = [...GUIAS.filter((g) => g.slug !== guia.slug && g.categorySlug === guia.categorySlug), ...GUIAS.filter((g) => g.slug !== guia.slug && g.categorySlug !== guia.categorySlug)].slice(0, 4);
   return (
     <div className="container-page py-6 sm:py-10">
       {article ? <JsonLd data={article} /> : null}
@@ -59,16 +61,44 @@ export default async function GuidePage({ params }: PageProps<"/guias/[slug]">) 
           Por {guia.author} · atualizado em {guia.dateModified.split("-").reverse().join("/")}
         </p>
         <div className="prose-cuxoes mt-6">
-          {guia.body.map((p, i) => (
-            <p key={i}>{p}</p>
+          {guia.intro.map((p, i) => (
+            <p key={`intro-${i}`}>{p}</p>
+          ))}
+          {guia.sections.map((section) => (
+            <section key={section.heading}>
+              <h2>{section.heading}</h2>
+              {section.paragraphs.map((p, i) => (
+                <p key={i} className="mt-3">
+                  {p}
+                </p>
+              ))}
+            </section>
           ))}
         </div>
-        <p className="mt-8">
-          <Link href={`/categorias/${guia.categorySlug}`} className="link">
-            Ver os produtos desta categoria
-          </Link>
-        </p>
+        {guia.categorySlug ? (
+          <p className="mt-8">
+            <Link href={`/categorias/${guia.categorySlug}`} className="link inline-flex min-h-11 items-center font-semibold">
+              Ver os produtos desta categoria
+            </Link>
+          </p>
+        ) : null}
       </article>
+      {others.length ? (
+        <nav aria-labelledby="outros-guias" className="mt-10 max-w-3xl border-t border-line pt-6">
+          <h2 id="outros-guias" className="text-sm font-bold uppercase tracking-wide text-deep-fjord">
+            Outros guias
+          </h2>
+          <ul className="mt-2">
+            {others.map((g) => (
+              <li key={g.slug}>
+                <Link href={`/guias/${g.slug}`} className="link inline-flex min-h-11 items-center">
+                  {g.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
     </div>
   );
 }
