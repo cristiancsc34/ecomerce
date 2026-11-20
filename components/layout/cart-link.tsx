@@ -26,7 +26,7 @@ export function CartLink() {
       <span
         key={bump}
         aria-hidden="true"
-        className={`absolute right-0.5 top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-deep-fjord px-1 text-[0.6875rem] font-bold leading-none text-white ring-2 ring-white transition-opacity ${count ? "opacity-100" : "opacity-0"} ${bump ? "animate-pulsar" : ""}`}
+        className={`absolute right-0.5 top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-deep-fjord px-1 text-xs font-bold leading-none text-white ring-2 ring-white transition-opacity ${count ? "opacity-100" : "opacity-0"} ${bump ? "animate-pulsar" : ""}`}
       >
         {count > 99 ? "99+" : count}
       </span>

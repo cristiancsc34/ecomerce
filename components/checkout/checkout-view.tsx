@@ -122,7 +122,7 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
           {hasAnyContact() ? "." : " (canais em configuração)."} Sua sacola continua guardada neste aparelho.
         </p>
         <p className="mt-2">
-          <Link href="/carrinho" className="link">
+          <Link href="/carrinho" className="link inline-flex min-h-11 items-center">
             Voltar para a sacola
           </Link>
         </p>
