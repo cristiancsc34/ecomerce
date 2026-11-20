@@ -1,4 +1,6 @@
 import { existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 /**
@@ -15,6 +17,8 @@ import { defineConfig, devices } from "@playwright/test";
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
 const PORT = 3201;
+/** Onde o ViaCEP falso anota cada consulta (o teste do checkout conta as chamadas). */
+const VIACEP_LOG = path.join(tmpdir(), "viacep-falso.log");
 
 export default defineConfig({
   testDir: "tests/e2e-supabase",
@@ -42,6 +46,9 @@ export default defineConfig({
       NEXT_TELEMETRY_DISABLED: "1",
       // Sem IA na nuvem: o teste confere a fila esperando, sem gastar APIs pagas.
       AI_CLOUD: "0",
+      // Busca de CEP simulada (tests/e2e-supabase/viacep-falso.mjs): nenhum teste chama o ViaCEP de verdade.
+      NODE_OPTIONS: "--import ./tests/e2e-supabase/viacep-falso.mjs",
+      VIACEP_FALSO_LOG: VIACEP_LOG,
     },
   },
 });

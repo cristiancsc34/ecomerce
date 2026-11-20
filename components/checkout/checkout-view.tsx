@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { brand, hasAnyContact } from "@/config/brand";
 import { cart, useCartItems } from "@/lib/cart/store";
 import { lookupCepPublicAction, placeOrderAction } from "@/lib/orders/checkout-actions";
@@ -16,6 +16,7 @@ import {
   type CheckoutInput,
   type SitePaymentMethod,
 } from "@/lib/validation/checkout";
+import { checkoutFieldError, type CheckoutFieldKey } from "@/lib/validation/checkout-field";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { controlClasses, FieldError, HelpText, Label } from "@/components/ui/field";
 import { BagIcon } from "@/components/ui/icons";
@@ -106,6 +107,12 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
   const [cepStatus, setCepStatus] = useState<{ text: string; tone: "muted" | "danger" } | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
   const submitting = useRef(false);
+  // Lista "Revise N campos" do último envio (fica igual até o próximo envio: o leitor de tela anuncia uma vez).
+  const [errorSummary, setErrorSummary] = useState<[string, string][] | null>(null);
+  // CEP sendo buscado agora: evita duas buscas do mesmo CEP (automática + botão/Enter) e ignora respostas antigas.
+  const cepLookup = useRef<string | null>(null);
+  // Último CEP já encontrado: Buscar/Enter logo depois da busca automática não consulta de novo.
+  const cepFound = useRef<string | null>(null);
   const quoteItems = state.status === "ready" && inSync ? state.quote.normalizedItems : [];
   // Sobe quando o servidor avisa que o frete mudou: calcula de novo para mostrar o valor atual.
   const [shippingVersion, setShippingVersion] = useState(0);
@@ -177,7 +184,6 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
   const blockedByDemo = quote.hasDemoItems;
   const canSubmit = inSync && !blockedByDemo && quote.lines.length > 0;
 
-  const setAddr = (key: keyof Address) => (value: string) => setAddress((a) => ({ ...a, [key]: value }));
   const err = (key: string) => errors[key];
   const clearError = (key: string) =>
     setErrors((e) => {
@@ -186,18 +192,37 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
       delete next[key];
       return next;
     });
+  // Ao digitar, o erro do campo some.
+  const setAddr = (key: keyof Address) => (value: string) => {
+    setAddress((a) => ({ ...a, [key]: value }));
+    clearError(`address.${key}`);
+  };
+  /** Ao sair do campo: confere só aquele campo, com o mesmo schema e as mesmas mensagens do envio. */
+  const validateField = (key: CheckoutFieldKey, value: string) => {
+    const message = checkoutFieldError(key, value);
+    if (message) setErrors((e) => (e[key] === message ? e : { ...e, [key]: message }));
+    else clearError(key);
+  };
 
-  async function findCep() {
-    const digits = address.cep.replace(/\D/g, "");
+  async function findCep(cepValue = address.cep) {
+    const digits = cepValue.replace(/\D/g, "");
     if (digits.length !== 8) {
       setCepStatus({ text: "Digite o CEP com 8 números.", tone: "danger" });
       return;
     }
+    if (cepLookup.current === digits) return;
+    if (cepFound.current === digits) {
+      setCepStatus({ text: "Endereço encontrado. Confira e informe o número.", tone: "muted" });
+      return;
+    }
+    cepLookup.current = digits;
     setCepLoading(true);
     setCepStatus({ text: "Buscando endereço…", tone: "muted" });
     try {
       rememberCep(digits);
       const r = await lookupCepPublicAction(digits);
+      // O CEP mudou enquanto buscava: a resposta antiga não vale mais.
+      if (cepLookup.current !== digits) return;
       if (!r.ok) {
         setCepStatus({ text: r.error, tone: "danger" });
         return;
@@ -209,6 +234,7 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
         cidade: r.data.cidade || a.cidade,
         uf: r.data.uf || a.uf,
       }));
+      cepFound.current = digits;
       setErrors((e) => {
         const next = { ...e };
         for (const k of ["address.cep", "address.rua", "address.bairro", "address.cidade", "address.uf"]) delete next[k];
@@ -217,20 +243,41 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
       setCepStatus({ text: "Endereço encontrado. Confira e informe o número.", tone: "muted" });
       document.getElementById(fieldId("address.numero"))?.focus();
     } catch {
+      if (cepLookup.current !== digits) return;
       setCepStatus({ text: "Não foi possível buscar o CEP agora. Preencha o endereço à mão.", tone: "danger" });
     } finally {
-      setCepLoading(false);
+      if (cepLookup.current === digits) {
+        cepLookup.current = null;
+        setCepLoading(false);
+      }
     }
   }
 
-  function showErrors(next: Errors, message: string) {
+  /**
+   * Erros de validação: 1 campo = foco direto nele; 2 ou mais (ou erro sem campo, ex.: sacola) = lista no topo do
+   * formulário, com o foco nela. O aviso do resumo (aside) fica só para erro de rede ou do servidor.
+   */
+  function showErrors(next: Errors) {
     setErrors(next);
-    const unknown = Object.entries(next).filter(([k]) => !KNOWN_FIELDS.has(k));
-    setFormError(unknown.length ? `${message} ${unknown.map(([, m]) => m).join(" ")}` : message);
-    const first = FIELD_ORDER.find((k) => next[k]);
-    const target = first ? document.getElementById(fieldId(first)) : document.getElementById("checkout-erro");
+    setFormError(null);
+    const entries: [string, string][] = [
+      ...FIELD_ORDER.filter((k) => next[k]).map((k): [string, string] => [k, next[k]]),
+      ...Object.entries(next).filter(([k]) => !KNOWN_FIELDS.has(k)),
+    ];
+    const single = entries.length === 1 && KNOWN_FIELDS.has(entries[0][0]);
+    setErrorSummary(single ? null : entries);
+    const targetId = single ? fieldId(entries[0][0]) : "checkout-erros";
     // Espera a tela mostrar as mensagens antes de mover o foco.
-    requestAnimationFrame(() => target?.focus());
+    requestAnimationFrame(() => document.getElementById(targetId)?.focus());
+  }
+
+  /** Link da lista de erros: rola até o campo e põe o foco nele. */
+  function goToField(e: MouseEvent<HTMLAnchorElement>, key: string) {
+    const el = document.getElementById(fieldId(key));
+    if (!el) return;
+    e.preventDefault();
+    el.scrollIntoView({ block: "center" });
+    el.focus({ preventScroll: true });
   }
 
   async function submit(e: FormEvent) {
@@ -264,20 +311,28 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
     if (!paymentMethod) local.paymentMethod = "Escolha a forma de pagamento: Pix, cartão ou boleto.";
     if (!whatsappOptIn) local.whatsappOptIn = "Marque para a loja poder falar com você pelo WhatsApp sobre o pedido.";
     if (!acceptTerms) local.acceptTerms = "Marque para confirmar que leu as políticas de entrega e de trocas.";
+    // O schema só confere o endereço quando o resto passa: confere aqui também, para a lista mostrar tudo de uma vez.
+    if (entrega) {
+      for (const key of ["cep", "rua", "numero", "cidade", "uf"] as const) {
+        const message = local[`address.${key}`] ?? checkoutFieldError(`address.${key}`, address[key]);
+        if (message) local[`address.${key}`] = message;
+      }
+    }
     if (Object.keys(local).length) {
-      showErrors(local, "Revise os campos destacados.");
+      showErrors(local);
       return;
     }
 
     submitting.current = true;
     setSaving(true);
     setFormError(null);
+    setErrorSummary(null);
     try {
       const r = await placeOrderAction(input);
       if (!r.ok) {
         if (r.fieldErrors && Object.keys(r.fieldErrors).length) {
           if (r.fieldErrors.shippingOptionId) setShippingVersion((v) => v + 1);
-          showErrors(r.fieldErrors, r.error || "Revise os campos destacados.");
+          showErrors(r.fieldErrors);
         } else {
           setErrors({});
           setFormError(r.error || "Não foi possível enviar o pedido. Tente de novo.");
@@ -320,6 +375,26 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
       />
 
       <div className="min-w-0 space-y-3">
+        {errorSummary && errorSummary.some(([k]) => errors[k]) ? (
+          <div id="checkout-erros" role="alert" tabIndex={-1} className="rounded-lg border border-danger bg-white p-4">
+            <h2 className="text-base font-bold text-danger">
+              {errorSummary.length === 1 ? "Revise 1 campo" : `Revise ${errorSummary.length} campos`}
+            </h2>
+            <ul className="mt-1">
+              {errorSummary.map(([key, message]) => (
+                <li key={key}>
+                  {KNOWN_FIELDS.has(key) ? (
+                    <a href={`#${fieldId(key)}`} onClick={(e) => goToField(e, key)} className="link flex min-h-11 items-center">
+                      {message}
+                    </a>
+                  ) : (
+                    <p className="flex min-h-11 items-center">{message}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {quote.issues.length ? (
           <Notice tone="warning" role="status" title="Sua sacola mudou">
             <ul className="list-disc space-y-1 pl-5">
@@ -357,8 +432,13 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
             id={fieldId("customerName")}
             label="Nome completo"
             value={customerName}
-            onValueChange={setCustomerName}
+            onValueChange={(v) => {
+              setCustomerName(v);
+              clearError("customerName");
+            }}
+            onBlur={() => validateField("customerName", customerName)}
             autoComplete="name"
+            autoCapitalize="words"
             maxLength={120}
             error={err("customerName")}
           />
@@ -367,10 +447,14 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
               id={fieldId("customerPhone")}
               label="Celular com WhatsApp"
               value={customerPhone}
-              onValueChange={setCustomerPhone}
+              onValueChange={(v) => {
+                setCustomerPhone(v);
+                clearError("customerPhone");
+              }}
               onBlur={() => {
                 const d = customerPhone.replace(/\D/g, "");
                 if (d.length === 10 || d.length === 11) setCustomerPhone(formatPhone(d));
+                validateField("customerPhone", customerPhone);
               }}
               type="tel"
               inputMode="tel"
@@ -385,10 +469,17 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
               label="E-mail"
               optional
               value={customerEmail}
-              onValueChange={setCustomerEmail}
+              onValueChange={(v) => {
+                setCustomerEmail(v);
+                clearError("customerEmail");
+              }}
+              onBlur={() => validateField("customerEmail", customerEmail)}
               type="email"
               inputMode="email"
               autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               maxLength={200}
               error={err("customerEmail")}
             />
@@ -436,9 +527,20 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
                       name="cep"
                       value={address.cep}
                       onChange={(e) => {
-                        setAddr("cep")(formatCep(e.target.value));
+                        const cep = formatCep(e.target.value);
+                        const digits = cep.replace(/\D/g, "");
+                        setAddr("cep")(cep);
                         setCepStatus(null);
+                        // Outro CEP: a busca em andamento e a anterior deixam de valer.
+                        if (cepFound.current !== digits) cepFound.current = null;
+                        if (cepLookup.current && cepLookup.current !== digits) {
+                          cepLookup.current = null;
+                          setCepLoading(false);
+                        }
+                        // Com 8 números, busca o endereço sozinho (o botão Buscar continua).
+                        if (digits.length === 8 && digits !== address.cep.replace(/\D/g, "")) void findCep(cep);
                       }}
+                      onBlur={() => validateField("address.cep", address.cep)}
                       onKeyDown={(e) => {
                         // Enter no CEP busca o endereço em vez de enviar o pedido.
                         if (e.key === "Enter") {
@@ -488,6 +590,7 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
                   value={address.numero}
                   onValueChange={setAddr("numero")}
                   inputMode="text"
+                  help="Sem número? Escreva S/N."
                   maxLength={20}
                   error={err("address.numero")}
                 />
@@ -530,6 +633,7 @@ export function CheckoutView({ enabled }: { enabled: boolean }) {
                   value={address.uf}
                   onValueChange={(v) => setAddr("uf")(v.replace(/[^a-z]/gi, "").toUpperCase())}
                   autoComplete="address-level1"
+                  autoCapitalize="characters"
                   maxLength={2}
                   placeholder="SP"
                   inputClassName="uppercase"
