@@ -22,6 +22,12 @@ type State =
 
 const key = (items: CartItem[]) => JSON.stringify(items);
 
+/** Item tirado da sacola, guardado para o "Desfazer" (só ids e quantidade; o valor volta recalculado pela loja). */
+type Removed = { productId: string; variantId: string | null; quantity: number; name: string };
+
+/** Por quanto tempo o aviso com "Desfazer" fica na tela. */
+const UNDO_MS = 8000;
+
 /** Pedido pelo site precisa do Supabase (variáveis públicas, iguais no servidor e no navegador). */
 const SITE_CHECKOUT_ENABLED = isSupabaseConfigured();
 
@@ -31,6 +37,31 @@ export function CartView() {
   const [state, setState] = useState<State>({ status: "loading" });
   const requestId = useRef(0);
   const itemsKey = key(items);
+  const [removed, setRemoved] = useState<Removed | null>(null);
+
+  // O aviso com "Desfazer" some sozinho depois de alguns segundos.
+  useEffect(() => {
+    if (!removed) return;
+    const t = setTimeout(() => setRemoved(null), UNDO_MS);
+    return () => clearTimeout(t);
+  }, [removed]);
+
+  const removeLine = (line: Removed) => {
+    setRemoved(line);
+    cart.remove(line.productId, line.variantId);
+  };
+
+  const undoNotice = removed ? (
+    <UndoNotice
+      key={`${removed.productId}:${removed.variantId}`}
+      name={removed.name}
+      onUndo={() => {
+        // Devolve o item com a mesma quantidade; preço e disponibilidade são conferidos de novo pela loja.
+        cart.add(removed.productId, removed.variantId, removed.quantity);
+        setRemoved(null);
+      }}
+    />
+  ) : null;
 
   const fetchQuote = useCallback(async (current: CartItem[]) => {
     const id = ++requestId.current;
@@ -68,17 +99,18 @@ export function CartView() {
 
   if (!items.length) {
     // Só mostra avisos quando foi o servidor que esvaziou a sacola (itens inválidos).
-    const removed = state.status === "ready" && state.quote.lines.length === 0 ? state.quote.issues : [];
+    const serverRemoved = state.status === "ready" && state.quote.lines.length === 0 ? state.quote.issues : [];
     return (
       <div className="animate-surgir space-y-5">
-        {removed.length ? <Issues issues={removed} /> : null}
+        {undoNotice}
+        {serverRemoved.length ? <Issues issues={serverRemoved} /> : null}
         <div className="flex flex-col items-center rounded-lg bg-white px-6 py-12 text-center">
           <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-pale-blue text-air-blue-ink">
             <BagIcon className="h-8 w-8" />
           </span>
           <h2 className="text-xl font-semibold">Sua sacola está vazia</h2>
           <p className="mt-2 max-w-sm text-muted">Escolha um produto e ele aparece aqui, com o valor calculado pela loja.</p>
-          <ButtonLink href="/" className="mt-6">
+          <ButtonLink href="/produtos" className="mt-6">
             Ver produtos
           </ButtonLink>
         </div>
@@ -106,6 +138,7 @@ export function CartView() {
   return (
     <div className="grid animate-surgir grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-6">
       <div className="min-w-0 space-y-4">
+        {undoNotice}
         {quote.issues.length ? <Issues issues={quote.issues} /> : null}
         {quote.hasDemoItems ? (
           <Notice tone="demo" title="Valores ilustrativos">
@@ -150,7 +183,9 @@ export function CartView() {
                   />
                   <button
                     type="button"
-                    onClick={() => cart.remove(line.productId, line.variantId)}
+                    onClick={() =>
+                      removeLine({ productId: line.productId, variantId: line.variantId, quantity: line.quantity, name: line.name })
+                    }
                     className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-muted hover:bg-pale-blue hover:text-danger"
                   >
                     <TrashIcon className="h-4 w-4" /> Remover
@@ -208,7 +243,39 @@ export function CartView() {
           )}
         </div>
       </aside>
+
+      {canCheckout ? (
+        <>
+          {/* Celular: subtotal e "Finalizar compra" sempre à mão; o espaçador evita que a barra cubra o fim da sacola. */}
+          <div className="h-20 lg:hidden" aria-hidden="true" />
+          <div
+            data-barra-fixa
+            className="fixed inset-x-0 bottom-0 z-30 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-center gap-3 border-t border-line bg-white px-4 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_rgb(19_41_64/0.08)] lg:hidden"
+          >
+            <div className="shrink-0">
+              <p className="text-xs text-muted">Subtotal</p>
+              <p className="text-lg font-bold text-ink">{formatPrice(quote.subtotalCents)}</p>
+            </div>
+            <ButtonLink href="/finalizar" size="lg" className="flex-1">
+              Finalizar compra
+            </ButtonLink>
+          </div>
+        </>
+      ) : null}
     </div>
+  );
+}
+
+function UndoNotice({ name, onUndo }: { name: string; onUndo: () => void }) {
+  return (
+    <Notice tone="info" role="status">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p className="min-w-0 break-words">{name} foi removido da sacola.</p>
+        <Button variant="secondary" size="sm" onClick={onUndo}>
+          Desfazer
+        </Button>
+      </div>
+    </Notice>
   );
 }
 
