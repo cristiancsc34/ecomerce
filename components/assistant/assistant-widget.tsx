@@ -75,6 +75,23 @@ export function AssistantWidget() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // Outras partes da loja abrem o assistente pelo evento "az:abrir-assistente" (ex.: produto sem preço).
+  useEffect(() => {
+    const openFromPage = () => {
+      setMessages(loadHistory());
+      setOpen(true);
+    };
+    window.addEventListener("az:abrir-assistente", openFromPage);
+    // Avisa a página que o assistente está ligado (o botão "Tirar dúvidas" só aparece com ele).
+    document.documentElement.dataset.assistente = "on";
+    window.dispatchEvent(new Event("az:assistente-pronto"));
+    return () => {
+      window.removeEventListener("az:abrir-assistente", openFromPage);
+      delete document.documentElement.dataset.assistente;
+      window.dispatchEvent(new Event("az:assistente-pronto"));
+    };
+  }, []);
+
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [messages, loading, open]);

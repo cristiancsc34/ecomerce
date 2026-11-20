@@ -51,7 +51,7 @@ test.describe("vitrine em modo demonstração", () => {
     await expect(page.locator("model-viewer")).toBeVisible({ timeout: 30_000 });
   });
 
-  test("produto sem preço e sem 3D não mostra barra de compra vazia", async ({ page }) => {
+  test("produto sem preço e sem 3D: nenhum botão de 3D quebrado (a barra do celular só tem 'Tirar dúvidas')", async ({ page }) => {
     await page.goto("/produtos/cadeira-cinza-trama");
     await expect(page.getByRole("heading", { level: 1, name: "Cadeira Cinza Trama" })).toBeVisible();
     // Sem modelo 3D: nenhum botão de 3D ou de realidade aumentada (nada quebrado).

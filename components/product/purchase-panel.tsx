@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { cart } from "@/lib/cart/store";
 import { formatPrice } from "@/lib/catalog/money";
 import { availability, fromPriceCents, hasPriceRange, sortedVariants } from "@/lib/catalog/product-helpers";
@@ -18,6 +18,29 @@ type PanelProduct = Pick<
 >;
 
 type PanelProps = { product: PanelProduct; has3d?: boolean };
+
+/** Evento que abre o assistente (ouvido por `assistant-widget.tsx`). */
+const OPEN_ASSISTANT_EVENT = "az:abrir-assistente";
+/** Evento que o widget dispara ao montar (marca `data-assistente` no <html>). */
+const ASSISTANT_READY_EVENT = "az:assistente-pronto";
+
+function subscribeAssistant(onChange: () => void) {
+  window.addEventListener(ASSISTANT_READY_EVENT, onChange);
+  return () => window.removeEventListener(ASSISTANT_READY_EVENT, onChange);
+}
+
+/** O assistente só existe com a chave no servidor: sem o widget na página, nada de botão que não faz nada. */
+function useAssistantAvailable(): boolean {
+  return useSyncExternalStore(
+    subscribeAssistant,
+    () => document.documentElement.dataset.assistente === "on",
+    () => false,
+  );
+}
+
+function openAssistant() {
+  window.dispatchEvent(new CustomEvent(OPEN_ASSISTANT_EVENT));
+}
 
 /** Lê ?tamanho= da URL para pré-selecionar (vindo de um link com o tamanho). */
 export function PurchasePanelWithParams(props: PanelProps) {
@@ -52,6 +75,7 @@ export function PurchasePanel({
   const [floating, setFloating] = useState(false);
   const [feedbackKey, setFeedbackKey] = useState(0);
   const groupId = useId();
+  const assistant = useAssistantAvailable();
 
   // Tamanho vindo do link (?tamanho=): entra na seleção compartilhada.
   useEffect(() => {
@@ -95,6 +119,8 @@ export function PurchasePanel({
   }
 
   const blockedLabel = noPrice ? NO_PRICE_LABEL : outOfStock ? "Indisponível no momento" : null;
+  // Sem preço: a saída útil é tirar dúvidas com o assistente (só se ele estiver ligado).
+  const askAssistant = noPrice && assistant;
 
   const priceText =
     price !== null
@@ -118,19 +144,27 @@ export function PurchasePanel({
         </Button>
       );
     }
+    // Celular: uma ação só na barra; "Adicionar à sacola" fica no bloco do computador.
+    if (bar) {
+      return (
+        <Button size="lg" onClick={buyNow} className="h-full flex-1 rounded-none! text-base!">
+          Comprar agora
+        </Button>
+      );
+    }
     return (
       <>
+        <Button size="lg" onClick={buyNow} className="w-full min-h-12">
+          Comprar agora
+        </Button>
         <Button
-          variant="soft"
+          variant="secondary"
           size="lg"
           onClick={add}
           aria-describedby={`${groupId}-feedback`}
-          className={bar ? barButton : "flex-1"}
+          className="w-full"
         >
           <BagIcon className="h-5 w-5 shrink-0" /> Adicionar à sacola
-        </Button>
-        <Button size="lg" onClick={buyNow} className={bar ? barButton : "flex-1"}>
-          Comprar agora
         </Button>
       </>
     );
@@ -140,7 +174,7 @@ export function PurchasePanel({
     <div className="space-y-4">
       <div className="rounded-lg bg-cloud px-4 py-3">
         <p className="text-3xl font-bold text-air-blue-ink" aria-live="polite" data-testid="preco-atual">
-          {priceText ?? <span className="text-xl font-semibold text-muted">{NO_PRICE_LABEL}</span>}
+          {priceText ?? <span className="text-xl font-semibold text-ink">{NO_PRICE_LABEL}</span>}
           {showCompare ? (
             <span className="ml-2 text-base font-medium text-muted line-through">
               <span className="sr-only">Preço anterior: </span>
@@ -148,6 +182,7 @@ export function PurchasePanel({
             </span>
           ) : null}
         </p>
+        {priceText === null ? <p className="mt-1 text-sm text-muted">Este produto ainda não está à venda pelo site.</p> : null}
         {status === "in_stock" ? <p className="mt-1 text-sm font-medium text-success">Disponível</p> : null}
         {outOfStock ? <p className="mt-1 text-sm font-medium text-danger">Indisponível no momento</p> : null}
       </div>
@@ -242,8 +277,13 @@ export function PurchasePanel({
         </fieldset>
       ) : null}
 
-      <div className="hidden gap-3 lg:flex">
+      <div className="hidden lg:grid lg:gap-2">
         {blockedLabel ? null : actions("inline")}
+        {askAssistant ? (
+          <Button variant="secondary" size="lg" onClick={openAssistant} className="w-full">
+            Tirar dúvidas com o assistente
+          </Button>
+        ) : null}
         {has3d ? (
           <a
             href="#visualizador-3d"
@@ -272,18 +312,26 @@ export function PurchasePanel({
         ) : null}
       </div>
 
-      {/* Barra fixa no celular: compra; sem preço, o destaque vai para o 3D (ou não há barra). */}
-      {blockedLabel && !has3d ? null : (
+      {/* Barra fixa no celular: compra; sem preço, tirar dúvidas (com assistente) e o 3D, se houver. */}
+      {blockedLabel && !has3d && !askAssistant ? null : (
         <div
           data-barra-fixa
           className="fixed inset-x-0 bottom-0 z-30 flex h-[calc(3.5rem+env(safe-area-inset-bottom))] border-t border-line bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_rgb(19_41_64/0.08)] lg:hidden"
         >
           {blockedLabel ? (
             <>
-              <p className="flex flex-1 items-center justify-center px-2 text-sm font-semibold text-muted">{blockedLabel}</p>
-              <a href="#visualizador-3d" className={buttonClasses({ size: "lg", className: barButton })}>
-                <CubeIcon className="h-5 w-5" /> Girar em 3D
-              </a>
+              {askAssistant ? (
+                <Button variant="secondary" size="lg" onClick={openAssistant} className={barButton}>
+                  Tirar dúvidas<span className="sr-only"> com o assistente</span>
+                </Button>
+              ) : (
+                <p className="flex flex-1 items-center justify-center px-2 text-sm font-semibold text-muted">{blockedLabel}</p>
+              )}
+              {has3d ? (
+                <a href="#visualizador-3d" className={buttonClasses({ size: "lg", className: barButton })}>
+                  <CubeIcon className="h-5 w-5" /> Girar em 3D
+                </a>
+              ) : null}
             </>
           ) : (
             <>
