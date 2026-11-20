@@ -3,7 +3,8 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    # A loja vive nas branches claude/* (base claude/azconfort-loja-real) e az/* (issues).
+    branches: [main, "az/**", "claude/**"]
 
 concurrency:
   group: ci-${{ github.ref }}
