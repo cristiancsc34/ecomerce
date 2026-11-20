@@ -1,132 +1,76 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Arquitetura de SEO para o Paraná (modo demonstração): seções e subcategorias,
- * endereços antigos redirecionando, trilha de navegação, páginas de cidade,
- * 404 amigável e a trava de indexação (issue #17) fechada.
+ * Issue #31 (modo demonstração): rotas atuais mantidas, trilha visível na ficha
+ * e na categoria, texto e perguntas da categoria, /entrega-parana com noindex,
+ * guias sem artigo, 404 de verdade e a trava de indexação (#17) no cabeçalho.
  */
 
-test.describe("arquitetura de URLs", () => {
-  test("endereços antigos e o atalho /sofas redirecionam com 308", async ({ request }) => {
-    for (const [de, para] of [
-      ["/categorias/cadeiras", "/moveis/cadeiras"],
-      ["/categorias/colchoes", "/colchoes"],
-      ["/sofas", "/estofados"],
-    ]) {
-      const res = await request.get(de, { maxRedirects: 0 });
-      expect(res.status(), de).toBe(308);
-      expect(new URL(res.headers().location, "http://x").pathname, de).toBe(para);
-    }
-  });
-
-  test("subcategoria: trilha Início › Móveis, H1, canonical próprio e aviso de entrega", async ({ page }) => {
-    await page.goto("/moveis/cadeiras");
+test.describe("rotas de categoria e produto", () => {
+  test("ficha: trilha visível Início › Categoria › Produto", async ({ page }) => {
+    await page.goto("/produtos/poltrona-azul");
     const trilha = page.getByRole("navigation", { name: "Trilha de navegação" });
     await expect(trilha.getByRole("link", { name: "Início" })).toHaveAttribute("href", "/");
-    await expect(trilha.getByRole("link", { name: "Móveis" })).toHaveAttribute("href", "/moveis");
+    await expect(trilha.getByRole("link", { name: "Cadeiras e poltronas" })).toHaveAttribute("href", "/categorias/cadeiras");
+    await expect(trilha.getByText("Poltrona Azul Estrutura Clara")).toHaveAttribute("aria-current", "page");
+  });
+
+  test("categoria: trilha, canonical, texto de como escolher e perguntas só como texto", async ({ page }) => {
+    await page.goto("/categorias/cadeiras");
     await expect(page.getByRole("heading", { level: 1, name: "Cadeiras e poltronas" })).toBeVisible();
-    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/moveis\/cadeiras$/);
-    await expect(page.getByRole("heading", { name: "Frete grátis para as cidades atendidas no Paraná" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Entrega em Maringá" }).first()).toHaveAttribute("href", "/entrega/maringa");
+    await expect(page.getByRole("navigation", { name: "Trilha de navegação" }).getByRole("link", { name: "Início" })).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/categorias\/cadeiras$/);
+    await expect(page.getByRole("heading", { name: "Dúvidas frequentes" })).toBeVisible();
+    await expect(page.getByText("Quantas cadeiras cabem na minha mesa?")).toBeVisible();
+    // Sem schema FAQPage (e, no modo demonstração, sem nenhum JSON-LD).
+    expect(await page.locator('script[type="application/ld+json"]').count()).toBe(0);
   });
 
-  test("seção: H1 com foco no Paraná e atalhos para a subcategoria com produto", async ({ page }) => {
-    await page.goto("/moveis");
-    await expect(page.getByRole("heading", { level: 1, name: "Móveis com entrega no Paraná" })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Escolha por tipo" }).getByRole("link", { name: /Cadeiras e poltronas/ })).toHaveAttribute(
-      "href",
-      "/moveis/cadeiras",
-    );
-    await expect(page.locator("article")).toHaveCount(2);
+  test("produto, categoria e guia inexistentes respondem 404 de verdade", async ({ request }) => {
+    for (const path of ["/produtos/nao-existe-az-seo", "/categorias/nao-existe-az-seo", "/guias/nao-existe-az-seo"]) {
+      const res = await request.get(path);
+      expect(res.status(), path).toBe(404);
+      expect(await res.text(), path).toContain("Página não encontrada");
+    }
+    expect((await request.head("/produtos/nao-existe-az-seo")).status()).toBe(404);
+    expect((await request.get("/categorias/cadeiras")).status()).toBe(200);
+    expect((await request.get("/produtos/poltrona-azul")).status()).toBe(200);
+  });
+});
+
+test.describe("entrega no Paraná e guias", () => {
+  test("/entrega-parana: lista de cidades, noindex e sem frete grátis", async ({ page }) => {
+    const res = await page.goto("/entrega-parana");
+    expect(res?.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1, name: "Entrega no Paraná" })).toBeVisible();
+    await expect(page.getByText("Paiçandu", { exact: true })).toBeVisible();
+    await expect(page.getByText("Curitiba", { exact: true })).toHaveCount(0);
+    await expect(page.locator('meta[name="robots"]').first()).toHaveAttribute("content", /noindex/);
+    await expect(page.locator("main")).not.toContainText(/frete grátis/i);
   });
 
-  test("seção sem produto mostra estado vazio (e fica fora do Google)", async ({ page }) => {
-    await page.goto("/colchoes/casal");
-    await expect(page.getByRole("heading", { level: 1, name: "Colchão casal" })).toBeVisible();
-    await expect(page.getByText("Nenhum produto nesta categoria por enquanto")).toBeVisible();
+  test("/guias: estrutura sem artigo inventado, com noindex", async ({ page }) => {
+    await page.goto("/guias");
+    await expect(page.getByRole("heading", { level: 1, name: "Guias de compra" })).toBeVisible();
     await expect(page.locator('meta[name="robots"]').first()).toHaveAttribute("content", /noindex/);
   });
 
-  test("produto: trilha visível até a categoria", async ({ page }) => {
-    await page.goto("/produtos/poltrona-azul");
-    const trilha = page.getByRole("navigation", { name: "Trilha de navegação" });
-    await expect(trilha.getByRole("link", { name: "Cadeiras e poltronas" })).toHaveAttribute("href", "/moveis/cadeiras");
-    await expect(trilha.getByText("Poltrona Azul Estrutura Clara")).toHaveAttribute("aria-current", "page");
-  });
-});
-
-test.describe("páginas de cidade", () => {
-  test("Maringá e Londrina com textos próprios, entrega e links para as categorias", async ({ page }) => {
-    await page.goto("/entrega/maringa");
-    await expect(page.getByRole("heading", { level: 1, name: "Colchões, sofás e móveis com frete grátis em Maringá" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Como funciona a entrega" })).toBeVisible();
-    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/entrega\/maringa$/);
-    const textoMaringa = await page.locator("main header").innerText();
-
-    await page.goto("/entrega/londrina");
-    await expect(page.getByRole("heading", { level: 1, name: "Colchões, sofás e móveis com frete grátis em Londrina" })).toBeVisible();
-    const textoLondrina = await page.locator("main header").innerText();
-    expect(textoLondrina.replaceAll("Londrina", "X")).not.toBe(textoMaringa.replaceAll("Maringá", "X"));
-    await expect(page.getByRole("link", { name: "Sofás e estofados" })).toHaveAttribute("href", "/estofados");
-    await expect(page.getByRole("link", { name: "Ver todas as cidades atendidas no Paraná" })).toHaveAttribute("href", "/entrega");
-  });
-
-  test("lista completa das cidades atendidas, com link para as páginas locais", async ({ page }) => {
-    await page.goto("/entrega");
-    await expect(page.getByRole("heading", { level: 1, name: "Cidades atendidas no Paraná" })).toBeVisible();
-    const lista = page.getByRole("region", { name: /Todas as cidades atendidas \(109\)/ });
-    await expect(lista.getByText("Paiçandu", { exact: true })).toBeVisible();
-    await expect(lista.getByRole("link", { name: "Maringá" })).toHaveAttribute("href", "/entrega/maringa");
-  });
-
-  test("cidade sem página: tela de não encontrada com noindex", async ({ page }) => {
-    // Com a pré-renderização parcial do Next, a primeira visita pode sair com status 200 (a casca vai antes);
-    // o que garante que o Google não indexe é o noindex que o Next põe na tela de não encontrada.
-    await page.goto("/entrega/cascavel");
-    await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
-    await expect(page.locator('meta[name="robots"][content="noindex"]').first()).toBeAttached();
-  });
-});
-
-test.describe("404 amigável e links do rodapé", () => {
-  test("404 com busca e caminhos principais", async ({ page }) => {
-    const res = await page.goto("/pagina-que-nao-existe");
-    expect(res?.status()).toBe(404);
-    await expect(page.getByRole("heading", { name: "Página não encontrada" })).toBeVisible();
-    await expect(page.getByRole("main").getByRole("searchbox", { name: "Buscar produtos" })).toBeVisible();
-    const caminhos = page.getByRole("navigation", { name: "Ou siga por aqui" });
-    await expect(caminhos.getByRole("link", { name: "Colchões" })).toHaveAttribute("href", "/colchoes");
-    await expect(caminhos.getByRole("link", { name: "Cidades atendidas" })).toHaveAttribute("href", "/entrega");
-  });
-
-  test("rodapé liga todas as páginas às seções e às cidades", async ({ page }) => {
+  test("rodapé liga categorias, entrega no Paraná, guias e atendimento", async ({ page }) => {
     await page.goto("/atendimento");
     const rodape = page.getByRole("contentinfo");
-    for (const [nome, href] of [
-      ["Colchões", "/colchoes"],
-      ["Estofados", "/estofados"],
-      ["Móveis", "/moveis"],
-      ["Maringá", "/entrega/maringa"],
-      ["Londrina", "/entrega/londrina"],
-      ["Cidades atendidas", "/entrega"],
-    ]) {
-      await expect(rodape.getByRole("link", { name: nome, exact: true })).toHaveAttribute("href", href);
-    }
+    await expect(rodape.getByRole("link", { name: "Cadeiras e poltronas" })).toHaveAttribute("href", "/categorias/cadeiras");
+    await expect(rodape.getByRole("link", { name: "Entrega no Paraná" })).toHaveAttribute("href", "/entrega-parana");
+    await expect(rodape.getByRole("link", { name: "Guias de compra" })).toHaveAttribute("href", "/guias");
+    await expect(rodape.getByRole("link", { name: "Atendimento" })).toHaveAttribute("href", "/atendimento");
   });
 });
 
 test.describe("trava de indexação (issue #17)", () => {
-  test("robots.txt fechado, sitemap só com o início e as páginas fixas, noindex nas páginas novas", async ({ page, request }) => {
-    const robots = await (await request.get("/robots.txt")).text();
-    expect(robots).toMatch(/Disallow: \//);
-    expect(robots).not.toMatch(/Sitemap:/);
-    const sitemap = await (await request.get("/sitemap.xml")).text();
-    expect(sitemap).not.toMatch(/<loc>https?:\/\/[^/]+\/(produtos|moveis|colchoes|estofados|entrega)(\/|<)/);
-    expect(sitemap).toMatch(/<loc>https?:\/\/[^/]+\/politicas\/entrega<\/loc>/);
-    for (const path of ["/colchoes", "/entrega", "/entrega/maringa", "/"]) {
-      await page.goto(path);
-      await expect(page.locator('meta[name="robots"]').first(), path).toHaveAttribute("content", /noindex/);
-      await expect(page.locator('link[rel="canonical"]'), path).toHaveCount(1);
+  test("cabeçalho X-Robots-Tag noindex nas respostas e sitemap sem catálogo", async ({ request }) => {
+    for (const path of ["/", "/categorias/cadeiras", "/produtos/poltrona-azul", "/sitemap.xml"]) {
+      expect((await request.get(path)).headers()["x-robots-tag"], path).toBe("noindex, nofollow");
     }
+    const sitemap = await (await request.get("/sitemap.xml")).text();
+    expect(sitemap).not.toMatch(/<loc>https?:\/\/[^/]+\/(produtos|categorias|entrega-parana|guias)(\/|<)/);
   });
 });

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { isDemoMode, siteUrl } from "@/config/site";
 import { arFiles, hasConfirmedSpecs, model3d, primaryImage } from "@/lib/catalog/product-helpers";
-import { productBreadcrumbs } from "@/lib/catalog/taxonomy";
+import { productBreadcrumbs } from "@/lib/seo/breadcrumbs";
 import { colorOptions, colorVariants, galleryFor } from "@/lib/catalog/variants";
 import type { Product } from "@/lib/catalog/types";
 import { productStructuredDataAllowed } from "@/lib/seo/robots";

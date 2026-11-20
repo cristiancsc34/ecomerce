@@ -42,9 +42,9 @@ export type BrandConfig = {
 export const brand: BrandConfig = {
   name: process.env.NEXT_PUBLIC_BRAND_NAME?.trim() || "AzConfort",
   slogan: "Móveis para a sua casa.",
-  tagline: "Sofás, mesas, poltronas e cadeiras",
+  tagline: "Colchões, sofás, poltronas, mesas e cadeiras",
   description:
-    "Loja online de colchões, sofás e móveis no Paraná, com saída de Maringá, fotos de todos os ângulos e visualização em 3D.",
+    "Loja online de colchões, sofás, poltronas, mesas e cadeiras no Paraná, com fotos de todos os ângulos e visualização em 3D.",
   announcement: null,
   contact: {
     email: "",
@@ -55,11 +55,11 @@ export const brand: BrandConfig = {
   social: [],
   legal: {
     companyName: "",
-    // TODO(Cristian): CNPJ da empresa.
+    // TODO(Cristian, issue #13): CNPJ da empresa.
     cnpj: "",
     address: "",
   },
-  // TODO(Cristian): endereço real da loja/expedição em Maringá (rua e número, CEP).
+  // TODO(Cristian, issue #13): endereço físico real (rua e número, cidade, CEP, UF).
   location: {
     streetAddress: "",
     addressLocality: "",

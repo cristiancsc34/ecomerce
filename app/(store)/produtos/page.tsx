@@ -6,13 +6,12 @@ import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/pro
 import { JsonLd } from "@/components/seo/json-ld";
 import { brand } from "@/config/brand";
 import { isDemoMode, siteUrl } from "@/config/site";
-import { CATEGORY_DELIVERY_SENTENCE } from "@/content/categorias";
 import { OPEN_GRAPH_BASE } from "@/lib/seo/metadata";
 import { pageRobots, productStructuredDataAllowed } from "@/lib/seo/robots";
 import { itemListJsonLd } from "@/lib/seo/structured-data";
 
 const TITLE = "Todos os produtos";
-const DESCRIPTION = `Colchões, sofás e móveis da ${brand.name}. ${CATEGORY_DELIVERY_SENTENCE}`;
+const DESCRIPTION = `Todos os produtos da ${brand.name}: ${brand.tagline.toLowerCase()}.`;
 
 export async function generateMetadata(): Promise<Metadata> {
   await connection();

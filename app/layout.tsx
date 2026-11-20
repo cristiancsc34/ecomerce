@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { brand } from "@/config/brand";
 import { siteUrl } from "@/config/site";
 import { colors } from "@/config/tokens";
+import { HOME_TITLE } from "@/lib/seo/home";
 import { siteRobots } from "@/lib/seo/robots";
 import "./globals.css";
 
@@ -17,7 +18,8 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: {
-    default: `${brand.name} — ${brand.slogan}`,
+    // Sem travessão (issue #31); as páginas definem o próprio título.
+    default: HOME_TITLE,
     template: `%s | ${brand.name}`,
   },
   description: brand.description,
@@ -26,7 +28,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "pt_BR",
     siteName: brand.name,
-    title: `${brand.name} — ${brand.slogan}`,
+    title: HOME_TITLE,
     description: brand.description,
   },
   // Trava de indexação (issue #17) e modo demonstração: noindex, nofollow em tudo.

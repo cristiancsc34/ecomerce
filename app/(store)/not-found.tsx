@@ -3,13 +3,24 @@ import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { SearchIcon } from "@/components/ui/icons";
 import { EmptyState } from "@/components/ui/misc";
-import { CITY_PAGES } from "@/content/cidades";
-import { SECTIONS } from "@/lib/catalog/sections";
+import { getCategoriesWithProducts } from "@/lib/catalog/queries";
+
+/** Categorias com produto (as do menu). Catálogo fora do ar: a lista some. */
+async function CategoryLinks() {
+  const categories = await getCategoriesWithProducts().catch(() => []);
+  return categories.map((c) => (
+    <li key={c.slug}>
+      <Link href={`/categorias/${c.slug}`} className="link inline-flex min-h-11 items-center">
+        {c.name}
+      </Link>
+    </li>
+  ));
+}
 
 /**
  * 404 amigável: explica o que houve, oferece a busca e os caminhos principais
- * (seções, todos os produtos e entrega no Paraná). O Next responde 404 e põe
- * `noindex` sozinho nesta página.
+ * (categorias, entrega no Paraná, guias e atendimento). O Next põe `noindex`
+ * sozinho nesta página.
  */
 export default function StoreNotFound() {
   return (
@@ -53,25 +64,18 @@ export default function StoreNotFound() {
           Ou siga por aqui
         </h2>
         <ul className="mt-2 flex flex-wrap justify-center gap-x-5">
-          {SECTIONS.map((s) => (
-            <li key={s.key}>
-              <Link href={s.path} className="link inline-flex min-h-11 items-center">
-                {s.name}
+          <CategoryLinks />
+          {[
+            { href: "/entrega-parana", label: "Entrega no Paraná" },
+            { href: "/guias", label: "Guias de compra" },
+            { href: "/atendimento", label: "Atendimento" },
+          ].map((l) => (
+            <li key={l.href}>
+              <Link href={l.href} className="link inline-flex min-h-11 items-center">
+                {l.label}
               </Link>
             </li>
           ))}
-          {CITY_PAGES.map((c) => (
-            <li key={c.slug}>
-              <Link href={`/entrega/${c.slug}`} className="link inline-flex min-h-11 items-center">
-                Entrega em {c.name}
-              </Link>
-            </li>
-          ))}
-          <li>
-            <Link href="/entrega" className="link inline-flex min-h-11 items-center">
-              Cidades atendidas
-            </Link>
-          </li>
         </ul>
       </nav>
     </div>

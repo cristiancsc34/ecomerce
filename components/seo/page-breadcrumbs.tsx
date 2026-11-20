@@ -1,6 +1,6 @@
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { siteUrl } from "@/config/site";
-import type { Crumb } from "@/lib/catalog/taxonomy";
+import type { Crumb } from "@/lib/seo/breadcrumbs";
 import { breadcrumbJsonLd } from "@/lib/seo/structured-data";
 import { JsonLd } from "./json-ld";
 

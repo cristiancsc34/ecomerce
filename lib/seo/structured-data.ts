@@ -48,17 +48,6 @@ function materials(product: Product): Record<string, unknown> {
   return list.length ? { material: list.length === 1 ? list[0] : list } : {};
 }
 
-/**
- * Frete da oferta: grátis (R$ 0) para o Paraná, a única região onde a loja
- * vende (decisão de 20/11/2026, issue #28; saída de Maringá). Sem prazo
- * (`deliveryTime`): a loja ainda não tem esse dado.
- */
-export const SHIPPING_DETAILS = {
-  "@type": "OfferShippingDetails",
-  shippingRate: { "@type": "MonetaryAmount", value: 0, currency: "BRL" },
-  shippingDestination: { "@type": "DefinedRegion", addressCountry: "BR", addressRegion: "PR" },
-} as const;
-
 function offer(priceCents: number, url: string, stock: "in_stock" | "out_of_stock" | null): Record<string, unknown> {
   return {
     "@type": "Offer",
@@ -66,7 +55,6 @@ function offer(priceCents: number, url: string, stock: "in_stock" | "out_of_stoc
     price: decimal(priceCents),
     url,
     ...(stock ? { availability: AVAILABILITY[stock] } : {}),
-    shippingDetails: SHIPPING_DETAILS,
     seller: { "@type": "Organization", name: brand.name },
   };
 }
@@ -85,9 +73,9 @@ function variantUrl(url: string, variant: ProductVariant): string | null {
  *
  * Com variações (cores ou tamanhos) vira um ProductGroup com uma oferta por
  * variação, o formato que o Google pede para "merchant listing" (ele não aceita
- * AggregateOffer ali). Frete: grátis no Paraná (SHIPPING_DETAILS). Nada de
- * avaliação, prazo, devolução, condição ou código de barras: a loja ainda não
- * tem esses dados cadastrados.
+ * AggregateOffer ali). Nada de avaliação, frete (`shippingDetails` só com ok
+ * do Cristian sobre o frete, issue #31), prazo, devolução, condição ou código
+ * de barras: a loja ainda não tem esses dados confirmados.
  */
 export function productJsonLd(product: Product, baseUrl: string): Record<string, unknown> | null {
   if (product.isDemo) return null;
@@ -171,7 +159,6 @@ export function productJsonLd(product: Product, baseUrl: string): Record<string,
       offerCount: priced.length,
       url,
       ...(stock ? { availability: AVAILABILITY[stock] } : {}),
-      shippingDetails: SHIPPING_DETAILS,
     },
   };
 }
@@ -215,8 +202,8 @@ export function breadcrumbJsonLd(items: { name: string; path: string }[], baseUr
   };
 }
 
-/** Onde a loja vende: só no Paraná (Brasil). */
-export const AREA_SERVED = { "@type": "State", name: "Paraná", containedInPlace: { "@type": "Country", name: "Brasil" } } as const;
+/** Onde a loja vende: só no Paraná. */
+export const AREA_SERVED = "Paraná";
 
 /**
  * schema.org/Organization (OnlineStore) da loja: só com os dados que existem
@@ -268,9 +255,9 @@ export function websiteJsonLd(baseUrl: string): Record<string, unknown> {
 /**
  * schema.org/LocalBusiness (FurnitureStore) só com endereço real completo
  * (rua, cidade, CEP e UF em `brand.location`). O Google exige o endereço
- * para negócio local; sem ele, nada é publicado (devolve null). Telefone,
- * CNPJ e horário entram quando existirem em config/brand.ts.
- * TODO(Cristian): endereço da loja/expedição e CNPJ.
+ * para negócio local; sem ele, nada é publicado (devolve null) e fica só a
+ * OnlineStore. Telefone, CNPJ e horário entram quando existirem em
+ * config/brand.ts. TODO(Cristian, issue #13): endereço físico e CNPJ.
  */
 export function localBusinessJsonLd(baseUrl: string): Record<string, unknown> | null {
   const { location, contact, legal } = brand;
@@ -295,5 +282,33 @@ export function localBusinessJsonLd(baseUrl: string): Record<string, unknown> | 
     ...(phone ? { telephone: phone } : {}),
     ...(legal.cnpj ? { taxID: legal.cnpj } : {}),
     ...(contact.hours ? { openingHours: contact.hours } : {}),
+  };
+}
+
+export type ArticleInput = {
+  slug: string;
+  title: string;
+  description: string;
+  author: string;
+  datePublished: string;
+  dateModified: string;
+};
+
+/** schema.org/Article de um guia publicado (só com artigo real: autor e datas obrigatórios). */
+export function articleJsonLd(article: ArticleInput, baseUrl: string): Record<string, unknown> | null {
+  if (!article.author.trim() || !article.datePublished || !article.dateModified) return null;
+  const url = `${baseUrl}/guias/${article.slug}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.title,
+    description: article.description,
+    inLanguage: "pt-BR",
+    author: { "@type": "Person", name: article.author },
+    datePublished: article.datePublished,
+    dateModified: article.dateModified,
+    mainEntityOfPage: url,
+    url,
+    publisher: { "@id": `${baseUrl}/#loja` },
   };
 }

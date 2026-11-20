@@ -6,6 +6,7 @@ import { DEMO_CATEGORIES, DEMO_PRODUCTS } from "./demo-data";
 import { devExamplesEnabled, withDevExamples } from "./dev-examples";
 import { mapCategory, mapProduct, PUBLIC_PRODUCT_COLUMNS, type CategoryRow, type ProductRow } from "./mappers";
 import type { Category, Product } from "./types";
+import { VISIBLE_PRODUCT_FILTERS } from "./visibility";
 
 /** Fonte de dados da vitrine. Retorna apenas o que pode ser exibido ao público. */
 export interface CatalogRepository {
@@ -31,13 +32,9 @@ const demoRepository: CatalogRepository = {
 const supabaseRepository: CatalogRepository = {
   async listVisibleProducts() {
     const supabase = createPublicSupabaseClient();
-    const { data, error } = await supabase
-      .from("products")
-      .select(PUBLIC_PRODUCT_COLUMNS)
-      .eq("status", "published")
-      .eq("is_demo", false)
-      .order("published_at", { ascending: false })
-      .limit(500);
+    let query = supabase.from("products").select(PUBLIC_PRODUCT_COLUMNS);
+    for (const [column, value] of VISIBLE_PRODUCT_FILTERS) query = query.eq(column, value);
+    const { data, error } = await query.order("published_at", { ascending: false }).limit(500);
     if (error) throw new Error(`Falha ao carregar o catálogo: ${error.message}`);
     return ((data ?? []) as unknown as ProductRow[]).map(mapProduct);
   },

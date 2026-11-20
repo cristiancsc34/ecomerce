@@ -6,7 +6,6 @@ import { Suspense } from "react";
 import { imageMedia, model3d } from "@/lib/catalog/product-helpers";
 import { getVisibleProducts } from "@/lib/catalog/queries";
 import type { Product } from "@/lib/catalog/types";
-import { DeliveryNote } from "@/components/catalog/delivery-note";
 import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/product-section";
 import { buttonClasses } from "@/components/ui/button";
 import { CubeIcon } from "@/components/ui/icons";
@@ -14,12 +13,10 @@ import { Skeleton } from "@/components/ui/misc";
 import { JsonLd } from "@/components/seo/json-ld";
 import { brand } from "@/config/brand";
 import { isDemoMode, siteUrl } from "@/config/site";
+import { HOME_DESCRIPTION, HOME_H1, HOME_TITLE } from "@/lib/seo/home";
 import { OPEN_GRAPH_BASE } from "@/lib/seo/metadata";
 import { localBusinessJsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/seo/structured-data";
 
-const HOME_TITLE = `${brand.name}: colchões, sofás e móveis em Maringá e no Paraná`;
-const HOME_DESCRIPTION =
-  "Loja online de colchões, sofás e móveis com saída de Maringá e frete grátis para as cidades atendidas no Paraná. Veja cada peça de todos os ângulos.";
 
 export const metadata: Metadata = {
   title: { absolute: HOME_TITLE },
@@ -79,7 +76,6 @@ async function HomeContent() {
         />
       </div>
       {with3d[0] ? <Showcase3D product={with3d[0]} /> : null}
-      <DeliveryNote className="rounded-xl" />
     </>
   );
 }
@@ -106,7 +102,7 @@ function Hero({ product }: { product: Product | null }) {
           id="destaque-titulo"
           className="mt-1.5 text-[1.375rem] font-bold leading-tight text-deep-fjord sm:text-4xl lg:text-5xl"
         >
-          Móveis com conforto e estilo para a sua casa
+          {HOME_H1}
         </h1>
         <p className="mt-2 text-sm text-ink/80 sm:mt-4 sm:text-lg">
           Veja cada peça de todos os ângulos e gire em 3D antes de escolher.
@@ -126,7 +122,7 @@ function Hero({ product }: { product: Product | null }) {
           <Link href={`/produtos/${product.slug}`} tabIndex={-1} aria-hidden="true">
             <Image
               src={image.url}
-              alt=""
+              alt={image.altText}
               fill
               // Foto do banner = maior elemento da primeira tela (LCP): baixa já, com prioridade alta.
               loading="eager"

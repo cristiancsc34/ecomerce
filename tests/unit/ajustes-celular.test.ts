@@ -19,30 +19,26 @@ describe("grade de produtos (gridCols)", () => {
   });
 });
 
-describe("menu de categorias (seções da loja)", () => {
+describe("menu de categorias", () => {
   const cat = (slug: string, productCount: number) => ({ slug, name: slug.toUpperCase(), productCount });
 
-  it("não aparece com nenhuma ou uma seção com produto", () => {
+  it("não aparece com nenhuma ou uma categoria com produto", () => {
     expect(categoryNavItems([])).toEqual([]);
     expect(categoryNavItems([cat("cadeiras", 2)])).toEqual([]);
-    expect(categoryNavItems([cat("cadeiras", 2), cat("mesas", 3)])).toEqual([]);
-    expect(categoryNavItems([cat("cadeiras", 2), cat("colchoes", 0)])).toEqual([]);
+    expect(categoryNavItems([cat("cadeiras", 2), cat("mesas", 0)])).toEqual([]);
   });
 
-  it("só seções com produto, na ordem Colchões, Estofados, Móveis, com Todos apontando para /#produtos", () => {
-    const items = categoryNavItems([cat("cadeiras", 2), cat("mesas", 0), cat("poltronas", 1), cat("colchoes", 4)]);
-    expect(items.map((i) => i.href)).toEqual(["/#produtos", "/colchoes", "/estofados", "/moveis"]);
-    expect(items.map((i) => i.label)).toEqual(["Todos", "Colchões", "Estofados", "Móveis"]);
+  it("só categorias com produto, com Todos apontando para /#produtos", () => {
+    const items = categoryNavItems([cat("cadeiras", 2), cat("mesas", 0), cat("poltronas", 1)]);
+    expect(items.map((i) => i.href)).toEqual(["/#produtos", "/categorias/cadeiras", "/categorias/poltronas"]);
+    expect(items[0].label).toBe("Todos");
   });
 
-  it("destaca a seção atual, inclusive nas subpáginas", () => {
-    const [todos, estofados, moveis] = categoryNavItems([cat("cadeiras", 2), cat("poltronas", 1)]);
+  it("destaca a página atual", () => {
+    const [todos, cadeiras] = categoryNavItems([cat("cadeiras", 2), cat("poltronas", 1)]);
     expect(isActiveNavItem(todos, "/")).toBe(true);
-    expect(isActiveNavItem(moveis, "/moveis")).toBe(true);
-    expect(isActiveNavItem(moveis, "/moveis/cadeiras")).toBe(true);
-    expect(isActiveNavItem(estofados, "/moveis/cadeiras")).toBe(false);
-    expect(isActiveNavItem(moveis, "/moveisx")).toBe(false);
-    expect(isActiveNavItem(todos, "/moveis")).toBe(false);
+    expect(isActiveNavItem(cadeiras, "/categorias/cadeiras")).toBe(true);
+    expect(isActiveNavItem(cadeiras, "/")).toBe(false);
     expect(isActiveNavItem(todos, null)).toBe(false);
   });
 });

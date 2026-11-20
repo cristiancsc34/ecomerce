@@ -107,16 +107,19 @@ export function isDemoMode(): boolean {
 }
 
 /**
- * Trava de indexação (issue #17): a loja fica fora do Google até o lançamento
- * das vendas (11/01/2027). Com a trava fechada (`false`):
- * - robots.txt com `Disallow: /` e sem a linha do sitemap;
- * - `noindex, nofollow` em todas as páginas;
+ * Trava de indexação (issue #17, versão corrigida na #31): a loja fica fora do
+ * Google até o ok do Cristian para o lançamento (11/01/2027). Com a trava
+ * fechada (`false`):
+ * - `noindex, nofollow` no meta robots de todas as páginas e no cabeçalho
+ *   `X-Robots-Tag` de todas as respostas;
+ * - robots.txt continua liberando a loja (sem `Disallow: /`), senão o Google
+ *   não chega a ler o noindex, e não anuncia o sitemap;
  * - sitemap só com o início e as páginas fixas;
  * - nenhum JSON-LD de produto (Product/Offer) nem de lista (ItemList).
  *
- * É uma constante de propósito: abrir a trava não exige variável de ambiente
- * nova. TODO(#17): se o Cristian aprovar, trocar por `ALLOW_INDEXING` (padrão
- * false quando ausente). Antes de abrir: tirar os produtos de demonstração do ar.
+ * É uma constante: este PR não cria variável de ambiente. TODO(#17): trocar
+ * pela env `ALLOW_INDEXING` (padrão false quando ausente) no PR da #17. Antes de
+ * abrir: tirar os produtos de demonstração do ar.
  */
 export const INDEXING_ALLOWED = false;
 
