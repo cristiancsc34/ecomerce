@@ -26,6 +26,17 @@ test.describe("rotas de categoria e produto", () => {
     expect(await page.locator('script[type="application/ld+json"]').count()).toBe(0);
   });
 
+  test("produto de demonstração aberto direto pela URL: 200, noindex e nenhum JSON-LD", async ({ page }) => {
+    for (const path of ["/produtos/poltrona-azul", "/produtos/cadeira-cinza-trama"]) {
+      const res = await page.goto(path);
+      expect(res?.status(), path).toBe(200);
+      expect(res?.headers()["x-robots-tag"], path).toBe("noindex, nofollow");
+      await expect(page.locator('meta[name="robots"]').first(), path).toHaveAttribute("content", /noindex/);
+      await expect(page.locator('script[type="application/ld+json"]'), path).toHaveCount(0);
+      await expect(page.getByRole("heading", { level: 1 }), path).not.toHaveText("Página não encontrada");
+    }
+  });
+
   test("produto, categoria e guia inexistentes respondem 404 de verdade", async ({ request }) => {
     for (const path of ["/produtos/nao-existe-az-seo", "/categorias/nao-existe-az-seo", "/guias/nao-existe-az-seo"]) {
       const res = await request.get(path);

@@ -311,8 +311,9 @@ describe("404 de verdade (produto, categoria e guia inexistentes)", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain("/rest/v1/products?");
     expect(url).toContain("slug=eq.nao-existe");
-    expect(url).toContain("status=eq.published");
-    expect(url).toContain("is_demo=eq.false");
+    // Segue só o RLS (o que o visitante pode ler): sem filtro próprio de status ou de demonstração.
+    expect(url).not.toContain("status=");
+    expect(url).not.toContain("is_demo=");
     expect((init.headers as Record<string, string>).apikey).toBe("chave-publica-de-teste");
   });
 
@@ -331,6 +332,13 @@ describe("404 de verdade (produto, categoria e guia inexistentes)", () => {
     expect(await catalogSlugExists("categorias", "cadeiras")).toBeNull();
     const fora = await proxy(new NextRequest(`${BASE}/categorias/cadeiras`));
     expect(isRewrite(fora)).toBe(false);
+  });
+
+  it("produto de demonstração liberado para o visitante (issue #29) abre com 200 pela URL, não 404", async () => {
+    const fetchMock = vi.fn(async () => new Response('[{"slug":"poltrona-azul"}]', { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const res = await proxy(new NextRequest(`${BASE}/produtos/poltrona-azul`));
+    expect(isRewrite(res)).toBe(false);
   });
 
   it("modo demonstração confere nos dados de demonstração, sem banco", async () => {

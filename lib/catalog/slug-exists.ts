@@ -1,7 +1,6 @@
 import { catalogSource } from "@/config/site";
 import { GUIAS } from "@/content/guias";
 import { DEMO_CATEGORIES, DEMO_PRODUCTS } from "./demo-data";
-import { VISIBLE_PRODUCT_FILTERS } from "./visibility";
 
 /**
  * Confere se o endereço de um produto, categoria ou guia existe, para o
@@ -11,6 +10,11 @@ import { VISIBLE_PRODUCT_FILTERS } from "./visibility";
  *
  * Devolve `null` quando não dá para saber (banco fora do ar, sem Supabase):
  * na dúvida a página abre normalmente e mostra o "não encontrado" com noindex.
+ *
+ * "Existe" = o que o visitante (chave pública) consegue ler, pelo RLS do banco.
+ * Sem filtro extra de status ou de demonstração aqui: quando a issue #29
+ * liberar os produtos de demonstração para o visitante, eles passam a abrir
+ * com 200 (com noindex e sem JSON-LD, regra da página), sem mexer no proxy.
  */
 export type CatalogKind = "produtos" | "categorias" | "guias";
 
@@ -35,7 +39,6 @@ async function existsInSupabase(kind: "produtos" | "categorias", slug: string): 
   if (!url || !key) return null;
   const table = kind === "produtos" ? "products" : "categories";
   const params = new URLSearchParams({ select: "slug", slug: `eq.${slug}`, limit: "1" });
-  if (kind === "produtos") for (const [column, value] of VISIBLE_PRODUCT_FILTERS) params.set(column, `eq.${value}`);
   try {
     const res = await fetch(`${url.replace(/\/+$/, "")}/rest/v1/${table}?${params}`, {
       headers: { apikey: key, Authorization: `Bearer ${key}` },
