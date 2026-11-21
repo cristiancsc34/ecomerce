@@ -3,6 +3,7 @@ import { CartView } from "@/components/cart/cart-view";
 
 export const metadata: Metadata = {
   title: "Sacola",
+  alternates: { canonical: "/carrinho" },
   robots: { index: false, follow: false },
 };
 

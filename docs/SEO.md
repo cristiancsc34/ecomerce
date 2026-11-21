@@ -5,21 +5,38 @@ Guia para o dono da loja, em passos. O site já faz a parte técnica sozinho; aq
 
 ## 1. O que o site já faz sozinho
 
-- **Mapa do site** em `https://www.azconfort.com.br/sitemap.xml`: página inicial, todos os produtos publicados (com as
-  fotos de cada um e a data da última alteração), categorias com produto e as páginas de políticas e atendimento.
-  Produto novo entra sozinho quando é publicado.
+- **Trava até o lançamento (issue #17, versão corrigida na #31):** enquanto `INDEXING_ALLOWED` for `false` em
+  `config/site.ts`, a loja fica fora do Google: `noindex, nofollow` no meta de todas as páginas e no cabeçalho
+  `X-Robots-Tag`, sitemap só com o início e as páginas fixas, nenhum dado de produto (Product/Offer/ItemList). O
+  `robots.txt` continua liberando a loja (sem `Disallow: /`), senão o Google não chega a ler o `noindex`. Ver a seção 8.
+- **Mapa do site** em `https://www.azconfort.com.br/sitemap.xml` (com a trava aberta): página inicial, todos os
+  produtos publicados (com as fotos de cada um e a data da última alteração), categorias com produto, guias
+  publicados e as páginas de políticas e atendimento. Produto de demonstração, categoria vazia e `/entrega-parana`
+  ficam de fora.
 - **robots.txt** em `https://www.azconfort.com.br/robots.txt`: libera a loja e esconde painel, sacola, checkout,
-  pedidos e busca.
+  pedidos, conta e busca.
 - **Endereço oficial (canonical)** em cada página, para o Google não achar que há páginas repetidas.
-- **Título e resumo** de cada produto e categoria (os que você escrever no painel; sem eles, o site monta com o nome,
-  a categoria e as medidas cadastradas).
+- **Título e resumo** de cada produto e categoria. Nas categorias colchões, sofás, poltronas, mesas e cadeiras, há um
+  texto padrão (título, resumo, como escolher e 3 perguntas, em `content/categorias-seo.ts`) que vale até você
+  escrever o seu no painel. O do painel sempre tem preferência.
+- **Trilha de navegação** visível na categoria e no produto (Início › Categoria › Produto), com os mesmos dados para
+  o Google (BreadcrumbList).
 - **Foto do produto** quando alguém compartilha o link no WhatsApp, Instagram ou Facebook.
 - **Dados para o Google** (schema.org): produto com preço, disponibilidade (só se o estoque for controlado), medidas,
-  materiais, cores/tamanhos com o preço de cada um; trilha “Início › Categoria › Produto”; lista de produtos nas
-  categorias; dados da loja.
+  materiais, cores/tamanhos com o preço de cada um; trilha; lista de produtos nas categorias; dados da loja (com área
+  atendida = Paraná) e a busca do site. Negócio local (LocalBusiness) só com endereço real em `config/brand.ts`.
 - **Nada inventado**: avaliações, frete, prazo, política de devolução, CNPJ e contatos só aparecem quando existirem de
-  verdade.
-- **Páginas vazias fora do Google**: categoria sem produto e catálogo vazio ficam com `noindex` até ganharem produto.
+  verdade. Perguntas frequentes ficam só como texto (sem schema de FAQ).
+- **Páginas vazias fora do Google**: categoria sem produto, catálogo vazio, `/guias` sem artigo e `/entrega-parana`
+  ficam com `noindex`.
+- **Endereço que não existe responde 404 de verdade**: produto, categoria ou guia inexistente recebe status 404 (o
+  `proxy.ts` confere antes de a página começar a ser enviada).
+- **Entrega no Paraná** em `/entrega-parana`, com a lista de cidades da issue #28 (`content/cidades-atendidas.ts`).
+  Fica com `noindex` até a lista e o frete serem aprovados; o texto de frete é um TODO.
+- **Guias de compra** em `/guias` (o "blog" da loja): 8 guias sobre tamanho do colchão, comprar colchão online no
+  Paraná, medir a sala para o sofá, sofá de 2 ou 3 lugares, cuidado com estofados, poltrona, mesa de jantar e o 3D.
+  Cada guia tem trilha, dados de artigo para o Google (Article) e links para a categoria e para os outros guias; a
+  home e as categorias ligam aos guias. Textos em `content/guias/index.ts`.
 
 ## 2. Google Search Console (o mais importante)
 
@@ -114,6 +131,36 @@ Medido no build de produção local, celular emulado (Moto G4, 4G lento, process
 demonstração: LCP ~0,85 s, CLS 0, INP ~40 ms — dentro do “bom” do Google (LCP até 2,5 s, CLS até 0,1, INP até
 200 ms). O número que vale é o dos clientes reais: veja em **Search Console → Core Web Vitals** ou em
 <https://pagespeed.web.dev> depois que a loja tiver visitas.
+
+## 8. Lançamento: abrir para o Google
+
+1. Tirar os produtos de demonstração do ar (issue #29) e publicar os produtos reais.
+2. Em `config/site.ts`, trocar `INDEXING_ALLOWED = false` por `true` (ou ligar `ALLOW_INDEXING`, quando a issue #17
+   trocar a constante pela variável) e publicar.
+3. Abrir `https://www.azconfort.com.br/robots.txt`: deve aparecer a linha `Sitemap:`. Nas páginas, o `noindex` some.
+4. Enviar o `sitemap.xml` no Search Console (seção 2).
+5. `/entrega-parana` continua com `noindex` até a lista de cidades e o frete serem aprovados (issue #31, decisões 1 e 5).
+
+## 9. Como testar
+
+- **Status 404**: `curl -I https://www.azconfort.com.br/categorias/nao-existe` e
+  `curl -I https://www.azconfort.com.br/produtos/nao-existe` devem responder `404`. `curl -I` de uma categoria que
+  existe responde `200`.
+- **Trava**: `curl -I https://www.azconfort.com.br/` mostra `X-Robots-Tag: noindex, nofollow` até o lançamento.
+- **Dados para o Google**: <https://search.google.com/test/rich-results>. A prévia da Vercel é protegida, então copie o
+  código-fonte da página e use a aba **Código**. Home: Organização e caixa de busca; categoria e produto: navegação
+  estrutural. Produto com preço mostra Product/Offer só com a trava aberta. Alternativa: <https://validator.schema.org>.
+  Sem acesso à prévia, cole um dos arquivos de `docs/jsonld/` (home, trilha da ficha e guia): é o JSON-LD exato que as
+  páginas emitem em produção, conferido pelo teste `tests/unit/seo-jsonld-docs.test.ts`. Mudou o JSON-LD no código?
+  Regere com `npx vitest run tests/unit/seo-jsonld-docs.test.ts -u`.
+- **Velocidade**: Chrome → F12 → **Lighthouse** → Celular, na home e numa página de produto. Antes do lançamento, o
+  aviso "A página está bloqueada para indexação" é esperado.
+
+## 10. Depois do lançamento: crescimento
+
+O plano de crescimento (Perfil da Empresa no Google, avaliações reais de clientes, vídeos, presença local e links de
+sites da região) fica com o az growth. O site já está pronto para ele: guias em `content/guias/index.ts`, perfis
+sociais em `social` e endereço em `location` (`config/brand.ts`) entram sozinhos nos dados para o Google.
 
 ## Referências (Google Search Central)
 

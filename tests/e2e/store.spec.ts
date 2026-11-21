@@ -5,7 +5,7 @@ const isMobile = (page: Page) => (page.viewportSize()?.width ?? 1280) < 1024;
 test.describe("vitrine em modo demonstração", () => {
   test("home: página de venda com banner, vitrine e chamada para o 3D", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1, name: "Conforto e estilo para a sua casa" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Colchões, sofás e poltronas com visualização em 3D" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Escolha o seu" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Gire a Poltrona Azul Estrutura Clara em 3D" })).toBeVisible();
     await expect(page.locator("article h3")).toHaveText(["Poltrona Azul Estrutura Clara", "Cadeira Cinza Trama"]);

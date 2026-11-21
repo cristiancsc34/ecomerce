@@ -7,18 +7,23 @@ import { imageMedia, model3d } from "@/lib/catalog/product-helpers";
 import { getVisibleProducts } from "@/lib/catalog/queries";
 import type { Product } from "@/lib/catalog/types";
 import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/product-section";
+import { GUIAS } from "@/content/guias";
 import { buttonClasses } from "@/components/ui/button";
 import { CubeIcon } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/misc";
 import { JsonLd } from "@/components/seo/json-ld";
 import { brand } from "@/config/brand";
 import { isDemoMode, siteUrl } from "@/config/site";
-import { organizationJsonLd, websiteJsonLd } from "@/lib/seo/structured-data";
+import { HOME_DESCRIPTION, HOME_H1, HOME_TITLE } from "@/lib/seo/home";
+import { OPEN_GRAPH_BASE } from "@/lib/seo/metadata";
+import { localBusinessJsonLd, organizationJsonLd, websiteJsonLd } from "@/lib/seo/structured-data";
+
 
 export const metadata: Metadata = {
-  title: { absolute: `${brand.name} — ${brand.slogan} ${brand.tagline}.` },
-  description: brand.description,
+  title: { absolute: HOME_TITLE },
+  description: HOME_DESCRIPTION,
   alternates: { canonical: "/" },
+  openGraph: { ...OPEN_GRAPH_BASE, type: "website", title: HOME_TITLE, description: HOME_DESCRIPTION, url: "/" },
 };
 
 /**
@@ -28,16 +33,24 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <div className="mx-auto w-full max-w-[80rem] space-y-3 px-2 pt-2 sm:space-y-5 sm:px-6 sm:pt-6 lg:px-8">
-      {isDemoMode() ? null : (
-        <>
-          <JsonLd data={organizationJsonLd(siteUrl())} />
-          <JsonLd data={websiteJsonLd(siteUrl())} />
-        </>
-      )}
+      {isDemoMode() ? null : <HomeStructuredData />}
       <Suspense fallback={<HomeSkeleton />}>
         <HomeContent />
       </Suspense>
     </div>
+  );
+}
+
+/** Loja (Organization), site com busca (WebSite) e, com endereço real, o negócio local. */
+function HomeStructuredData() {
+  const base = siteUrl();
+  const local = localBusinessJsonLd(base);
+  return (
+    <>
+      <JsonLd data={organizationJsonLd(base)} />
+      <JsonLd data={websiteJsonLd(base)} />
+      {local ? <JsonLd data={local} /> : null}
+    </>
   );
 }
 
@@ -64,6 +77,7 @@ async function HomeContent() {
         />
       </div>
       {with3d[0] ? <Showcase3D product={with3d[0]} /> : null}
+      <GuidesTeaser />
     </>
   );
 }
@@ -90,7 +104,7 @@ function Hero({ product }: { product: Product | null }) {
           id="destaque-titulo"
           className="mt-1.5 text-[1.375rem] font-bold leading-tight text-deep-fjord sm:text-4xl lg:text-5xl"
         >
-          Móveis com conforto e estilo para a sua casa
+          {HOME_H1}
         </h1>
         <p className="mt-2 text-sm text-ink/80 sm:mt-4 sm:text-lg">
           Veja cada peça de todos os ângulos e gire em 3D antes de escolher.
@@ -110,9 +124,11 @@ function Hero({ product }: { product: Product | null }) {
           <Link href={`/produtos/${product.slug}`} tabIndex={-1} aria-hidden="true">
             <Image
               src={image.url}
-              alt=""
+              alt={image.altText}
               fill
-              priority
+              // Foto do banner = maior elemento da primeira tela (LCP): baixa já, com prioridade alta.
+              loading="eager"
+              fetchPriority="high"
               sizes="(min-width: 1280px) 560px, 45vw"
               className="object-cover object-center"
             />
@@ -153,6 +169,33 @@ function Showcase3D({ product }: { product: Product }) {
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+/** Guias de compra na home: ligação interna para o conteúdo que ajuda a escolher. */
+function GuidesTeaser() {
+  if (!GUIAS.length) return null;
+  return (
+    <section aria-labelledby="guias-titulo" className="rounded-xl bg-white px-4 py-5 sm:px-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="guias-titulo" className="text-base font-bold uppercase tracking-wide text-air-blue-ink">
+          Antes de escolher
+        </h2>
+        <Link href="/guias" className="link inline-flex min-h-11 items-center text-sm">
+          Todos os guias
+        </Link>
+      </div>
+      <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+        {GUIAS.slice(0, 4).map((g) => (
+          <li key={g.slug}>
+            <Link href={`/guias/${g.slug}`} className="block min-h-11 rounded-lg border border-line p-3 hover:border-air-blue hover:bg-pale-blue">
+              <span className="block font-semibold text-deep-fjord">{g.title}</span>
+              <span className="mt-0.5 block text-sm text-muted">{g.description}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

@@ -73,8 +73,9 @@ function variantUrl(url: string, variant: ProductVariant): string | null {
  *
  * Com variações (cores ou tamanhos) vira um ProductGroup com uma oferta por
  * variação, o formato que o Google pede para "merchant listing" (ele não aceita
- * AggregateOffer ali). Nada de avaliação, frete, prazo, devolução, condição ou
- * código de barras: a loja ainda não tem esses dados cadastrados.
+ * AggregateOffer ali). Nada de avaliação, frete (`shippingDetails` só com ok
+ * do Cristian sobre o frete, issue #31), prazo, devolução, condição ou código
+ * de barras: a loja ainda não tem esses dados confirmados.
  */
 export function productJsonLd(product: Product, baseUrl: string): Record<string, unknown> | null {
   if (product.isDemo) return null;
@@ -201,10 +202,14 @@ export function breadcrumbJsonLd(items: { name: string; path: string }[], baseUr
   };
 }
 
+/** Onde a loja vende: só no Paraná. */
+export const AREA_SERVED = "Paraná";
+
 /**
  * schema.org/Organization (OnlineStore) da loja: só com os dados que existem
  * em config/brand.ts. Contato, CNPJ e endereço entram sozinhos quando forem
- * preenchidos; campo vazio fica de fora (nunca inventado).
+ * preenchidos; campo vazio fica de fora (nunca inventado). A área atendida é
+ * o Paraná (a loja vende só no estado).
  */
 export function organizationJsonLd(baseUrl: string): Record<string, unknown> {
   const { contact, legal, social } = brand;
@@ -216,6 +221,7 @@ export function organizationJsonLd(baseUrl: string): Record<string, unknown> {
     name: brand.name,
     url: `${baseUrl}/`,
     description: brand.description,
+    areaServed: AREA_SERVED,
     ...(legal.companyName ? { legalName: legal.companyName } : {}),
     ...(legal.cnpj ? { taxID: legal.cnpj } : {}),
     ...(legal.address ? { address: legal.address } : {}),
@@ -243,5 +249,73 @@ export function websiteJsonLd(baseUrl: string): Record<string, unknown> {
       },
       "query-input": "required name=search_term_string",
     },
+  };
+}
+
+/**
+ * schema.org/LocalBusiness (FurnitureStore) só com endereço real completo
+ * (rua, cidade, CEP e UF em `brand.location`). O Google exige o endereço
+ * para negócio local; sem ele, nada é publicado (devolve null) e fica só a
+ * OnlineStore. Telefone, CNPJ e horário entram quando existirem em
+ * config/brand.ts. TODO(Cristian, issue #13): endereço físico e CNPJ.
+ */
+export function localBusinessJsonLd(baseUrl: string): Record<string, unknown> | null {
+  const { location, contact, legal } = brand;
+  if (!location.streetAddress || !location.addressLocality || !location.postalCode || !location.addressRegion) return null;
+  const phone = contact.phone || contact.whatsapp;
+  return {
+    "@context": "https://schema.org",
+    "@type": "FurnitureStore",
+    "@id": `${baseUrl}/#negocio-local`,
+    name: brand.name,
+    url: `${baseUrl}/`,
+    parentOrganization: { "@id": `${baseUrl}/#loja` },
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: location.streetAddress,
+      addressLocality: location.addressLocality,
+      addressRegion: location.addressRegion,
+      postalCode: location.postalCode,
+      addressCountry: "BR",
+    },
+    areaServed: AREA_SERVED,
+    ...(phone ? { telephone: phone } : {}),
+    ...(legal.cnpj ? { taxID: legal.cnpj } : {}),
+    ...(contact.hours ? { openingHours: contact.hours } : {}),
+  };
+}
+
+export type ArticleInput = {
+  slug: string;
+  title: string;
+  description: string;
+  author: string;
+  datePublished: string;
+  dateModified: string;
+};
+
+/**
+ * schema.org/Article de um guia publicado (só com artigo real: autor e datas
+ * obrigatórios). Os guias são assinados pela equipe da loja, então o autor é
+ * uma Organization; se um dia um guia for assinado por uma pessoa, acrescentar
+ * o tipo do autor ao guia.
+ */
+export function articleJsonLd(article: ArticleInput, baseUrl: string): Record<string, unknown> | null {
+  if (!article.author.trim() || !article.datePublished || !article.dateModified) return null;
+  const url = `${baseUrl}/guias/${article.slug}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.title,
+    description: article.description,
+    inLanguage: "pt-BR",
+    author: { "@type": "Organization", name: article.author },
+    datePublished: article.datePublished,
+    dateModified: article.dateModified,
+    mainEntityOfPage: url,
+    url,
+    // A OnlineStore completa só sai na home; aqui vai o essencial para o guia
+    // se sustentar sozinho, com o mesmo @id.
+    publisher: { "@type": "OnlineStore", "@id": `${baseUrl}/#loja`, name: brand.name, url: `${baseUrl}/` },
   };
 }

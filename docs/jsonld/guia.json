@@ -1,0 +1,47 @@
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Como escolher o tamanho do colchão",
+    "description": "Solteiro, solteiro king, casal, queen ou king: veja as medidas-padrão e como medir a cama ou o box antes de comprar o colchão.",
+    "inLanguage": "pt-BR",
+    "author": {
+      "@type": "Organization",
+      "name": "Equipe AzConfort"
+    },
+    "datePublished": "2026-11-20",
+    "dateModified": "2026-11-20",
+    "mainEntityOfPage": "https://www.azconfort.com.br/guias/como-escolher-o-tamanho-do-colchao",
+    "url": "https://www.azconfort.com.br/guias/como-escolher-o-tamanho-do-colchao",
+    "publisher": {
+      "@type": "OnlineStore",
+      "@id": "https://www.azconfort.com.br/#loja",
+      "name": "AzConfort",
+      "url": "https://www.azconfort.com.br/"
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Início",
+        "item": "https://www.azconfort.com.br/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Guias de compra",
+        "item": "https://www.azconfort.com.br/guias"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": "Como escolher o tamanho do colchão",
+        "item": "https://www.azconfort.com.br/guias/como-escolher-o-tamanho-do-colchao"
+      }
+    ]
+  }
+]

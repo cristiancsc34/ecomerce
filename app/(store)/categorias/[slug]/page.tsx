@@ -2,13 +2,18 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import Link from "next/link";
 import { isDemoMode, siteUrl } from "@/config/site";
+import { guiasDaCategoria } from "@/content/guias";
 import { getCategories, getCategoryBySlug, getVisibleProducts } from "@/lib/catalog/queries";
 import { ProductSection, ProductSectionSkeleton } from "@/components/catalog/product-section";
 import { JsonLd } from "@/components/seo/json-ld";
-import { Paragraphs } from "@/components/ui/paragraphs";
-import { categoryDescription, categoryTitle, OPEN_GRAPH_BASE, shareableImage } from "@/lib/seo/metadata";
-import { breadcrumbJsonLd, itemListJsonLd } from "@/lib/seo/structured-data";
+import { PageBreadcrumbs } from "@/components/seo/page-breadcrumbs";
+import { FaqList } from "@/components/ui/faq-list";
+import { categoryBreadcrumbs } from "@/lib/seo/breadcrumbs";
+import { categoryContent, categoryDescription, categoryTitle, OPEN_GRAPH_BASE, shareableImage } from "@/lib/seo/metadata";
+import { pageRobots, productStructuredDataAllowed } from "@/lib/seo/robots";
+import { itemListJsonLd } from "@/lib/seo/structured-data";
 
 export async function generateStaticParams() {
   const categories = await getCategories().catch((error: unknown) => {
@@ -26,7 +31,8 @@ export async function generateMetadata({ params }: PageProps<"/categorias/[slug]
   await connection();
   const { slug } = await params;
   const [category, products] = await Promise.all([getCategoryBySlug(slug), getVisibleProducts()]);
-  if (!category) return { title: "Categoria não encontrada", robots: { index: false } };
+  // Categoria inexistente: 404 (o proxy.ts já responde 404 antes da página na visita direta).
+  if (!category) notFound();
   const inCategory = products.filter((p) => p.category?.slug === slug);
   const title = categoryTitle(category);
   const description = categoryDescription(category, inCategory.length);
@@ -34,12 +40,13 @@ export async function generateMetadata({ params }: PageProps<"/categorias/[slug]
   // Foto real do primeiro produto da categoria para o WhatsApp e o Google.
   const image = inCategory.map(shareableImage).find(Boolean) ?? null;
   const images = image ? [{ url: image.url, alt: image.altText }] : undefined;
+  // Categoria ainda sem produto (ou trava de indexação fechada): fora do Google, mas existe (200).
+  const robots = pageRobots(inCategory.length > 0);
   return {
     title,
     description,
     alternates: { canonical: path },
-    // Categoria ainda sem produto: página vazia não deve ir para o Google.
-    ...(inCategory.length ? {} : { robots: { index: false, follow: true } }),
+    ...(robots ? { robots } : {}),
     openGraph: { ...OPEN_GRAPH_BASE, type: "website", title, description, url: path, ...(images ? { images } : {}) },
     twitter: {
       card: images ? "summary_large_image" : "summary",
@@ -67,24 +74,14 @@ async function Results({ params }: Pick<PageProps<"/categorias/[slug]">, "params
   const [category, products] = await Promise.all([getCategoryBySlug(slug), getVisibleProducts()]);
   if (!category) notFound();
   const inCategory = products.filter((p) => p.category?.slug === slug);
-  const base = siteUrl();
-  const list = itemListJsonLd(inCategory, base, category.name);
+  const structured = !isDemoMode();
+  const list = structured && productStructuredDataAllowed() ? itemListJsonLd(inCategory, siteUrl(), category.name) : null;
+  const { paragraphs, faq } = categoryContent(category);
+  const guias = guiasDaCategoria(category.slug);
   return (
-    <>
-      {!isDemoMode() ? (
-        <>
-          <JsonLd
-            data={breadcrumbJsonLd(
-              [
-                { name: "Início", path: "/" },
-                { name: category.name, path: `/categorias/${category.slug}` },
-              ],
-              base,
-            )}
-          />
-          {list ? <JsonLd data={list} /> : null}
-        </>
-      ) : null}
+    <div className="space-y-2 sm:space-y-4">
+      {list ? <JsonLd data={list} /> : null}
+      <PageBreadcrumbs items={categoryBreadcrumbs(category)} structured={structured} className="px-2.5 sm:px-0" />
       <ProductSection
         id="categoria-titulo"
         title={category.name}
@@ -94,14 +91,43 @@ async function Results({ params }: Pick<PageProps<"/categorias/[slug]">, "params
         priorityCount={4}
         empty={{ title: "Nenhum produto nesta categoria por enquanto" }}
       />
-      {category.content ? (
-        <section aria-labelledby="categoria-sobre" className="mt-2 bg-white px-4 py-5 sm:mt-4 sm:rounded-lg sm:px-6">
+      {paragraphs.length ? (
+        <section aria-labelledby="categoria-sobre" className="bg-white px-4 py-5 sm:rounded-lg sm:px-6">
           <h2 id="categoria-sobre" className="mb-3 text-base font-bold uppercase tracking-wide text-deep-fjord">
             Sobre {category.name.toLowerCase()}
           </h2>
-          <Paragraphs text={category.content} />
+          <div className="space-y-3 text-[0.9375rem] leading-relaxed text-ink sm:text-base">
+            {paragraphs.map((p, i) => (
+              <p key={i}>{p}</p>
+            ))}
+          </div>
         </section>
       ) : null}
-    </>
+      {faq.length ? (
+        <section aria-labelledby="categoria-duvidas" className="bg-white px-4 py-5 sm:rounded-lg sm:px-6">
+          <h2 id="categoria-duvidas" className="mb-3 text-base font-bold uppercase tracking-wide text-deep-fjord">
+            Dúvidas frequentes
+          </h2>
+          {/* Só texto visível: sem schema FAQPage (o Google descontinuou o resultado de FAQ). */}
+          <FaqList items={faq} />
+        </section>
+      ) : null}
+      {guias.length ? (
+        <nav aria-labelledby="categoria-guias" className="bg-white px-4 py-4 sm:rounded-lg sm:px-6">
+          <h2 id="categoria-guias" className="text-sm font-bold uppercase tracking-wide text-deep-fjord">
+            Guias de compra
+          </h2>
+          <ul className="mt-1">
+            {guias.map((g) => (
+              <li key={g.slug}>
+                <Link href={`/guias/${g.slug}`} className="link inline-flex min-h-11 items-center">
+                  {g.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
+    </div>
   );
 }

@@ -1,0 +1,30 @@
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "OnlineStore",
+    "@id": "https://www.azconfort.com.br/#loja",
+    "name": "AzConfort",
+    "url": "https://www.azconfort.com.br/",
+    "description": "Loja online de colchões, sofás, poltronas, mesas e cadeiras no Paraná, com visualização em 3D nos modelos com o selo.",
+    "areaServed": "Paraná"
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": "https://www.azconfort.com.br/#site",
+    "name": "AzConfort",
+    "url": "https://www.azconfort.com.br/",
+    "inLanguage": "pt-BR",
+    "publisher": {
+      "@id": "https://www.azconfort.com.br/#loja"
+    },
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://www.azconfort.com.br/busca?q={search_term_string}"
+      },
+      "query-input": "required name=search_term_string"
+    }
+  }
+]

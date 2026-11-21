@@ -4,7 +4,7 @@ import { colors } from "@/config/tokens";
 
 const LOGO_COLORS = { coral: "#F08A5D", petroleo: "#0E2F3D" } as const;
 
-export const alt = `${brand.name} — ${brand.slogan}`;
+export const alt = `${brand.name}: ${brand.tagline}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

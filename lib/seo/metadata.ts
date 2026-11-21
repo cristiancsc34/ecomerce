@@ -1,4 +1,5 @@
 import { brand } from "@/config/brand";
+import { categorySeo } from "@/content/categorias-seo";
 import { imageMedia } from "@/lib/catalog/product-helpers";
 import type { Category, Product, ProductMedia } from "@/lib/catalog/types";
 
@@ -54,16 +55,47 @@ export function shareableImage(product: Pick<Product, "media">): ProductMedia | 
   );
 }
 
-export function categoryTitle(category: Pick<Category, "seoTitle" | "name">): string {
-  return category.seoTitle?.trim() || category.name;
+type CategoryText = Pick<Category, "name" | "seoTitle" | "seoDescription" | "description" | "content"> & { slug?: string };
+
+/**
+ * Título da categoria: o escrito no painel para o Google; sem ele, o texto
+ * padrão por slug (content/categorias-seo.ts); sem os dois, o nome.
+ */
+export function categoryTitle(category: Pick<CategoryText, "seoTitle" | "name" | "slug">): string {
+  return category.seoTitle?.trim() || (category.slug ? categorySeo(category.slug)?.title : null) || category.name;
 }
 
-/** Resumo da categoria: o escrito pela equipe; sem ele, uma frase com a contagem real. */
-export function categoryDescription(category: Pick<Category, "seoDescription" | "description" | "name">, productCount: number): string {
-  const written = category.seoDescription ?? category.description;
-  if (written?.trim()) return clip(written);
+/**
+ * Resumo da categoria: o escrito no painel para o Google; sem ele, o texto
+ * padrão por slug; depois a descrição da categoria; por fim, uma frase com a
+ * contagem real.
+ */
+export function categoryDescription(
+  category: Pick<CategoryText, "seoDescription" | "description" | "name" | "slug">,
+  productCount: number,
+): string {
+  const written =
+    category.seoDescription?.trim() || (category.slug ? categorySeo(category.slug)?.description : null) || category.description?.trim();
+  if (written) return clip(written);
   const count = productCount === 1 ? "1 modelo" : `${productCount} modelos`;
   return clip(`Veja ${count} de ${category.name.toLowerCase()} na ${brand.name}. ${brand.slogan}`);
+}
+
+/**
+ * Texto da página da categoria: o escrito no painel (parágrafos separados por
+ * linha em branco); sem ele, o texto padrão por slug. Perguntas frequentes vêm
+ * do texto padrão (o painel ainda não tem esse campo).
+ */
+export function categoryContent(category: Pick<CategoryText, "content" | "slug">): {
+  paragraphs: string[];
+  faq: { question: string; answer: string }[];
+} {
+  const fallback = category.slug ? categorySeo(category.slug) : null;
+  const own = category.content
+    ?.split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return { paragraphs: own?.length ? own : (fallback?.content ?? []), faq: fallback?.faq ?? [] };
 }
 
 /**

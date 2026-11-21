@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Category } from "@/lib/catalog/types";
+import { GUIAS } from "@/content/guias";
 import { makeMedia, makeProduct } from "./factories";
 
 /**
+ * Trava de indexação (issue #17): com ela fechada (padrão até o lançamento), o sitemap só tem o início e as páginas
+ * fixas e nem lê o catálogo. Os testes abaixo abrem a trava para conferir o sitemap completo.
+ *
  * Sitemap e generateStaticParams resilientes (issue #4). Com o catálogo respondendo, tudo sai como antes; com a
  * leitura do catálogo falhando (Supabase fora do ar no build ou numa visita), o /sitemap.xml cai para o sitemap
  * mínimo (início e páginas fixas) e as rotas dinâmicas para o placeholder `__vazio__`, sem derrubar o build e sem
@@ -17,8 +21,14 @@ const catalog = vi.hoisted(() => ({
   getCategoryBySlug: vi.fn(),
 }));
 
+const gate = vi.hoisted(() => ({ open: true }));
+
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/catalog/queries", () => ({ CATALOG_TAG: "catalog", ...catalog }));
+vi.mock("@/config/site", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/site")>();
+  return { ...actual, indexingAllowed: () => gate.open };
+});
 
 const { default: sitemap } = await import("@/app/sitemap");
 const productPage = await import("@/app/(store)/produtos/[slug]/page");
@@ -48,6 +58,12 @@ function makeCategory(partial: Partial<Category> = {}): Category {
   };
 }
 
+/** Guias publicados no sitemap (não dependem do catálogo). */
+const guideEntries = () => [
+  { url: `${BASE}/guias`, lastModified: GUIAS[0].dateModified },
+  ...GUIAS.map((g) => ({ url: `${BASE}/guias/${g.slug}`, lastModified: g.dateModified })),
+];
+
 const falha = () => Promise.reject(new Error("Falha ao carregar o catálogo: conexão recusada"));
 
 let consoleError: ReturnType<typeof vi.spyOn>;
@@ -57,6 +73,7 @@ beforeEach(() => {
   process.env.NEXT_PUBLIC_SITE_URL = BASE;
   consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
   for (const fn of Object.values(catalog)) fn.mockReset();
+  gate.open = true;
 });
 
 afterEach(() => {
@@ -66,7 +83,18 @@ afterEach(() => {
 });
 
 describe("sitemap (app/sitemap.ts)", () => {
-  it("com catálogo ok: início, listagem, categorias com produto, produtos reais com fotos e páginas fixas", async () => {
+  it("trava fechada (issue #17): só início e páginas fixas, sem ler o catálogo", async () => {
+    gate.open = false;
+    catalog.getVisibleProducts.mockResolvedValue([makeProduct({ slug: "colchao-real" })]);
+    catalog.getCategoriesWithProducts.mockResolvedValue([{ ...makeCategory(), productCount: 1 }]);
+
+    const entries = await sitemap();
+
+    expect(entries).toEqual([{ url: `${BASE}/` }, ...STATIC_PAGES.map((url) => ({ url }))]);
+    expect(catalog.getVisibleProducts).not.toHaveBeenCalled();
+  });
+
+  it("trava aberta e catálogo ok: início, listagem, categorias com produto, produtos reais com fotos, guias e páginas fixas", async () => {
     const real = makeProduct({
       slug: "colchao-real",
       updatedAt: "2026-11-02T00:00:00.000Z",
@@ -86,8 +114,12 @@ describe("sitemap (app/sitemap.ts)", () => {
       { url: `${BASE}/produtos`, lastModified: "2026-11-02T00:00:00.000Z" },
       { url: `${BASE}/categorias/colchoes`, lastModified: "2026-11-02T00:00:00.000Z" },
       { url: `${BASE}/produtos/colchao-real`, lastModified: "2026-11-02T00:00:00.000Z", images: ["https://cdn.exemplo/foto.jpg"] },
+      { url: `${BASE}/guias`, lastModified: GUIAS[0].dateModified },
+      ...GUIAS.map((g) => ({ url: `${BASE}/guias/${g.slug}`, lastModified: g.dateModified })),
       ...STATIC_PAGES.map((url) => ({ url })),
     ]);
+    // /entrega-parana fica fora do sitemap mesmo com a trava aberta (issue #31).
+    expect(entries.some((e) => e.url.includes("/entrega-parana"))).toBe(false);
     expect(consoleError).not.toHaveBeenCalled();
   });
 
@@ -97,7 +129,7 @@ describe("sitemap (app/sitemap.ts)", () => {
 
     const entries = await sitemap();
 
-    expect(entries).toEqual([{ url: `${BASE}/` }, ...STATIC_PAGES.map((url) => ({ url }))]);
+    expect(entries).toEqual([{ url: `${BASE}/` }, ...guideEntries(), ...STATIC_PAGES.map((url) => ({ url }))]);
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(String(consoleError.mock.calls[0]?.[0])).toMatch(/sitemap/i);
   });
@@ -108,7 +140,7 @@ describe("sitemap (app/sitemap.ts)", () => {
 
     const entries = await sitemap();
 
-    expect(entries).toEqual([{ url: `${BASE}/` }, ...STATIC_PAGES.map((url) => ({ url }))]);
+    expect(entries).toEqual([{ url: `${BASE}/` }, ...guideEntries(), ...STATIC_PAGES.map((url) => ({ url }))]);
     expect(consoleError).toHaveBeenCalledTimes(1);
   });
 });

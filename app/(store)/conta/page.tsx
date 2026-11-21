@@ -5,6 +5,7 @@ import { ButtonLink } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Acompanhar pedido",
+  alternates: { canonical: "/conta" },
   robots: { index: false, follow: true },
 };
 

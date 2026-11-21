@@ -4,6 +4,7 @@ import { CheckoutView } from "@/components/checkout/checkout-view";
 
 export const metadata: Metadata = {
   title: "Finalizar pedido",
+  alternates: { canonical: "/finalizar" },
   // Página pessoal do pedido: nunca indexar.
   robots: { index: false, follow: false },
 };

@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { brand } from "@/config/brand";
-import { isDemoMode, siteUrl } from "@/config/site";
+import { siteUrl } from "@/config/site";
 import { colors } from "@/config/tokens";
+import { HOME_TITLE } from "@/lib/seo/home";
+import { siteRobots } from "@/lib/seo/robots";
 import "./globals.css";
 
 const inter = Inter({
@@ -16,7 +18,8 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: {
-    default: `${brand.name} — ${brand.slogan}`,
+    // Sem travessão (issue #31); as páginas definem o próprio título.
+    default: HOME_TITLE,
     template: `%s | ${brand.name}`,
   },
   description: brand.description,
@@ -25,11 +28,11 @@ export const metadata: Metadata = {
     type: "website",
     locale: "pt_BR",
     siteName: brand.name,
-    title: `${brand.name} — ${brand.slogan}`,
+    title: HOME_TITLE,
     description: brand.description,
   },
-  // Em modo demonstração nada é indexado: os dados são fictícios.
-  robots: isDemoMode() ? { index: false, follow: false } : { index: true, follow: true },
+  // Trava de indexação (issue #17) e modo demonstração: noindex, nofollow em tudo.
+  robots: siteRobots(),
 };
 
 export const viewport: Viewport = {

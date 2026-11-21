@@ -151,7 +151,7 @@ test.describe("celular 390×844", () => {
     expect((await caixa(page.locator("body > div header").first())).height).toBeLessThanOrEqual(112);
   });
 
-  for (const rota of ["/", "/categorias/cadeiras", "/produtos/poltrona-azul", "/carrinho", "/finalizar"]) {
+  for (const rota of ["/", "/categorias/cadeiras", "/produtos/poltrona-azul", "/carrinho", "/finalizar", "/entrega-parana", "/pagina-que-nao-existe"]) {
     test(`alvos de toque de 44 px em ${rota}`, async ({ page }) => {
       await sacolaComItem(page);
       await page.goto(rota);

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { INDEXING_ALLOWED } from "./config/site";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseOrigin = supabaseUrl ? new URL(supabaseUrl).origin : null;
@@ -93,6 +94,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // Trava de indexação fechada (issue #17): além do meta robots, o cabeçalho vale para
+      // tudo o que não é HTML (sitemap, imagens, arquivos 3D). O robots.txt continua liberado
+      // para o Google conseguir ler o noindex.
+      ...(INDEXING_ALLOWED ? [] : [{ source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] }]),
       // Arquivo do iPhone (AR Quick Look): o tipo certo para o Safari reconhecer o .usdz.
       { source: "/:path*.usdz", headers: [{ key: "Content-Type", value: "model/vnd.usdz+zip" }] },
     ];
