@@ -118,7 +118,7 @@ export const GUIAS: readonly Guia[] = [
         ],
       },
       {
-        heading: "3. Fotos de todos os ângulos",
+        heading: "3. As fotos do produto",
         paragraphs: [
           "Fotos de frente, de lado e de costas ajudam a ver o acabamento e a altura do colchão. Antes de comprar, veja todas as fotos na página do produto.",
         ],

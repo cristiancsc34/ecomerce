@@ -44,7 +44,7 @@ export const brand: BrandConfig = {
   slogan: "Móveis para a sua casa.",
   tagline: "Colchões, sofás, poltronas, mesas e cadeiras",
   description:
-    "Loja online de colchões, sofás, poltronas, mesas e cadeiras no Paraná, com fotos de todos os ângulos e visualização em 3D.",
+    "Loja online de colchões, sofás, poltronas, mesas e cadeiras no Paraná, com visualização em 3D nos modelos com o selo.",
   announcement: null,
   contact: {
     email: "",

@@ -32,7 +32,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
   colchoes: {
     title: "Colchões: solteiro, casal, queen e king",
     description:
-      "Colchões solteiro, casal, queen e king para quem mora no Paraná. Compare as medidas-padrão e veja cada modelo em fotos de todos os ângulos.",
+      "Colchões solteiro, casal, queen e king para quem mora no Paraná. Compare as medidas-padrão e veja as fotos de cada modelo.",
     content: [
       `Comece pela medida da cama ou do box. As medidas-padrão no Brasil são: solteiro ${cm("solteiro")}, solteiro king ${cm("solteiro-king")}, casal ${cm("casal")}, queen ${cm("queen")} e king ${cm("king")}.`,
       "A firmeza é uma escolha pessoal. Quando o modelo tem a firmeza informada, ela aparece na página do produto, numa escala que vai do macio ao firme.",
@@ -57,7 +57,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
   sofas: {
     title: "Sofás: medidas e tecidos para a sua sala",
     description:
-      "Sofás para a sua sala no Paraná. Veja cada modelo em fotos de todos os ângulos e confira medidas e tecido antes de escolher.",
+      "Sofás para a sua sala no Paraná. Veja as fotos de cada modelo e confira medidas e tecido antes de escolher.",
     content: [
       "Antes de escolher, meça a parede onde o sofá vai ficar e deixe espaço para circular na frente dele. Compare com a largura e a profundidade informadas na página de cada modelo.",
       "O número de lugares ajuda na escolha: sofás de 2 lugares cabem melhor em salas menores, e os de 3 lugares acomodam mais gente. A largura exata muda de um modelo para outro.",
@@ -82,7 +82,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
   poltronas: {
     title: "Poltronas: conforto, medidas e tecidos",
     description:
-      "Poltronas para a sala, o quarto ou o canto de leitura, para casas do Paraná. Veja de todos os ângulos e confira medidas e tecido de cada modelo.",
+      "Poltronas para a sala, o quarto ou o canto de leitura, para casas do Paraná. Veja as fotos e confira medidas e tecido de cada modelo.",
     content: [
       "Uma poltrona funciona sozinha num canto de leitura ou ao lado do sofá. Meça o espaço disponível e compare com a largura e a profundidade de cada modelo.",
       "Repare na altura do encosto e do assento: encosto alto apoia melhor a cabeça, e assento mais baixo deixa a postura mais relaxada.",
@@ -107,7 +107,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
   mesas: {
     title: "Mesas: formatos, medidas e materiais",
     description:
-      "Mesas para a sua casa, aqui no Paraná. Compare formato e medidas e veja cada modelo em fotos de todos os ângulos antes de escolher.",
+      "Mesas para a sua casa, aqui no Paraná. Compare formato e medidas e veja as fotos de cada modelo antes de escolher.",
     content: [
       "Para a mesa de jantar, meça o ambiente e deixe espaço em volta para puxar as cadeiras e circular.",
       "Mesas redondas facilitam a conversa e a circulação em espaços menores; as retangulares costumam acomodar mais lugares em salas compridas.",
@@ -131,7 +131,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
   cadeiras: {
     title: "Cadeiras: assentos, medidas e acabamentos",
     description:
-      "Cadeiras para a sala de jantar e outros ambientes, para quem é do Paraná. Veja de todos os ângulos e confira medidas e acabamento de cada modelo.",
+      "Cadeiras para a sala de jantar e outros ambientes, para quem é do Paraná. Veja as fotos e confira medidas e acabamento de cada modelo.",
     content: [
       "Confira a altura do assento em relação à mesa: precisa sobrar espaço para as pernas entre o assento e o tampo.",
       "Com mesa pequena, cadeiras sem braço ocupam menos espaço e entram por inteiro embaixo do tampo.",
