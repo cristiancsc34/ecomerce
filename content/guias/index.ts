@@ -5,10 +5,11 @@ import { SIZE_INFO, type SizeKey } from "@/lib/catalog/types";
  * 20/11/2026 para as buscas de colchão, sofá, estofado e poltrona no Paraná).
  *
  * Regras: só dica geral e verdadeira (como medir, como escolher, como cuidar)
- * e o que a loja de fato tem (fotos de todos os ângulos, 3D e "Ver no seu
- * ambiente", lista de entrega no Paraná, políticas). Nada de frete, prazo,
- * preço, avaliação, garantia, número de vendas, "o melhor" nem travessão. Dado
- * de produto (medida, material, firmeza) fica na página do produto.
+ * e o que a loja de fato tem hoje (fotos de todos os ângulos, 3D e "Ver no
+ * seu ambiente", políticas publicadas). Nada de frete, prazo, lista de
+ * cidades (ainda não aprovada, issue #28), preço, avaliação, garantia, número
+ * de vendas, "o melhor" nem travessão. Dado de produto (medida, material,
+ * firmeza) fica na página do produto.
  *
  * Para publicar um guia novo, acrescente um objeto na lista `GUIAS`.
  */
@@ -125,7 +126,7 @@ export const GUIAS: readonly Guia[] = [
       {
         heading: "4. Se a loja entrega na sua cidade",
         paragraphs: [
-          "Antes de comprar, confira se a sua cidade está na lista de entrega. A AzConfort vende para o Paraná e mostra a lista de cidades na página Entrega no Paraná.",
+          "Antes de comprar, confira se a loja entrega no seu endereço. A AzConfort vende para clientes do Paraná; se tiver dúvida sobre a sua cidade, fale com o atendimento antes de fechar o pedido.",
         ],
       },
       {
