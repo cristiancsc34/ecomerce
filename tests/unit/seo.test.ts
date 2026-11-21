@@ -270,7 +270,7 @@ describe("dados da loja (schema.org)", () => {
     expect(articleJsonLd(guia, base)).toMatchObject({
       "@type": "Article",
       headline: "Como medir",
-      author: { "@type": "Person", name: "Equipe" },
+      author: { "@type": "Organization", name: "Equipe" },
       url: `${base}/guias/como-medir`,
     });
     expect(articleJsonLd({ ...guia, author: " " }, base)).toBeNull();

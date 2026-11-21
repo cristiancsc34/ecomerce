@@ -294,7 +294,12 @@ export type ArticleInput = {
   dateModified: string;
 };
 
-/** schema.org/Article de um guia publicado (só com artigo real: autor e datas obrigatórios). */
+/**
+ * schema.org/Article de um guia publicado (só com artigo real: autor e datas
+ * obrigatórios). Os guias são assinados pela equipe da loja, então o autor é
+ * uma Organization; se um dia um guia for assinado por uma pessoa, acrescentar
+ * o tipo do autor ao guia.
+ */
 export function articleJsonLd(article: ArticleInput, baseUrl: string): Record<string, unknown> | null {
   if (!article.author.trim() || !article.datePublished || !article.dateModified) return null;
   const url = `${baseUrl}/guias/${article.slug}`;
@@ -304,11 +309,13 @@ export function articleJsonLd(article: ArticleInput, baseUrl: string): Record<st
     headline: article.title,
     description: article.description,
     inLanguage: "pt-BR",
-    author: { "@type": "Person", name: article.author },
+    author: { "@type": "Organization", name: article.author },
     datePublished: article.datePublished,
     dateModified: article.dateModified,
     mainEntityOfPage: url,
     url,
-    publisher: { "@id": `${baseUrl}/#loja` },
+    // A OnlineStore completa só sai na home; aqui vai o essencial para o guia
+    // se sustentar sozinho, com o mesmo @id.
+    publisher: { "@type": "OnlineStore", "@id": `${baseUrl}/#loja`, name: brand.name, url: `${baseUrl}/` },
   };
 }

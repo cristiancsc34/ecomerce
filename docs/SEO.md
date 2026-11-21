@@ -150,6 +150,9 @@ demonstração: LCP ~0,85 s, CLS 0, INP ~40 ms — dentro do “bom” do Google
 - **Dados para o Google**: <https://search.google.com/test/rich-results>. A prévia da Vercel é protegida, então copie o
   código-fonte da página e use a aba **Código**. Home: Organização e caixa de busca; categoria e produto: navegação
   estrutural. Produto com preço mostra Product/Offer só com a trava aberta. Alternativa: <https://validator.schema.org>.
+  Sem acesso à prévia, cole um dos arquivos de `docs/jsonld/` (home, trilha da ficha e guia): é o JSON-LD exato que as
+  páginas emitem em produção, conferido pelo teste `tests/unit/seo-jsonld-docs.test.ts`. Mudou o JSON-LD no código?
+  Regere com `npx vitest run tests/unit/seo-jsonld-docs.test.ts -u`.
 - **Velocidade**: Chrome → F12 → **Lighthouse** → Celular, na home e numa página de produto. Antes do lançamento, o
   aviso "A página está bloqueada para indexação" é esperado.
 
