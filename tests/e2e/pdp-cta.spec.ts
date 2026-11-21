@@ -21,7 +21,14 @@ test.beforeAll(async () => {
     logLevel: "error",
     appType: "custom",
     server: { middlewareMode: true, hmr: false, ws: false },
-    resolve: { alias: [{ find: /^@\//, replacement: root }] },
+    resolve: {
+      alias: [
+        { find: /^@\//, replacement: root },
+        // Sem arquivos internos do Next (CommonJS): no CI o Vite os executava como ESM e quebrava.
+        { find: /^next\/link$/, replacement: `${root}tests/e2e/apoio/next-link.ts` },
+        { find: /^next\/navigation$/, replacement: `${root}tests/e2e/apoio/next-navigation.ts` },
+      ],
+    },
   });
   try {
     const mod = await server.ssrLoadModule("/tests/e2e/helpers/painel-com-preco.ts");
