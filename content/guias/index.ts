@@ -5,8 +5,8 @@ import { SIZE_INFO, type SizeKey } from "@/lib/catalog/types";
  * 20/11/2026 para as buscas de colchão, sofá, estofado e poltrona no Paraná).
  *
  * Regras: só dica geral e verdadeira (como medir, como escolher, como cuidar)
- * e o que a loja de fato tem hoje (fotos de todos os ângulos, 3D e "Ver no
- * seu ambiente", políticas publicadas). Nada de frete, prazo, lista de
+ * e o que a loja de fato tem hoje (3D e "Ver no seu ambiente" nos produtos
+ * com o selo, políticas publicadas). Nada de frete, prazo, lista de
  * cidades (ainda não aprovada, issue #28), preço, avaliação, garantia, número
  * de vendas, "o melhor" nem travessão. Dado de produto (medida, material,
  * firmeza) fica na página do produto.
@@ -96,7 +96,7 @@ export const GUIAS: readonly Guia[] = [
     slug: "comprar-colchao-online-no-parana",
     title: "Comprar colchão online no Paraná: o que conferir",
     description:
-      "Checklist para comprar colchão pela internet no Paraná: medidas, informações do modelo, fotos, cidades de entrega e política de trocas.",
+      "Checklist para comprar colchão pela internet no Paraná: medidas, informações do modelo, fotos, entrega no seu endereço e política de trocas.",
     categorySlug: "colchoes",
     author: AUTOR,
     datePublished: DATA,
@@ -120,7 +120,7 @@ export const GUIAS: readonly Guia[] = [
       {
         heading: "3. Fotos de todos os ângulos",
         paragraphs: [
-          "Fotos de frente, de lado e de costas ajudam a ver o acabamento e a altura do colchão. Na AzConfort, as fotos de catálogo mostram cada peça sempre nos mesmos ângulos.",
+          "Fotos de frente, de lado e de costas ajudam a ver o acabamento e a altura do colchão. Antes de comprar, veja todas as fotos na página do produto.",
         ],
       },
       {

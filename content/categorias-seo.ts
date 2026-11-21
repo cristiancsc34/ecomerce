@@ -71,7 +71,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
       },
       {
         question: "Posso ver o sofá de todos os lados?",
-        answer: "Sim. As fotos de catálogo mostram frente, três-quartos, lateral e costas, e nos modelos com o selo 3D você gira a peça na tela.",
+        answer: "Veja todas as fotos na página do produto. Nos modelos com o selo 3D, você também gira a peça na tela para ver todos os lados.",
       },
       {
         question: "Onde vejo o tecido e as medidas?",
@@ -144,7 +144,7 @@ export const CATEGORY_SEO: Record<string, CategorySeo> = {
       },
       {
         question: "Posso ver a cadeira de todos os lados?",
-        answer: "Sim. As fotos de catálogo mostram frente, três-quartos, lateral e costas.",
+        answer: "Veja todas as fotos na página do produto; nos modelos com o selo 3D, dá para girar a cadeira na tela.",
       },
       {
         question: "Onde vejo o material e o acabamento?",
